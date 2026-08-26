@@ -37,12 +37,19 @@ final class BambuMQTTSource {
         }
     }
 
-    /// A certificate failure deserves a pointer to the escape hatch.
+    /// Failures the user can actually act on deserve a pointer to the fix.
     private static func describe(_ error: Error, host: String) -> String {
         let text = "\(error)".lowercased()
         if text.contains("certificat") || text.contains("handshake") {
             return "TLS failure — \(host) did not present a Bambu device certificate "
                 + "(set BAMBU_TLS_INSECURE=1 to skip verification)"
+        }
+        if text.contains("connection") || text.contains("refused")
+            || text.contains("timeout") || text.contains("unreachable") {
+            // macOS gates LAN access per app: a freshly installed app cannot
+            // reach the printer until Local Network permission is granted.
+            return "Can't reach \(host) — check the printer is on, and that this app is "
+                + "enabled in System Settings > Privacy & Security > Local Network"
         }
         return "Offline: \(error.localizedDescription)"
     }

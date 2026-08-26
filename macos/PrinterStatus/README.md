@@ -27,11 +27,28 @@ hostname checks are off because the certificate names the printer's serial,
 not its IP. Set `BAMBU_TLS_INSECURE=1` to skip verification (e.g. for a
 non-Bambu test broker).
 
-## Standalone app
+## Install as a Mac app
 
 ```
-./make_app.sh    # -> ../PrinterStatus.app (ad-hoc signed, gitignored)
+./install.sh
 ```
+
+Builds a release bundle, installs it to `/Applications` (falling back to
+`~/Applications`), and registers it with Spotlight — after that just
+cmd-space and type "Printer Status". Use `./install.sh --local` to build the
+bundle into `macos/` without installing.
+
+On first launch macOS asks whether the app may find devices on the local
+network — answer **Allow**, or it can't reach the printer. (It's granted per
+app, which is why running from the terminal never asked.) You can change it
+later in System Settings > Privacy & Security > Local Network.
+
+Because the installed app lives outside the repo, it can't find `cad/.env`
+by walking up from its own location. The installer writes
+`~/Library/Application Support/PrinterStatus/config.env` containing a
+`BAMBU_ENV_FILE=` line pointing at the repo's `cad/.env`, so the credentials
+still live in exactly one place. Put the three `BAMBU_*` values directly in
+that config file instead if you'd rather not depend on the repo.
 
 ## Headless checks (used by tooling)
 
