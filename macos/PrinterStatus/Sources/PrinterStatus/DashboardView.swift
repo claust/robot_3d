@@ -267,6 +267,7 @@ struct DashboardView: View {
                     }
                 } label: {
                     Image(systemName: "paintpalette")
+                        .accessibilityLabel("Temperature display style")
                 }
                 .menuStyle(.borderlessButton)
                 .fixedSize()

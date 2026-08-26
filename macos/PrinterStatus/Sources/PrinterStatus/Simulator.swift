@@ -7,6 +7,7 @@ final class SimulatedSource {
     var onReport: (([String: Any]) -> Void)?
 
     func start() {
+        stop()  // idempotent: never run two simulation loops
         task = Task { [weak self] in
             var tick = 0
             while !Task.isCancelled {

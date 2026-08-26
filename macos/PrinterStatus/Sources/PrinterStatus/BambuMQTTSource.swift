@@ -22,6 +22,7 @@ final class BambuMQTTSource {
     }
 
     func start() {
+        stop()  // idempotent: never run two session loops
         task = Task.detached { [weak self] in
             while let self, !Task.isCancelled {
                 do {

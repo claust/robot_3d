@@ -33,11 +33,13 @@ struct PrinterConfig {
         guard let text = try? String(contentsOf: envFile, encoding: .utf8) else { return nil }
         var values: [String: String] = [:]
         for line in text.split(separator: "\n") {
-            let trimmed = line.trimmingCharacters(in: .whitespaces)
+            // trim newline characters too — the file may have CRLF endings
+            let trimmed = line.trimmingCharacters(in: .whitespacesAndNewlines)
             guard !trimmed.hasPrefix("#"), let eq = trimmed.firstIndex(of: "=") else { continue }
-            let key = String(trimmed[..<eq])
+            let key = String(trimmed[..<eq]).trimmingCharacters(in: .whitespaces)
             var value = String(trimmed[trimmed.index(after: eq)...])
-            value = value.trimmingCharacters(in: CharacterSet(charactersIn: "\"' "))
+            value = value.trimmingCharacters(
+                in: CharacterSet(charactersIn: "\"'").union(.whitespacesAndNewlines))
             values[key] = value
         }
         guard let ip = values["BAMBU_PRINTER_IP"],

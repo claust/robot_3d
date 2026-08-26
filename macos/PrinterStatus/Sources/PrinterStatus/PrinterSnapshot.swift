@@ -59,6 +59,7 @@ struct PrinterSnapshot: Equatable {
 
     var isPrinting: Bool { ["RUNNING", "PREPARE", "PAUSE", "SLICING"].contains(gcodeState) }
 
+
     var speedLevelName: String {
         switch speedLevel {
         case 1: return "Silent"
@@ -67,13 +68,6 @@ struct PrinterSnapshot: Equatable {
         case 4: return "Ludicrous"
         default: return "—"
         }
-    }
-
-    static func == (lhs: PrinterSnapshot, rhs: PrinterSnapshot) -> Bool {
-        lhs.gcodeState == rhs.gcodeState && lhs.percent == rhs.percent
-            && lhs.layer == rhs.layer && lhs.nozzles == rhs.nozzles
-            && lhs.bedCurrent == rhs.bedCurrent && lhs.chamberCurrent == rhs.chamberCurrent
-            && lhs.trays == rhs.trays && lhs.alerts.map(\.code) == rhs.alerts.map(\.code)
     }
 }
 
