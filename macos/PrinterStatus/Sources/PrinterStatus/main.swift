@@ -72,7 +72,10 @@ func renderSnapshot(to path: String, style: TempVisualStyle? = nil) async {
         exit(1)
     }
     CGImageDestinationAddImage(dest, cgImage, nil)
-    CGImageDestinationFinalize(dest)
+    guard CGImageDestinationFinalize(dest) else {
+        print("Failed to write \(path)")
+        exit(1)
+    }
     print("Wrote \(path)")
     exit(0)
 }

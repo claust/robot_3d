@@ -172,7 +172,9 @@ struct DashboardView: View {
                 VStack(spacing: 3) {
                     ZStack {
                         Circle()
-                            .fill(color(fromRGBA: tray.colorHex))
+                            .fill(tray.isEmpty
+                                ? AnyShapeStyle(Color(nsColor: .quaternarySystemFill))
+                                : AnyShapeStyle(color(fromRGBA: tray.colorHex)))
                             .frame(width: 22, height: 22)
                             .overlay(Circle().strokeBorder(.quaternary, lineWidth: 1))
                         if activeSlots.contains(tray.id) {
