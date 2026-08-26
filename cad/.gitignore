@@ -1,0 +1,12 @@
+.env
+.venv/
+__pycache__/
+# generated CAD/print outputs — regenerable from the scripts
+*.stl
+*.step
+*.png
+*.gcode
+*.gcode.3mf
+profiles_resolved/
+printer_state_dump.json
+result.json

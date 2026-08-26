@@ -1,0 +1,34 @@
+# robot_3d
+
+3D-printed robot platform. Parametric CAD in Python (build123d), printed on a
+Bambu Lab X2D over LAN. All code lives in `cad/`, a uv project — run
+everything with `uv run` from inside `cad/`.
+
+## Modeling
+
+- `demo_01/washer.py <outer_diameter_mm>` — example parametric part; exports STL + STEP.
+- `demo_01/render.py <model.stl>` — renders iso/top/front PNGs for visual verification.
+  Always render and check before slicing.
+
+## Printing (print_pipeline.py)
+
+```
+uv run print_pipeline.py slice <model.stl>     # -> <model>.gcode.3mf
+uv run print_pipeline.py verify <file.gcode.3mf>  # pre-flight checks + toolpath PNG
+uv run print_pipeline.py upload <file.gcode.3mf>  # FTPS to printer USB stick
+uv run print_pipeline.py print <file.gcode.3mf> --ams-slot N  # MQTT start
+uv run print_pipeline.py status
+```
+
+- Credentials come from `cad/.env` (gitignored; see `.env.example`). Never commit it.
+- `print` auto-verifies and refuses failing files. Always get the user's explicit
+  go-ahead before starting a physical print.
+- `BED_TYPE` in print_pipeline.py must match the plate on the bed (X2D checks optically).
+- AMS slots are 0-indexed: 0=black, 1=white, 2=dark blue, 3=green (PLA Basic).
+- Slicing resolves Bambu profile inheritance locally — the Bambu Studio CLI does
+  not, which silently drops the AMS load gcode and causes air prints.
+
+## Conventions
+
+- Generated outputs (STL, STEP, PNG, gcode) are gitignored; commit only source.
+- New experiments go in `cad/demo_NN/` folders sharing the root uv environment.
