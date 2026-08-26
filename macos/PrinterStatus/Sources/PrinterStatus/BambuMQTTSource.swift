@@ -9,7 +9,6 @@ import NIOTransportServices
 /// delivers each `print` report dictionary. Reconnects forever until stopped.
 final class BambuMQTTSource {
     private let config: PrinterConfig
-    private var client: MQTTClient?
     private var task: Task<Void, Never>?
 
     /// Called with every incoming `print` report (raw dictionary).
@@ -48,27 +47,18 @@ final class BambuMQTTSource {
         return "Offline: \(error.localizedDescription)"
     }
 
+    /// Cancellation propagates into runSession's sleeps immediately; its
+    /// defer owns the client shutdown, so there is a single shutdown path
+    /// and nothing here can block the caller's thread.
     func stop() {
         task?.cancel()
         task = nil
-        if let client {
-            self.client = nil
-            // off the caller's thread — stop() is reached from the main
-            // actor when switching Live/Simulate, and shutdown can block
-            DispatchQueue.global().async {
-                try? client.syncShutdownGracefully()
-            }
-        }
     }
 
     private func runSession() async throws {
         onStatus?("Connecting to \(config.ip)…", false)
         let client = try makeClient()
-        self.client = client
-        defer {
-            try? client.syncShutdownGracefully()
-            self.client = nil
-        }
+        defer { try? client.syncShutdownGracefully() }
 
         try await client.connect()
         onStatus?("Connected", true)
