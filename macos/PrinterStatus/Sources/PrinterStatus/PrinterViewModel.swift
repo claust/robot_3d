@@ -49,7 +49,7 @@ final class PrinterViewModel: ObservableObject {
             sim = source
         case .live:
             guard let config else {
-                connectionText = "No credentials (cad/.env not found)"
+                connectionText = "No credentials (set BAMBU_* env vars or cad/.env)"
                 isConnected = false
                 return
             }

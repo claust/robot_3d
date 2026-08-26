@@ -8,7 +8,9 @@ final class SimulatedSource {
 
     func start() {
         stop()  // idempotent: never run two simulation loops
-        task = Task { [weak self] in
+        // detached: don't inherit the caller's (Main)actor — onReport hops
+        // back to the main actor itself
+        task = Task.detached { [weak self] in
             var tick = 0
             while !Task.isCancelled {
                 self?.onReport?(SimulatedSource.report(tick: tick))

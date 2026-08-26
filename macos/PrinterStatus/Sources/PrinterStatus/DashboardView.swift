@@ -56,7 +56,9 @@ struct DashboardView: View {
                 .pickerStyle(.segmented)
                 .frame(width: 150)
                 .disabled(!model.hasCredentials)
-                .help(model.hasCredentials ? "Data source" : "cad/.env not found — simulation only")
+                .help(model.hasCredentials
+                    ? "Data source"
+                    : "No credentials (BAMBU_* env vars or cad/.env) — simulation only")
             }
             if !model.snapshot.jobName.isEmpty && model.snapshot.gcodeState != "IDLE" {
                 Text(model.snapshot.jobName)
