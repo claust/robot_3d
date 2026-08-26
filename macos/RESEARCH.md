@@ -6,8 +6,11 @@ community docs (OpenBambuAPI, ha-bambulab/pybambu).
 
 ## Transport
 
-- MQTT over TLS on port 8883, self-signed cert, user `bblp` + LAN access code
-  (same credentials as `cad/.env`).
+- MQTT over TLS on port 8883, user `bblp` + LAN access code (same credentials
+  as `cad/.env`). The printer's certificate is not publicly trusted: it
+  chains to Bambu's own device CA (root shipped with Bambu Studio, vendored
+  in `PrinterStatus/Sources/PrinterStatus/BambuTrust.swift`), and names the
+  printer's serial rather than its IP.
 - Subscribe to `device/<SERIAL>/report`. After one
   `{"pushing": {"command": "pushall"}}` request the X2D pushes a **full ~99-key
   report about once per second while printing** — no polling loop needed.

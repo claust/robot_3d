@@ -224,8 +224,10 @@ extension PrinterSnapshot {
     }
 }
 
-/// Deep-merge an incoming report into an accumulated state dictionary.
-/// The X2D usually sends full reports, but delta pushes merge correctly too.
+/// Merge an incoming report into an accumulated state dictionary.
+/// Nested dictionaries merge recursively; everything else — arrays (e.g.
+/// AMS trays) included — is replaced wholesale, and keys absent from the
+/// incoming report are kept. The X2D usually sends full reports anyway.
 func deepMerge(_ base: inout [String: Any], _ incoming: [String: Any]) {
     for (key, value) in incoming {
         if var baseDict = base[key] as? [String: Any],

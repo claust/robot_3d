@@ -52,9 +52,13 @@ final class BambuMQTTSource {
         task?.cancel()
         task = nil
         if let client {
-            try? client.syncShutdownGracefully()
+            self.client = nil
+            // off the caller's thread — stop() is reached from the main
+            // actor when switching Live/Simulate, and shutdown can block
+            DispatchQueue.global().async {
+                try? client.syncShutdownGracefully()
+            }
         }
-        client = nil
     }
 
     private func runSession() async throws {
