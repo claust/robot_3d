@@ -32,6 +32,16 @@ uv run print_pipeline.py status
 - Slicing resolves Bambu profile inheritance locally — the Bambu Studio CLI does
   not, which silently drops the AMS load gcode and causes air prints.
 
+## macOS status app (macos/PrinterStatus)
+
+Swift Package (SwiftUI + MQTTNIO) showing live printer status in a small
+window — read-only, never sends print commands. From `macos/PrinterStatus`:
+`swift run PrinterStatus` (live), `--simulate` (fake data), `--dump`
+(headless status to stdout), `--snapshot out.png` (render UI to PNG for
+verification). `./make_app.sh` builds `macos/PrinterStatus.app`. Protocol
+notes in `macos/RESEARCH.md`. Credentials resolve from BAMBU_* env vars or
+by walking up to `cad/.env`.
+
 ## Conventions
 
 - Generated outputs (STL, STEP, PNG, gcode) are gitignored; commit only source.
