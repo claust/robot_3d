@@ -7,13 +7,13 @@ never hand-computed.
 
 Parts (all print supportless, flat side down):
 - three spur gears (bore = post diameter + 2 x 0.2 mm calibrated running fit)
-- frame: an open ladder — two side rails spanning only between the outer
-  hubs (the smallest and largest gear overhang the ends and can be rolled
-  with a thumb), a low spine plus cross arms running from the rails in under
-  the gears (1 mm below the gear faces), and a friction boss + slotted snap
-  post at each gear center. The post lips click a pressed-on gear in place
-  while letting it spin; the gears stay fully visible and touchable from the
-  top, the sides and both ends.
+- frame: a narrow open ladder — two side rails spanning only between the
+  outer hubs, deliberately narrower than the large gears so the gear rims
+  overhang the rails on both sides and the ends and can be rolled with a
+  thumb anywhere. The whole ladder (rails, spine, cross arms) sits 1 mm
+  below the gear faces; a friction boss + slotted snap post at each gear
+  center clicks a pressed-on gear in place while letting it spin. The gears
+  hover above the frame, touchable from the top, the sides and both ends.
 
 Run with:  uv run gearbox.py [module] [z1] [z2] [z3] [face_width]
 Exports per-part STL/STEP plus assembly and section STLs for rendering.
@@ -49,15 +49,15 @@ LAYER_HEIGHT = 0.2
 # ---- frame / post geometry -------------------------------------------------
 POST_D = 5.0
 BORE_D = POST_D + 2 * RUN_CLEARANCE  # 5.4
+FRAME_W = 20.0  # overall ladder width; the big gears overhang the sides
 RAIL_W = 4.0  # side rail cross-section
-RAIL_H = 4.0
+RAIL_H = 3.0  # rails run under the overhanging gear rims -> same as arms
 ARM_W = 4.0  # spine + cross arms under the gears
 ARM_H = 3.0
 BOSS_D = 8.0  # friction pad under each gear, < smallest root diameter
 BOSS_H = 1.0
 GEAR_Z0 = ARM_H + BOSS_H  # 4.0, gear bottom face
 AXIAL_PLAY = 0.3  # gear axial float between boss and lip
-TIP_GAP = 1.5  # gear tip to rail inner face
 
 # snap lip on the post: gear bore (r 2.7) clicks over it and is retained
 LIP_PROTRUDE = 0.35  # radial beyond post surface -> lip r 2.85
@@ -130,13 +130,14 @@ def build(module=MODULE, teeth=TEETH, face_width=FACE_WIDTH) -> Gearbox:
     post_top = lip_land_z1 + (lip_r - LIP_TOP_R)  # 45 deg top lead-in
 
     # rails run only between the outer hubs, flush with their cross arms,
-    # so the first and last gear overhang the open ends
+    # so the first and last gear overhang the open ends; the ladder is
+    # narrower than the large gears, whose rims pass 1 mm above the rails
     rx0 = centers[0][0] - ARM_W / 2
     rx1 = centers[-1][0] + ARM_W / 2
-    iy1 = max(abs(c[1]) + r for c, r in zip(centers, tip_radii)) + TIP_GAP
-    iy0 = -iy1
+    oy1 = FRAME_W / 2
+    oy0 = -oy1
+    iy0, iy1 = oy0 + RAIL_W, oy1 - RAIL_W
     ox0, ox1 = rx0, rx1
-    oy0, oy1 = iy0 - RAIL_W, iy1 + RAIL_W
 
     gb.gears = [p.translate((0, 0, GEAR_Z0)) for p in gear_parts]
 
