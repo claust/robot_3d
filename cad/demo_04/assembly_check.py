@@ -1,15 +1,16 @@
-"""Automated PASS/FAIL design checks for the demo_04 gearbox, in the spirit
-of print_pipeline.py verify — run BEFORE slicing anything.
+"""Automated PASS/FAIL design checks for the demo_04 gear-train frame, in
+the spirit of print_pipeline.py verify — run BEFORE slicing anything.
 
 Checks:
 - interference: boolean-intersect every part pair in assembled position
-  (must be zero); snap features are additionally checked in their transient
-  press-over position, where the intersection must equal the intended
-  interference (nonzero, bounded)
+  (must be zero); the post snap lips are additionally checked in their
+  transient press-over position, where the intersection must equal the
+  intended interference (nonzero, bounded)
 - clearance report: minimum distances asserted against calibrated values
 - gear mesh sweep: rotates the train through one full tooth cycle asserting
   zero intersection at every step
-- snap-arm strain: cantilever formula strain = 1.5*t*y/L^2 under 1.5% (PLA)
+- snap strain: cantilever formula strain = 1.5*t*y/L^2 under 1.5% (PLA)
+  on every snap feature (the slotted post halves)
 - sliceability: min walls, snap lip heights, and a mesh overhang scan of
   every print-oriented STL (all faces <= 45 degrees or on the bed)
 
@@ -62,19 +63,15 @@ def main():
         ("gear1-gear2", g1, g2),
         ("gear2-gear3", g2, g3),
         ("gear1-gear3", g1, g3),
-        ("gear1-base", g1, gb.base),
-        ("gear2-base", g2, gb.base),
-        ("gear3-base", g3, gb.base),
-        ("gear1-lid", g1, gb.lid),
-        ("gear2-lid", g2, gb.lid),
-        ("gear3-lid", g3, gb.lid),
-        ("base-lid", gb.base, gb.lid),
+        ("gear1-frame", g1, gb.frame),
+        ("gear2-frame", g2, gb.frame),
+        ("gear3-frame", g3, gb.frame),
     ]
     for name, a, b in pairs:
         v = ivol(a, b)
         check(f"interference {name}", v < 1e-4, f"intersection {v:.6f} mm^3")
 
-    print("\n-- snap interference (transient press-over positions) --")
+    print("\n-- snap interference (transient press-over position) --")
     lip_int = d["lip_interference"]
     check(
         "post lip radial interference",
@@ -85,27 +82,14 @@ def main():
     # slide gear1 up so its bore band sits over the lip land: intersection
     # must be exactly the lip material inside the bore path, not more
     transient = g1.translate((0, 0, d["lip_land_z1"] - gearbox.GEAR_Z0 - 3))
-    v = ivol(transient, gb.base)
+    v = ivol(transient, gb.frame)
     check(
         "post lip press-over volume",
         0.3 < v < 3.0,
         f"gear-over-lip intersection {v:.3f} mm^3 (expected ~1.2)",
     )
-    arm_defl = d["arm_deflection"]
-    check(
-        "snap bump engagement",
-        0.3 <= arm_defl <= 0.6,
-        f"bump protrudes {arm_defl:.2f} mm past arm inner face",
-    )
-    lifted = gb.lid.translate((0, 0, 1.0))
-    v = ivol(lifted, gb.base)
-    check(
-        "snap arm press-over volume",
-        0.2 < v < 20.0,
-        f"lid lifted 1 mm: bump/arm intersection {v:.3f} mm^3 over 4 arms",
-    )
 
-    print("\n-- clearance report (calibrated: 0.2 running, 0.10-0.15 static) --")
+    print("\n-- clearance report (calibrated: 0.2 mm running fit) --")
     for i, (gear, probe) in enumerate(zip(gb.gears, gb.post_probes), 1):
         dist = gear.distance_to(probe)
         check(
@@ -114,20 +98,13 @@ def main():
             f"{dist:.3f} mm radial (calibrated {gearbox.RUN_CLEARANCE} mm)",
         )
     for i, gear in enumerate(gb.gears, 1):
-        dist = gear.distance_to(gb.wall_probe)
-        check(f"gear{i} tip-to-wall", dist >= 1.0, f"{dist:.2f} mm (>= 1.0)")
-    for i, gear in enumerate(gb.gears, 1):
-        dist = gear.distance_to(gb.lid)
-        check(f"gear{i}-to-lid distance", dist >= 1.0, f"{dist:.2f} mm (>= 1.0)")
-    headroom = d["ceil_z"] - d["gear_top"]
-    check("gear top to lid ceiling", headroom >= 1.5, f"{headroom:.2f} mm (>= 1.5)")
-    post_clear = d["ceil_z"] - d["post_top"]
-    check("post tip to lid ceiling", post_clear >= 0.5, f"{post_clear:.2f} mm (>= 0.5)")
-    static = gearbox.SNAP_CLEARANCE
+        dist = gear.distance_to(gb.ring_probe)
+        check(f"gear{i} tip-to-ring", dist >= 1.0, f"{dist:.2f} mm (>= 1.0)")
+    arm_gap = d["arm_under_gear"]
     check(
-        "static fit clearances (lid lip, arm gap)",
-        0.10 <= static <= 0.15,
-        f"{static:.2f} mm radial per side (calibrated 0.10-0.15)",
+        "gear faces to frame arms",
+        arm_gap >= 0.5,
+        f"{arm_gap:.2f} mm vertical gap (>= 0.5)",
     )
     d12 = g1.distance_to(g2)
     d23 = g2.distance_to(g3)
@@ -159,43 +136,33 @@ def main():
     )
 
     print("\n-- snap strain (cantilever: strain = 1.5*t*y/L^2, PLA limit 1.5%) --")
-    for name, t, y, L in [
-        ("post slit halves", d["lip_flex_t"], d["lip_interference"],
-         d["lip_deflection_len"]),
-        ("lid snap arms", d["arm_flex_t"], d["arm_deflection"], d["arm_flex_len"]),
-    ]:
-        strain = 1.5 * t * y / L**2 * 100
-        check(
-            f"strain {name}",
-            strain < 1.5,
-            f"t={t:.2f} y={y:.2f} L={L:.1f} -> {strain:.2f}% (< 1.5%)",
-        )
+    t, y, L = d["lip_flex_t"], d["lip_interference"], d["lip_deflection_len"]
+    strain = 1.5 * t * y / L**2 * 100
+    check(
+        "strain post slit halves",
+        strain < 1.5,
+        f"t={t:.2f} y={y:.2f} L={L:.1f} -> {strain:.2f}% (< 1.5%)",
+    )
 
     print("\n-- sliceability --")
     two_layers = 2 * gearbox.LAYER_HEIGHT
     for name, t in [
-        ("perimeter wall", gearbox.WALL_T),
-        ("snap arm", gearbox.ARM_T),
-        ("lid plate", gearbox.LID_T),
-        ("lid locating lip", gearbox.LID_LIP_T),
-        ("base plate", gearbox.BASE_T),
+        ("perimeter ring", gearbox.RING_W),
+        ("spine / cross arms", gearbox.ARM_W),
+        ("post at slit", (gearbox.POST_D - gearbox.SLIT_W) / 2),
         ("gear bore rim", gb.gears_pgw[0].dedendum_radius - d["bore_r"]),
     ]:
         check(f"min wall {name}", t >= 0.8, f"{t:.2f} mm (>= 0.8)")
     lip_h = d["post_top"] - d["lip_z0"]
-    bump_h = gearbox.BUMP_TOP_Z - d["bump_cham_z"]
     check("post snap lip height", lip_h >= two_layers, f"{lip_h:.2f} mm (>= 0.4)")
-    check("wall snap bump height", bump_h >= two_layers, f"{bump_h:.2f} mm (>= 0.4)")
 
     here = Path(__file__).parent
-    lid_print = gearbox.lid_print_orientation(gb)
-    export_stl(lid_print, here / "lid.stl")
-    export_stl(gb.base, here / "base.stl")
+    export_stl(gb.frame, here / "frame.stl")
     for z, (cx, cy), part in zip(gb.teeth, gb.centers, gb.gears):
         export_stl(
             part.translate((-cx, -cy, -gearbox.GEAR_Z0)), here / f"gear_z{z}.stl"
         )
-    for stl in ["base.stl", "lid.stl"] + [f"gear_z{z}.stl" for z in gb.teeth]:
+    for stl in ["frame.stl"] + [f"gear_z{z}.stl" for z in gb.teeth]:
         area = overhang_area(here / stl)
         check(
             f"overhangs {stl}",
