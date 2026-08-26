@@ -98,8 +98,8 @@ def main():
             f"{dist:.3f} mm radial (calibrated {gearbox.RUN_CLEARANCE} mm)",
         )
     for i, gear in enumerate(gb.gears, 1):
-        dist = gear.distance_to(gb.ring_probe)
-        check(f"gear{i} tip-to-ring", dist >= 1.0, f"{dist:.2f} mm (>= 1.0)")
+        dist = gear.distance_to(gb.rail_probe)
+        check(f"gear{i} tip-to-rail", dist >= 1.0, f"{dist:.2f} mm (>= 1.0)")
     arm_gap = d["arm_under_gear"]
     check(
         "gear faces to frame arms",
@@ -147,7 +147,7 @@ def main():
     print("\n-- sliceability --")
     two_layers = 2 * gearbox.LAYER_HEIGHT
     for name, t in [
-        ("perimeter ring", gearbox.RING_W),
+        ("side rails", gearbox.RAIL_W),
         ("spine / cross arms", gearbox.ARM_W),
         ("post at slit", (gearbox.POST_D - gearbox.SLIT_W) / 2),
         ("gear bore rim", gb.gears_pgw[0].dedendum_radius - d["bore_r"]),

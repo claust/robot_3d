@@ -7,11 +7,13 @@ never hand-computed.
 
 Parts (all print supportless, flat side down):
 - three spur gears (bore = post diameter + 2 x 0.2 mm calibrated running fit)
-- frame: a perimeter ring around the gear tips, a low spine plus cross arms
-  running from the ring edges in under the gears (1 mm below the gear faces),
-  and a friction boss + slotted snap post at each gear center. The post lips
-  click a pressed-on gear in place while letting it spin; the gears stay
-  fully visible and touchable from the top and sides.
+- frame: an open ladder — two side rails spanning only between the outer
+  hubs (the smallest and largest gear overhang the ends and can be rolled
+  with a thumb), a low spine plus cross arms running from the rails in under
+  the gears (1 mm below the gear faces), and a friction boss + slotted snap
+  post at each gear center. The post lips click a pressed-on gear in place
+  while letting it spin; the gears stay fully visible and touchable from the
+  top, the sides and both ends.
 
 Run with:  uv run gearbox.py [module] [z1] [z2] [z3] [face_width]
 Exports per-part STL/STEP plus assembly and section STLs for rendering.
@@ -47,15 +49,15 @@ LAYER_HEIGHT = 0.2
 # ---- frame / post geometry -------------------------------------------------
 POST_D = 5.0
 BORE_D = POST_D + 2 * RUN_CLEARANCE  # 5.4
-RING_W = 4.0  # perimeter ring cross-section
-RING_H = 4.0
+RAIL_W = 4.0  # side rail cross-section
+RAIL_H = 4.0
 ARM_W = 4.0  # spine + cross arms under the gears
 ARM_H = 3.0
 BOSS_D = 8.0  # friction pad under each gear, < smallest root diameter
 BOSS_H = 1.0
 GEAR_Z0 = ARM_H + BOSS_H  # 4.0, gear bottom face
 AXIAL_PLAY = 0.3  # gear axial float between boss and lip
-TIP_GAP = 1.5  # gear tip to ring inner face
+TIP_GAP = 1.5  # gear tip to rail inner face
 
 # snap lip on the post: gear bore (r 2.7) clicks over it and is retained
 LIP_PROTRUDE = 0.35  # radial beyond post surface -> lip r 2.85
@@ -77,7 +79,7 @@ class Gearbox:
     tip_radii: list
     gears: list  # build123d Parts, assembled position (bottom at GEAR_Z0)
     frame: Part = None
-    ring_probe: Part = None  # perimeter ring only, for clearance measurements
+    rail_probe: Part = None  # side rails only, for clearance measurements
     post_probes: list = field(default_factory=list)  # bare post cylinders
     dims: dict = field(default_factory=dict)
 
@@ -127,25 +129,26 @@ def build(module=MODULE, teeth=TEETH, face_width=FACE_WIDTH) -> Gearbox:
     lip_land_z1 = lip_land_z0 + LIP_LAND
     post_top = lip_land_z1 + (lip_r - LIP_TOP_R)  # 45 deg top lead-in
 
-    # ring inner rectangle around the gear tips
-    ix0 = min(c[0] - r for c, r in zip(centers, tip_radii)) - TIP_GAP
-    ix1 = max(c[0] + r for c, r in zip(centers, tip_radii)) + TIP_GAP
+    # rails run only between the outer hubs, flush with their cross arms,
+    # so the first and last gear overhang the open ends
+    rx0 = centers[0][0] - ARM_W / 2
+    rx1 = centers[-1][0] + ARM_W / 2
     iy1 = max(abs(c[1]) + r for c, r in zip(centers, tip_radii)) + TIP_GAP
     iy0 = -iy1
-    ox0, ox1 = ix0 - RING_W, ix1 + RING_W
-    oy0, oy1 = iy0 - RING_W, iy1 + RING_W
+    ox0, ox1 = rx0, rx1
+    oy0, oy1 = iy0 - RAIL_W, iy1 + RAIL_W
 
     gb.gears = [p.translate((0, 0, GEAR_Z0)) for p in gear_parts]
 
     # ---- frame -------------------------------------------------------------
-    ring = rbox(ox0, ox1, oy0, oy1, 0, RING_H) - rbox(
-        ix0, ix1, iy0, iy1, -1, RING_H + 1
+    rails = rbox(rx0, rx1, oy0, iy0, 0, RAIL_H) + rbox(
+        rx0, rx1, iy1, oy1, 0, RAIL_H
     )
-    frame = Part() + ring
+    frame = Part() + rails
     # spine ties the three hubs together (mesh distances stay rigid) and runs
-    # ring-to-ring; a cross arm at each hub spans the other way. All of it
-    # sits ARM_H high: 1 mm below the gear undersides, invisible from above.
-    frame += rbox(ox0, ox1, -ARM_W / 2, ARM_W / 2, 0, ARM_H)
+    # end to end; a cross arm at each hub spans rail to rail. All of it sits
+    # ARM_H high: 1 mm below the gear undersides, invisible from above.
+    frame += rbox(rx0, rx1, -ARM_W / 2, ARM_W / 2, 0, ARM_H)
     bottom = (Align.CENTER, Align.CENTER, Align.MIN)
     for cx, cy in centers:
         frame += rbox(cx - ARM_W / 2, cx + ARM_W / 2, oy0, oy1, 0, ARM_H)
@@ -182,7 +185,7 @@ def build(module=MODULE, teeth=TEETH, face_width=FACE_WIDTH) -> Gearbox:
             POST_D + 2 * LIP_PROTRUDE + 1, SLIT_W, SLIT_DEPTH + 0.2, align=bottom
         ).translate((cx, cy, post_top - SLIT_DEPTH))
     gb.frame = frame
-    gb.ring_probe = ring
+    gb.rail_probe = rails
 
     gb.dims = dict(
         gear_top=gear_top,
@@ -191,7 +194,7 @@ def build(module=MODULE, teeth=TEETH, face_width=FACE_WIDTH) -> Gearbox:
         lip_land_z0=lip_land_z0,
         lip_land_z1=lip_land_z1,
         post_top=post_top,
-        interior=(ix0, ix1, iy0, iy1),
+        interior=(rx0, rx1, iy0, iy1),
         exterior=(ox0, ox1, oy0, oy1),
         bore_r=BORE_D / 2,
         post_r=POST_D / 2,
@@ -229,7 +232,7 @@ if __name__ == "__main__":
     export_stl(assembly, "assembly.stl")
 
     ox0, ox1, oy0, oy1 = gb.dims["exterior"]
-    big = 5
+    big = 20  # sections must cover the gears overhanging the open ends
     sec_posts = assembly & rbox(
         ox0 - big, ox1 + big, 0, oy1 + big, -1, gb.dims["post_top"] + 1
     )
@@ -246,7 +249,8 @@ if __name__ == "__main__":
     print(f"Center distances: "
           f"{gb.centers[1][0] - gb.centers[0][0]:.3f}, "
           f"{gb.centers[2][0] - gb.centers[1][0]:.3f} mm (via mesh_to)")
-    print(f"Frame exterior: {ox1 - ox0:.1f} x {oy1 - oy0:.1f} mm, "
-          f"ring {RING_H:g} mm tall, posts to {d['post_top']:.1f} mm")
+    print(f"Frame rails: {ox1 - ox0:.1f} x {oy1 - oy0:.1f} mm "
+          f"({RAIL_H:g} mm tall), posts to {d['post_top']:.1f} mm; "
+          f"outer gears overhang the open ends")
     print("Exported gears, frame.stl, assembly.stl, "
           "section_posts.stl, section_hub.stl")
