@@ -149,7 +149,8 @@ def main():
     two_layers = 2 * gearbox.LAYER_HEIGHT
     for name, t in [
         ("side rails", gearbox.RAIL_W),
-        ("spine / cross arms", gearbox.ARM_W),
+        ("spine", gearbox.ARM_W),
+        ("cross arms", gearbox.CROSS_W),
         ("post at slit", (gearbox.POST_D - gearbox.SLIT_W) / 2),
         ("gear bore rim", gb.gears_pgw[0].dedendum_radius - d["bore_r"]),
     ]:

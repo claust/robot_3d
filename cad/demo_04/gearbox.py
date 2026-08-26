@@ -31,8 +31,12 @@ from build123d import (
     Cone,
     Cylinder,
     Part,
+    Pos,
+    Rectangle,
     export_step,
     export_stl,
+    extrude,
+    fillet,
 )
 
 # ---- driving parameters ----------------------------------------------------
@@ -51,9 +55,10 @@ POST_D = 5.0
 BORE_D = POST_D + 2 * RUN_CLEARANCE  # 5.4
 FRAME_W = 20.0  # overall ladder width; the big gears overhang the sides
 RAIL_W = 4.0  # side rail cross-section
-RAIL_H = 3.0  # rails run under the overhanging gear rims -> same as arms
-ARM_W = 4.0  # spine + cross arms under the gears
-ARM_H = 3.0
+ARM_W = 4.0  # spine under the gears
+CROSS_W = 8.0  # cross arms; boss diameter, so bosses sit fully supported
+ARM_H = 3.0  # the whole ladder plank is this tall
+FILLET_R = 1.5  # rounded corners on every plan-view edge of the plank
 BOSS_D = 8.0  # friction pad under each gear, < smallest root diameter
 BOSS_H = 1.0
 GEAR_Z0 = ARM_H + BOSS_H  # 4.0, gear bottom face
@@ -132,8 +137,8 @@ def build(module=MODULE, teeth=TEETH, face_width=FACE_WIDTH) -> Gearbox:
     # rails run only between the outer hubs, flush with their cross arms,
     # so the first and last gear overhang the open ends; the ladder is
     # narrower than the large gears, whose rims pass 1 mm above the rails
-    rx0 = centers[0][0] - ARM_W / 2
-    rx1 = centers[-1][0] + ARM_W / 2
+    rx0 = centers[0][0] - CROSS_W / 2
+    rx1 = centers[-1][0] + CROSS_W / 2
     oy1 = FRAME_W / 2
     oy0 = -oy1
     iy0, iy1 = oy0 + RAIL_W, oy1 - RAIL_W
@@ -142,22 +147,27 @@ def build(module=MODULE, teeth=TEETH, face_width=FACE_WIDTH) -> Gearbox:
     gb.gears = [p.translate((0, 0, GEAR_Z0)) for p in gear_parts]
 
     # ---- frame -------------------------------------------------------------
-    rails = rbox(rx0, rx1, oy0, iy0, 0, RAIL_H) + rbox(
-        rx0, rx1, iy1, oy1, 0, RAIL_H
+    # one flat plank: rails + spine + a wide cross arm per hub, drawn as a 2D
+    # outline, every corner rounded, then extruded. It all sits ARM_H high:
+    # 1 mm below the gear undersides. The cross arms are as wide as the boss
+    # so each boss lands fully supported without any pad.
+    def rrect(x0, x1, y0, y1):
+        return Pos((x0 + x1) / 2, (y0 + y1) / 2) * Rectangle(x1 - x0, y1 - y0)
+
+    plan = (
+        rrect(rx0, rx1, oy0, iy0)
+        + rrect(rx0, rx1, iy1, oy1)
+        + rrect(rx0, rx1, -ARM_W / 2, ARM_W / 2)
     )
-    frame = Part() + rails
-    # spine ties the three hubs together (mesh distances stay rigid) and runs
-    # end to end; a cross arm at each hub spans rail to rail. All of it sits
-    # ARM_H high: 1 mm below the gear undersides, invisible from above.
-    frame += rbox(rx0, rx1, -ARM_W / 2, ARM_W / 2, 0, ARM_H)
+    for cx, cy in centers:
+        plan += rrect(cx - CROSS_W / 2, cx + CROSS_W / 2, oy0, oy1)
+    plan = fillet(plan.vertices(), FILLET_R)
+    frame = Part() + extrude(plan, amount=ARM_H)
+    rails = rbox(rx0, rx1, oy0, iy0, 0, ARM_H) + rbox(
+        rx0, rx1, iy1, oy1, 0, ARM_H
+    )
     bottom = (Align.CENTER, Align.CENTER, Align.MIN)
     for cx, cy in centers:
-        frame += rbox(cx - ARM_W / 2, cx + ARM_W / 2, oy0, oy1, 0, ARM_H)
-        # hub pad so the boss underside is fully supported (no overhang)
-        frame += rbox(
-            cx - BOSS_D / 2, cx + BOSS_D / 2, cy - BOSS_D / 2, cy + BOSS_D / 2,
-            0, ARM_H,
-        )
         boss = Cylinder(radius=BOSS_D / 2, height=BOSS_H, align=bottom).translate(
             (cx, cy, ARM_H)
         )
@@ -250,8 +260,8 @@ if __name__ == "__main__":
     print(f"Center distances: "
           f"{gb.centers[1][0] - gb.centers[0][0]:.3f}, "
           f"{gb.centers[2][0] - gb.centers[1][0]:.3f} mm (via mesh_to)")
-    print(f"Frame rails: {ox1 - ox0:.1f} x {oy1 - oy0:.1f} mm "
-          f"({RAIL_H:g} mm tall), posts to {d['post_top']:.1f} mm; "
-          f"outer gears overhang the open ends")
+    print(f"Frame plank: {ox1 - ox0:.1f} x {oy1 - oy0:.1f} mm "
+          f"({ARM_H:g} mm tall, corners r{FILLET_R:g}), posts to "
+          f"{d['post_top']:.1f} mm; outer gears overhang the open ends")
     print("Exported gears, frame.stl, assembly.stl, "
           "section_posts.stl, section_hub.stl")
