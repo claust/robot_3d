@@ -81,14 +81,20 @@ func runDump() {
         print("No credentials: set BAMBU_* env vars or provide cad/.env")
         exit(1)
     }
+    // Reports arrive on the MQTT client's thread while this thread waits,
+    // so all access to the accumulated state goes through a lock.
+    let lock = NSLock()
     var merged: [String: Any] = [:]
     let done = DispatchSemaphore(value: 0)
     let source = BambuMQTTSource(config: config)
     source.onStatus = { text, _ in print("status: \(text)") }
     source.onReport = { report in
+        lock.lock()
         deepMerge(&merged, report)
         // wait until the full pushall (with gcode_state) has arrived
-        if merged["gcode_state"] != nil { done.signal() }
+        let complete = merged["gcode_state"] != nil
+        lock.unlock()
+        if complete { done.signal() }
     }
     source.start()
     if done.wait(timeout: .now() + 20) == .timedOut {
@@ -96,9 +102,12 @@ func runDump() {
         source.stop()
         exit(1)
     }
-    // give a second for a few more deltas, then decode
+    // give a second for a few more deltas, then decode a stable copy
     Thread.sleep(forTimeInterval: 1.5)
-    let snapshot = PrinterSnapshot.decode(from: merged)
+    lock.lock()
+    let stableState = merged
+    lock.unlock()
+    let snapshot = PrinterSnapshot.decode(from: stableState)
     source.stop()
 
     print("state:      \(snapshot.gcodeState)")

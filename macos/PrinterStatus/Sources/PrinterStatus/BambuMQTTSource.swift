@@ -1,6 +1,8 @@
 import Foundation
 import MQTTNIO
 import NIOCore
+import NIOPosix
+import NIOSSL
 import NIOTransportServices
 
 /// Live data source: subscribes to the printer's MQTT report topic and
@@ -25,12 +27,24 @@ final class BambuMQTTSource {
                 do {
                     try await self.runSession()
                 } catch {
-                    self.onStatus?("Offline: \(error.localizedDescription)", false)
+                    guard !Task.isCancelled else { break }
+                    self.onStatus?(Self.describe(error, host: self.config.ip), false)
                 }
                 try? await Task.sleep(for: .seconds(5))
+                guard !Task.isCancelled else { break }
                 self.onStatus?("Reconnecting…", false)
             }
         }
+    }
+
+    /// A certificate failure deserves a pointer to the escape hatch.
+    private static func describe(_ error: Error, host: String) -> String {
+        let text = "\(error)".lowercased()
+        if text.contains("certificat") || text.contains("handshake") {
+            return "TLS failure — \(host) did not present a Bambu device certificate "
+                + "(set BAMBU_TLS_INSECURE=1 to skip verification)"
+        }
+        return "Offline: \(error.localizedDescription)"
     }
 
     func stop() {
@@ -44,20 +58,7 @@ final class BambuMQTTSource {
 
     private func runSession() async throws {
         onStatus?("Connecting to \(config.ip)…", false)
-        let client = MQTTClient(
-            host: config.ip,
-            port: 8883,
-            identifier: "PrinterStatusMac-\(ProcessInfo.processInfo.processIdentifier)",
-            eventLoopGroupProvider: .shared(NIOTSEventLoopGroup.singleton),
-            configuration: .init(
-                version: .v3_1_1,
-                userName: "bblp",
-                password: config.accessCode,
-                useSSL: true,
-                // The printer presents a self-signed certificate.
-                tlsConfiguration: .ts(TSTLSConfiguration(certificateVerification: .none))
-            )
-        )
+        let client = try makeClient()
         self.client = client
         defer {
             try? client.syncShutdownGracefully()
@@ -98,6 +99,49 @@ final class BambuMQTTSource {
                 try await requestPushAll(client)
             }
         }
+    }
+
+    /// The printer's certificate chains to Bambu's device CA (see
+    /// BambuTrust), which is used as the trust root. Hostname verification
+    /// stays off — the certificate names the printer's serial, not its IP —
+    /// but the chain itself must validate. Set BAMBU_TLS_INSECURE=1 to skip
+    /// verification entirely (e.g. for non-Bambu test brokers).
+    private func makeClient() throws -> MQTTClient {
+        let identifier = "PrinterStatusMac-\(ProcessInfo.processInfo.processIdentifier)"
+        if ProcessInfo.processInfo.environment["BAMBU_TLS_INSECURE"] == "1" {
+            return MQTTClient(
+                host: config.ip,
+                port: 8883,
+                identifier: identifier,
+                eventLoopGroupProvider: .shared(NIOTSEventLoopGroup.singleton),
+                configuration: .init(
+                    version: .v3_1_1,
+                    userName: "bblp",
+                    password: config.accessCode,
+                    useSSL: true,
+                    tlsConfiguration: .ts(TSTLSConfiguration(certificateVerification: .none))
+                )
+            )
+        }
+        var tls = TLSConfiguration.makeClientConfiguration()
+        tls.certificateVerification = .noHostnameVerification
+        tls.trustRoots = .certificates(try BambuTrust.trustRoots())
+        return MQTTClient(
+            host: config.ip,
+            port: 8883,
+            identifier: identifier,
+            eventLoopGroupProvider: .shared(MultiThreadedEventLoopGroup.singleton),
+            configuration: .init(
+                version: .v3_1_1,
+                userName: "bblp",
+                password: config.accessCode,
+                useSSL: true,
+                tlsConfiguration: .niossl(tls),
+                // NIOSSL rejects IP literals as SNI names; the printer
+                // ignores SNI, and verification is against the pinned chain.
+                sniServerName: "bambu-printer"
+            )
+        )
     }
 
     private func requestPushAll(_ client: MQTTClient) async throws {

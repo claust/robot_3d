@@ -21,6 +21,12 @@ print pipeline uses: `BAMBU_PRINTER_IP`, `BAMBU_PRINTER_SERIAL`,
 `BAMBU_ACCESS_CODE` from the environment, or found by walking up from the
 working directory to the repo's `cad/.env`.
 
+The TLS connection validates the printer's certificate chain against Bambu's
+public device CA (vendored from Bambu Studio, see `BambuTrust.swift`) —
+hostname checks are off because the certificate names the printer's serial,
+not its IP. Set `BAMBU_TLS_INSECURE=1` to skip verification (e.g. for a
+non-Bambu test broker).
+
 ## Standalone app
 
 ```
