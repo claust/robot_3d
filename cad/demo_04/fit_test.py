@@ -16,7 +16,9 @@ import sys
 
 from build123d import Align, Box, Cylinder, Part, export_step, export_stl
 
-CLEARANCE = 0.3  # mm radial clearance between post and washer bore
+# Calibrated on the X2D in white PLA Basic (2026-08-26): 0.3 mm printed
+# visibly sloppy; 0.2 mm gives a free-moving running fit with slight wobble.
+CLEARANCE = 0.2  # mm radial clearance between post and washer bore
 
 POST_DIAMETER = 5.0  # matches the planned demo_04 gear posts
 POST_HEIGHT = 6.0  # matches the gear face width
