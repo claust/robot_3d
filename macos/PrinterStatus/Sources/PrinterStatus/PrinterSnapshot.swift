@@ -24,7 +24,7 @@ struct PrinterSnapshot: Equatable {
     }
 
     struct HMSAlert: Equatable, Identifiable {
-        let id = UUID()
+        var id: String { code }
         let code: String     // "0300_0100_0001_0007"
         var wikiURL: URL? {
             URL(string: "https://wiki.bambulab.com/en/x1/troubleshooting/hmscode/\(code)")

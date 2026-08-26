@@ -1,5 +1,6 @@
 import AppKit
 import Foundation
+import ImageIO
 import SwiftUI
 
 // `--dump` runs headless: connect, print one decoded snapshot, exit.
