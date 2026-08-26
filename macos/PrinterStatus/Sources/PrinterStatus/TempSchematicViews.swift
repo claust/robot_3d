@@ -143,10 +143,12 @@ struct ChamberSchematicView: View {
                 .shadow(color: darkChamber ? color.opacity(glowAmount(nozzle.current, max: 250)) : .clear,
                         radius: 12)
                 .overlay(alignment: .top) {
-                    Text(nozzle.id == 1 ? "L" : "R")
-                        .font(.caption2.weight(.bold))
-                        .foregroundStyle(.white.opacity(0.9))
-                        .padding(.top, 6)
+                    if nozzles.count > 1 {
+                        Text(nozzle.id == 1 ? "L" : "R")
+                            .font(.caption2.weight(.bold))
+                            .foregroundStyle(.white.opacity(0.9))
+                            .padding(.top, 6)
+                    }
                 }
                 .overlay(alignment: .bottom) {
                     if nozzle.active && nozzle.target > 0 {
@@ -217,23 +219,24 @@ struct IsometricTempView: View {
                         .fill(color.gradient)
                         .frame(width: 36, height: 48)
                         .overlay(alignment: .top) {
-                            Text(nozzle.id == 1 ? "L" : "R")
-                                .font(.caption2.weight(.bold))
-                                .foregroundStyle(.white.opacity(0.9))
-                                .padding(.top, 4)
+                            if nozzles.count > 1 {
+                                Text(nozzle.id == 1 ? "L" : "R")
+                                    .font(.caption2.weight(.bold))
+                                    .foregroundStyle(.white.opacity(0.9))
+                                    .padding(.top, 4)
+                            }
                         }
                         .position(x: nozzleX(index, w), y: h * 0.30)
                 }
 
-                // temperature callouts
-                calloutLabel(title: "Left", current: nozzles.first?.current ?? 0,
-                             target: nozzles.first?.target ?? 0,
-                             active: nozzles.first?.active ?? false)
-                    .position(x: w * 0.13, y: h * 0.22)
-                calloutLabel(title: "Right", current: nozzles.last?.current ?? 0,
-                             target: nozzles.last?.target ?? 0,
-                             active: nozzles.last?.active ?? false)
-                    .position(x: w * 0.85, y: h * 0.22)
+                // temperature callouts — one per actual nozzle
+                ForEach(Array(nozzles.enumerated()), id: \.element.id) { index, nozzle in
+                    calloutLabel(title: nozzles.count > 1 ? nozzle.name : "Nozzle",
+                                 current: nozzle.current,
+                                 target: nozzle.target,
+                                 active: nozzle.active)
+                        .position(x: w * (index == 0 ? 0.13 : 0.85), y: h * 0.22)
+                }
                 calloutLabel(title: "Bed", current: snapshot.bedCurrent,
                              target: snapshot.bedTarget, active: true)
                     .position(x: w * 0.82, y: h * 0.74)
@@ -250,7 +253,8 @@ struct IsometricTempView: View {
     }
 
     private func nozzleX(_ index: Int, _ w: CGFloat) -> CGFloat {
-        w * (index == 0 ? 0.38 : 0.55)
+        if nozzles.count == 1 { return w * 0.46 }
+        return w * (index == 0 ? 0.38 : 0.55)
     }
 
     private func calloutLabel(title: String, current: Double, target: Double,

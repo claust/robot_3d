@@ -18,9 +18,11 @@ if CommandLine.arguments.contains("--dump") {
                 }
                 : nil
         }
-    MainActor.assumeIsolated {
-        renderSnapshot(to: CommandLine.arguments[idx + 1], style: style)
+    let path = CommandLine.arguments[idx + 1]
+    Task { @MainActor in
+        await renderSnapshot(to: path, style: style)
     }
+    RunLoop.main.run()  // renderSnapshot exits the process when done
 } else {
     PrinterStatusApp.main()
 }
@@ -52,10 +54,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 }
 
 @MainActor
-func renderSnapshot(to path: String, style: TempVisualStyle? = nil) {
+func renderSnapshot(to path: String, style: TempVisualStyle? = nil) async {
     let model = PrinterViewModel(forceSimulate: true)
     // let a few simulated reports arrive
-    RunLoop.main.run(until: Date().addingTimeInterval(3))
+    try? await Task.sleep(for: .seconds(3))
     let renderer = ImageRenderer(content: DashboardView(model: model, forcedStyle: style)
         .background(Color(nsColor: .windowBackgroundColor)))
     renderer.scale = 2
