@@ -38,9 +38,10 @@ Swift Package (SwiftUI + MQTTNIO) showing live printer status in a small
 window — read-only, never sends print commands. From `macos/PrinterStatus`:
 `swift run PrinterStatus` (live), `--simulate` (fake data), `--dump`
 (headless status to stdout), `--snapshot out.png` (render UI to PNG for
-verification). `./make_app.sh` builds `macos/PrinterStatus.app`. Protocol
-notes in `macos/RESEARCH.md`. Credentials resolve from BAMBU_* env vars or
-by walking up to `cad/.env`.
+verification). `./install.sh` installs it to /Applications for Spotlight.
+Protocol notes in `macos/RESEARCH.md`. Credentials resolve from BAMBU_* env
+vars, then `~/Library/Application Support/PrinterStatus/config.env` (which
+may hold a `BAMBU_ENV_FILE=` pointer), then `cad/.env` found by walking up.
 
 ## Conventions
 
