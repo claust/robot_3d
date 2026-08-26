@@ -9,6 +9,10 @@ everything with `uv run` from inside `cad/`.
 - `demo_01/washer.py <outer_diameter_mm>` — example parametric part; exports STL + STEP.
 - `demo_01/render.py <model.stl>` — renders iso/top/front PNGs for visual verification.
   Always render and check before slicing.
+- `demo_02/nut.py [size] [clearance_mm]` — printable ISO hex nut (bd_warehouse);
+  also exports a half-section STL to inspect the thread profile.
+- `demo_03/gear.py [module] [teeth] [face_width] [bore]` — involute spur gear
+  (py_gearworks, local editable checkout at ~/Repos/py_gearworks).
 
 ## Printing (print_pipeline.py)
 
