@@ -10,10 +10,9 @@ struct PrinterConfig {
     /// directory (and the executable's location) looking for `cad/.env`.
     static func load() -> PrinterConfig? {
         let env = ProcessInfo.processInfo.environment
-        if let ip = env["BAMBU_PRINTER_IP"],
-           let serial = env["BAMBU_PRINTER_SERIAL"],
-           let code = env["BAMBU_ACCESS_CODE"] {
-            return PrinterConfig(ip: ip, serial: serial, accessCode: code)
+        if let cfg = make(env["BAMBU_PRINTER_IP"], env["BAMBU_PRINTER_SERIAL"],
+                          env["BAMBU_ACCESS_CODE"]) {
+            return cfg
         }
         for start in [FileManager.default.currentDirectoryPath,
                       Bundle.main.bundlePath] {
@@ -42,9 +41,16 @@ struct PrinterConfig {
                 in: CharacterSet(charactersIn: "\"'").union(.whitespacesAndNewlines))
             values[key] = value
         }
-        guard let ip = values["BAMBU_PRINTER_IP"],
-              let serial = values["BAMBU_PRINTER_SERIAL"],
-              let code = values["BAMBU_ACCESS_CODE"] else { return nil }
+        return make(values["BAMBU_PRINTER_IP"], values["BAMBU_PRINTER_SERIAL"],
+                    values["BAMBU_ACCESS_CODE"])
+    }
+
+    /// All three credentials must be present and non-empty.
+    private static func make(_ ip: String?, _ serial: String?, _ code: String?)
+        -> PrinterConfig?
+    {
+        guard let ip, let serial, let code,
+              !ip.isEmpty, !serial.isEmpty, !code.isEmpty else { return nil }
         return PrinterConfig(ip: ip, serial: serial, accessCode: code)
     }
 }

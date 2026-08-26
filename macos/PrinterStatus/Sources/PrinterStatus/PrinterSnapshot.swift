@@ -162,10 +162,12 @@ extension PrinterSnapshot {
                 guard let id = JSONValue.int(info["id"]) else { continue }
                 let packed = JSONValue.int(info["temp"]) ?? 0
                 let (cur, tar) = unpack(packed)
+                // snow: high byte = AMS unit (255 none, 254 external spool,
+                // 128+ AMS HT), low byte = tray index (0-3 when real)
                 var slot: Int? = nil
                 if let snow = JSONValue.int(info["snow"]), snow >= 0 {
-                    let ams = snow >> 8, tray = snow & 0x3
-                    if ams < 128 { slot = ams * 4 + tray }  // 255/254 = none/external
+                    let ams = snow >> 8, tray = snow & 0xFF
+                    if ams < 128, tray < 4 { slot = ams * 4 + tray }
                 }
                 let meta = nozzleMeta[id] ?? ("?", "")
                 s.nozzles.append(Nozzle(id: id, current: cur, target: tar,

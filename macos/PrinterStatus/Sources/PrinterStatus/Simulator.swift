@@ -12,8 +12,9 @@ final class SimulatedSource {
         // back to the main actor itself
         task = Task.detached { [weak self] in
             var tick = 0
-            while !Task.isCancelled {
-                self?.onReport?(SimulatedSource.report(tick: tick))
+            // `while let self` also ends the loop once the source is gone
+            while let self, !Task.isCancelled {
+                self.onReport?(SimulatedSource.report(tick: tick))
                 tick += 1
                 try? await Task.sleep(for: .seconds(1))
             }
