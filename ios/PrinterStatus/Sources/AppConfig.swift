@@ -25,11 +25,13 @@ struct PrinterConfig {
                     Keychain.accessCode)
     }
 
-    static func save(ip: String, serial: String, accessCode: String) {
+    /// False when the access code could not be stored in the Keychain —
+    /// the caller must surface that, or the credential is silently lost.
+    static func save(ip: String, serial: String, accessCode: String) -> Bool {
         let defaults = UserDefaults.standard
         defaults.set(ip.trimmingCharacters(in: .whitespaces), forKey: SettingsKey.ip)
         defaults.set(serial.trimmingCharacters(in: .whitespaces), forKey: SettingsKey.serial)
-        Keychain.accessCode = accessCode.trimmingCharacters(in: .whitespaces)
+        return Keychain.setAccessCode(accessCode.trimmingCharacters(in: .whitespaces))
     }
 
     private static func make(_ ip: String?, _ serial: String?, _ code: String?)
@@ -57,23 +59,29 @@ enum Keychain {
     }
 
     static var accessCode: String? {
-        get {
-            var q = query
-            q[kSecReturnData as String] = true
-            q[kSecMatchLimit as String] = kSecMatchLimitOne
-            var result: AnyObject?
-            guard SecItemCopyMatching(q as CFDictionary, &result) == errSecSuccess,
-                  let data = result as? Data else { return nil }
-            return String(data: data, encoding: .utf8)
+        var q = query
+        q[kSecReturnData as String] = true
+        q[kSecMatchLimit as String] = kSecMatchLimitOne
+        var result: AnyObject?
+        guard SecItemCopyMatching(q as CFDictionary, &result) == errSecSuccess,
+              let data = result as? Data else { return nil }
+        return String(data: data, encoding: .utf8)
+    }
+
+    /// Replace (or, for an empty value, just remove) the stored access
+    /// code. False when the Keychain refused the write — locked, missing
+    /// entitlement — in which case the old value is already gone and the
+    /// caller has to tell the user rather than pretend the save happened.
+    static func setAccessCode(_ value: String) -> Bool {
+        let deleteStatus = SecItemDelete(query as CFDictionary)
+        guard deleteStatus == errSecSuccess || deleteStatus == errSecItemNotFound else {
+            return false
         }
-        set {
-            SecItemDelete(query as CFDictionary)
-            guard let newValue, !newValue.isEmpty,
-                  let data = newValue.data(using: .utf8) else { return }
-            var q = query
-            q[kSecValueData as String] = data
-            q[kSecAttrAccessible as String] = kSecAttrAccessibleAfterFirstUnlock
-            SecItemAdd(q as CFDictionary, nil)
-        }
+        guard !value.isEmpty else { return true }
+        guard let data = value.data(using: .utf8) else { return false }
+        var q = query
+        q[kSecValueData as String] = data
+        q[kSecAttrAccessible as String] = kSecAttrAccessibleAfterFirstUnlock
+        return SecItemAdd(q as CFDictionary, nil) == errSecSuccess
     }
 }

@@ -10,6 +10,7 @@ struct SettingsView: View {
     @State private var ip = UserDefaults.standard.string(forKey: SettingsKey.ip) ?? ""
     @State private var serial = UserDefaults.standard.string(forKey: SettingsKey.serial) ?? ""
     @State private var accessCode = Keychain.accessCode ?? ""
+    @State private var showKeychainError = false
 
     var body: some View {
         NavigationStack {
@@ -54,11 +55,20 @@ struct SettingsView: View {
                 }
                 ToolbarItem(placement: .confirmationAction) {
                     Button("Save") {
-                        PrinterConfig.save(ip: ip, serial: serial, accessCode: accessCode)
-                        model.reloadConfig()
-                        dismiss()
+                        if PrinterConfig.save(ip: ip, serial: serial, accessCode: accessCode) {
+                            model.reloadConfig()
+                            dismiss()
+                        } else {
+                            showKeychainError = true
+                        }
                     }
                 }
+            }
+            .alert("Couldn't save the access code", isPresented: $showKeychainError) {
+                Button("OK", role: .cancel) {}
+            } message: {
+                Text("The Keychain rejected the write, so the access code is "
+                    + "not stored. Try saving again.")
             }
         }
     }

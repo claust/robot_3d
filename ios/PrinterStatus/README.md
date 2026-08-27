@@ -15,6 +15,18 @@ rides on a local ffmpeg subprocess transcoding the printer's RTSPS stream,
 and iOS apps cannot spawn subprocesses; a native RTSPS/H.264 client is the
 future fix.
 
+**TLS posture, iOS vs macOS:** on macOS the MQTT session is chain-verified
+against Bambu's pinned device-CA roots (NIOSSL, hostname check off since the
+certificate names the serial). On iOS that is not possible: MQTTNIO compiles
+NIOSSL out, and Network.framework's trust evaluation always applies the SSL
+policy, which the printer's certificate can never pass (serial CN, no
+serverAuth EKU, over-long validity — verified live; pinned anchors still fail
+on `SSLHostname`/`ServerAuthEKU`). The iOS session is therefore **encrypted
+but not authenticated**, like the macOS `BAMBU_TLS_INSECURE` escape hatch: a
+MITM on the local network could impersonate the printer and capture the
+access code. Acceptable for a home LAN and read-only telemetry; revisit if
+either assumption changes.
+
 ## Build & run (simulator)
 
 Requires Xcode and [XcodeGen](https://github.com/yonaskolb/XcodeGen)
