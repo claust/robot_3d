@@ -83,7 +83,7 @@ jobs:
             exit 1
           fi
           mkdir -p ~/.private_keys && chmod 700 ~/.private_keys
-          printf '%s' "$ASC_KEY_P8" | base64 --decode > ~/.private_keys/"AuthKey_$ASC_KEY_ID.p8"
+          printf '%s' "$ASC_KEY_P8" | base64 -d > ~/.private_keys/"AuthKey_$ASC_KEY_ID.p8"
           chmod 600 ~/.private_keys/"AuthKey_$ASC_KEY_ID.p8"
 
       - name: Archive, validate & upload
