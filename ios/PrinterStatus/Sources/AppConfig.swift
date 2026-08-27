@@ -73,22 +73,29 @@ enum Keychain {
         return String(data: data, encoding: .utf8)
     }
 
-    /// Replace (or, for an empty value, just remove) the stored access
-    /// code. False when the Keychain refused the write — locked, missing
-    /// entitlement — in which case the old value is already gone and the
-    /// caller has to tell the user rather than pretend the save happened.
+    /// Store (or, for an empty value, remove) the access code. False when
+    /// the Keychain refused the write — locked, missing entitlement — and
+    /// the caller has to tell the user rather than pretend the save
+    /// happened. Add-or-update rather than delete-then-add, so a failed
+    /// write leaves the previously working credential in place.
     static func setAccessCode(_ value: String) -> Bool {
-        let deleteStatus = SecItemDelete(query as CFDictionary)
-        guard deleteStatus == errSecSuccess || deleteStatus == errSecItemNotFound else {
-            return false
+        guard !value.isEmpty else {
+            let status = SecItemDelete(query as CFDictionary)
+            return status == errSecSuccess || status == errSecItemNotFound
         }
-        guard !value.isEmpty else { return true }
         guard let data = value.data(using: .utf8) else { return false }
-        var q = query
-        q[kSecValueData as String] = data
         // ThisDeviceOnly keeps the code out of backups and iCloud Keychain;
         // WhenUnlocked suffices since the app only reads it in the foreground.
-        q[kSecAttrAccessible as String] = kSecAttrAccessibleWhenUnlockedThisDeviceOnly
-        return SecItemAdd(q as CFDictionary, nil) == errSecSuccess
+        let attrs: [String: Any] = [
+            kSecValueData as String: data,
+            kSecAttrAccessible as String: kSecAttrAccessibleWhenUnlockedThisDeviceOnly,
+        ]
+        var add = query
+        attrs.forEach { add[$0] = $1 }
+        let status = SecItemAdd(add as CFDictionary, nil)
+        if status == errSecDuplicateItem {
+            return SecItemUpdate(query as CFDictionary, attrs as CFDictionary) == errSecSuccess
+        }
+        return status == errSecSuccess
     }
 }

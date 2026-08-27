@@ -74,6 +74,9 @@ final class PrinterViewModel: ObservableObject {
         merged = [:]
         snapshot = PrinterSnapshot()
         lastUpdate = nil
+        // the name belongs to the previous session's printer; keeping it
+        // would leave a stale title in simulate mode or after an IP change
+        printerName = nil
 
         switch mode {
         case .simulated:
