@@ -30,7 +30,15 @@ final class CameraSource {
     func stop() {
         queue.async {
             self.stopped = true
-            self.process?.terminate()
+            // SIGKILL rather than Process.terminate()'s SIGTERM: ffmpeg
+            // blocked writing to a pipe we have stopped draining can ignore
+            // SIGTERM and keep streaming. Unregister here too, so a switch
+            // to Simulate mode cannot leave a stale pid in the reaper.
+            if let proc = self.process, proc.isRunning {
+                let pid = proc.processIdentifier
+                kill(pid, SIGKILL)
+                ChildReaper.unregister(pid)
+            }
             self.process = nil
         }
     }
