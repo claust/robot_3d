@@ -58,11 +58,12 @@ final class PrinterNameSource {
         addr.sin_family = sa_family_t(AF_INET)
         addr.sin_port = UInt16(2021).bigEndian
         guard inet_pton(AF_INET, ip, &addr.sin_addr) == 1 else { return }
-        let payload = Array(message.utf8)
-        _ = withUnsafePointer(to: &addr) {
-            $0.withMemoryRebound(to: sockaddr.self, capacity: 1) { sa in
-                sendto(fd, payload, payload.count, 0, sa,
-                       socklen_t(MemoryLayout<sockaddr_in>.size))
+        _ = Array(message.utf8).withUnsafeBytes { payload in
+            withUnsafePointer(to: &addr) {
+                $0.withMemoryRebound(to: sockaddr.self, capacity: 1) { sa in
+                    sendto(fd, payload.baseAddress, payload.count, 0, sa,
+                           socklen_t(MemoryLayout<sockaddr_in>.size))
+                }
             }
         }
     }
@@ -71,16 +72,23 @@ final class PrinterNameSource {
         var buffer = [UInt8](repeating: 0, count: 4096)
         var sender = sockaddr_in()
         var senderLen = socklen_t(MemoryLayout<sockaddr_in>.size)
-        let count = withUnsafeMutablePointer(to: &sender) {
-            $0.withMemoryRebound(to: sockaddr.self, capacity: 1) { sa in
-                recvfrom(fd, &buffer, buffer.count, 0, sa, &senderLen)
+        let count = buffer.withUnsafeMutableBytes { raw in
+            withUnsafeMutablePointer(to: &sender) {
+                $0.withMemoryRebound(to: sockaddr.self, capacity: 1) { sa in
+                    recvfrom(fd, raw.baseAddress, raw.count, 0, sa, &senderLen)
+                }
             }
         }
         guard count > 0 else { return }
-        var ipChars = [CChar](repeating: 0, count: Int(INET_ADDRSTRLEN))
         var senderAddr = sender.sin_addr
-        inet_ntop(AF_INET, &senderAddr, &ipChars, socklen_t(INET_ADDRSTRLEN))
-        guard String(cString: ipChars) == ip,
+        var ipChars = [CChar](repeating: 0, count: Int(INET_ADDRSTRLEN))
+        let senderIP = ipChars.withUnsafeMutableBufferPointer { chars -> String? in
+            guard inet_ntop(AF_INET, &senderAddr, chars.baseAddress,
+                            socklen_t(INET_ADDRSTRLEN)) != nil,
+                  let base = chars.baseAddress else { return nil }
+            return String(cString: base)
+        }
+        guard senderIP == ip,
               let text = String(bytes: buffer[..<count], encoding: .utf8) else { return }
         for line in text.split(whereSeparator: \.isNewline) {
             let prefix = "DevName.bambu.com:"

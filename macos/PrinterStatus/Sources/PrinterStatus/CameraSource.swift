@@ -99,7 +99,12 @@ final class CameraSource {
         buffer.append(data)
         while true {
             guard let start = buffer.range(of: Data([0xFF, 0xD8, 0xFF])) else {
-                buffer.removeAll(keepingCapacity: true)
+                // the marker may straddle a chunk boundary, so keep the last
+                // two bytes — dropping them would swallow the next frame
+                if buffer.count > 2 {
+                    buffer.removeSubrange(
+                        buffer.startIndex..<buffer.index(buffer.endIndex, offsetBy: -2))
+                }
                 return
             }
             guard let end = buffer.range(of: Data([0xFF, 0xD9]),
