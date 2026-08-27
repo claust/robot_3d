@@ -47,10 +47,12 @@ final class PrinterViewModel: ObservableObject {
 
     /// The app cannot talk to the printer from the background; tear the
     /// session down on scene-phase changes rather than letting iOS kill the
-    /// socket mid-frame, and reconnect cleanly on return.
+    /// socket mid-frame, and reconnect cleanly on return. The launch
+    /// transition to .active arrives with the init()-started sources still
+    /// running — restarting then would just churn the connection.
     func setActive(_ active: Bool) {
         if active {
-            restart()
+            if mqtt == nil && sim == nil { restart() }
         } else {
             stopSources()
         }

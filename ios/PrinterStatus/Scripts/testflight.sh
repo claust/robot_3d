@@ -21,11 +21,14 @@ cd "$(dirname "$0")/.."
 ROOT="$PWD"
 
 # Fill in only what the environment has not already set, so CI — where the
-# values arrive as secrets — wins over a stale local file.
+# values arrive as secrets — wins over a stale local file. Indirect
+# expansion (${!key-}) instead of eval, and only well-formed identifiers,
+# so a malformed env file cannot inject commands.
 if [ -f "$ROOT/.testflight.env" ]; then
 	while IFS='=' read -r key value; do
 		case "$key" in ''|\#*) continue ;; esac
-		[ -z "$(eval "printf '%s' \"\${$key:-}\"")" ] && export "$key=$value"
+		[[ "$key" =~ ^[A-Za-z_][A-Za-z0-9_]*$ ]] || continue
+		[ -z "${!key-}" ] && export "$key=$value"
 	done < "$ROOT/.testflight.env"
 fi
 

@@ -145,7 +145,7 @@ final class BambuMQTTSource {
                 sniServerName: "bambu-printer"
             )
         )
-        #else
+        #elseif os(iOS)
         // iOS builds of MQTTNIO compile NIOSSL support out, leaving only the
         // Network.framework path — whose trust evaluation always applies the
         // SSL policy, which the printer's certificate can never pass (it
@@ -168,6 +168,10 @@ final class BambuMQTTSource {
                 tlsConfiguration: .ts(TSTLSConfiguration(certificateVerification: .none))
             )
         )
+        #else
+        // Each platform must consciously pick its TLS posture; do not let a
+        // new platform silently inherit the unverified iOS path.
+        #error("Unsupported platform: add an explicit TLS configuration for it")
         #endif
     }
 
