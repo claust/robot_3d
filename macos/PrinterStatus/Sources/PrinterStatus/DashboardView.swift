@@ -14,30 +14,58 @@ struct DashboardView: View {
         forcedStyle ?? TempVisualStyle(rawValue: tempStyleRaw) ?? .glow
     }
 
+    /// Camera and AMS cards share this height so the two columns end evenly.
+    private let bottomCardHeight: CGFloat = 240
+
     var body: some View {
-        VStack(alignment: .leading, spacing: 14) {
-            header
-            if model.snapshot.isPrinting || model.snapshot.gcodeState == "FINISH" {
-                progressSection
+        HStack(alignment: .top, spacing: 14) {
+            VStack(alignment: .leading, spacing: 14) {
+                statusCard
+                if !model.snapshot.alerts.isEmpty {
+                    alertsSection
+                }
+                Spacer(minLength: 0)
+                footer
+                amsSection
+                    .frame(height: bottomCardHeight)
             }
-            if tempStyle == .cards {
-                temperatureGrid
-            } else {
-                PrinterSchematicView(snapshot: model.snapshot, style: tempStyle)
+            .frame(width: 330)
+            .frame(maxHeight: .infinity)
+            VStack(spacing: 14) {
+                if tempStyle == .cards {
+                    temperatureGrid
+                } else {
+                    PrinterSchematicView(snapshot: model.snapshot, style: tempStyle)
+                        .overlay(alignment: .topTrailing) {
+                            // schematic and glow draw the fans in place;
+                            // isometric still needs the corner readout
+                            if tempStyle == .isometric { fanBadge }
+                        }
+                }
+                CameraPaneView(model: model)
+                    .frame(height: bottomCardHeight)
             }
-            amsSection
-            if !model.snapshot.alerts.isEmpty {
-                alertsSection
-            }
-            Divider()
-            footer
+            .frame(width: 330)
         }
         .padding(16)
-        .frame(width: 380)
         .fixedSize(horizontal: false, vertical: true)
     }
 
     // MARK: sections
+
+    private var statusCard: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            header
+            if model.snapshot.isPrinting || model.snapshot.gcodeState == "FINISH" {
+                progressSection
+            }
+        }
+        .padding(12)
+        .background(RoundedRectangle(cornerRadius: 10)
+            .fill(Color(nsColor: .quaternarySystemFill)))
+        .overlay(RoundedRectangle(cornerRadius: 10)
+            .strokeBorder(.quaternary, lineWidth: 1))
+    }
 
     private var header: some View {
         VStack(alignment: .leading, spacing: 4) {
@@ -65,11 +93,12 @@ struct DashboardView: View {
                     .font(.title3.weight(.semibold))
                     .lineLimit(1)
             }
-            if let stage = model.snapshot.stageText {
-                Text(stage)
-                    .font(.callout)
-                    .foregroundStyle(.secondary)
-            }
+            // always occupy the stage line, even when there is no stage —
+            // otherwise everything below jumps as the text comes and goes
+            Text(model.snapshot.stageText ?? " ")
+                .font(.callout)
+                .foregroundStyle(.secondary)
+                .lineLimit(1)
         }
     }
 
@@ -167,52 +196,73 @@ struct DashboardView: View {
     }
 
     private var amsSection: some View {
-        HStack(spacing: 14) {
-            ForEach(model.snapshot.trays) { tray in
-                VStack(spacing: 3) {
-                    ZStack {
-                        Circle()
-                            .fill(tray.isEmpty
-                                ? AnyShapeStyle(Color(nsColor: .quaternarySystemFill))
-                                : AnyShapeStyle(color(fromRGBA: tray.colorHex)))
-                            .frame(width: 22, height: 22)
-                            .overlay(Circle().strokeBorder(.quaternary, lineWidth: 1))
-                        if activeSlots.contains(tray.id) {
+        VStack(alignment: .leading, spacing: 0) {
+            Label("AMS", systemImage: "circle.grid.2x2")
+                .font(.caption)
+                .foregroundStyle(.secondary)
+            Spacer(minLength: 8)
+            HStack(spacing: 0) {
+                ForEach(model.snapshot.trays) { tray in
+                    VStack(spacing: 6) {
+                        ZStack {
                             Circle()
-                                .strokeBorder(.orange, lineWidth: 2)
-                                .frame(width: 28, height: 28)
+                                .fill(tray.isEmpty
+                                    ? AnyShapeStyle(Color(nsColor: .quaternarySystemFill))
+                                    : AnyShapeStyle(color(fromRGBA: tray.colorHex)))
+                                .frame(width: 48, height: 48)
+                                .overlay(Circle().strokeBorder(.quaternary, lineWidth: 1))
+                            if activeSlots.contains(tray.id) {
+                                Circle()
+                                    .strokeBorder(.orange, lineWidth: 2.5)
+                                    .frame(width: 58, height: 58)
+                            }
+                        }
+                        .frame(width: 58, height: 58)
+                        Text(tray.isEmpty ? "—" : tray.type)
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                        if tray.remainPercent >= 0 {
+                            Text("\(tray.remainPercent)%")
+                                .font(.caption2)
+                                .foregroundStyle(.tertiary)
+                                .monospacedDigit()
                         }
                     }
-                    .frame(width: 28, height: 28)
-                    Text(tray.isEmpty ? "—" : tray.type)
-                        .font(.caption2)
-                        .foregroundStyle(.secondary)
-                    if tray.remainPercent >= 0 {
-                        Text("\(tray.remainPercent)%")
-                            .font(.caption2)
-                            .foregroundStyle(.tertiary)
-                            .monospacedDigit()
-                    }
+                    .frame(maxWidth: .infinity)
                 }
             }
-            Spacer()
-            VStack(alignment: .trailing, spacing: 2) {
-                Text("AMS")
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
+            Spacer(minLength: 8)
+            HStack(spacing: 0) {
+                Spacer()
                 if let humidity = model.snapshot.amsHumidityPercent {
-                    Label("\(humidity)%", systemImage: "humidity")
-                        .font(.caption2)
-                        .foregroundStyle(.secondary)
+                    amsReadout(value: "\(humidity)%", icon: "humidity",
+                               label: "AMS humidity")
                 }
+                Spacer()
                 if let temp = model.snapshot.amsTemp {
-                    Label("\(Int(temp.rounded()))°", systemImage: "thermometer.low")
-                        .font(.caption2)
-                        .foregroundStyle(.secondary)
+                    amsReadout(value: "\(Int(temp.rounded()))°", icon: "thermometer.low",
+                               label: "AMS temperature")
                 }
+                Spacer()
             }
         }
-        .padding(.horizontal, 2)
+        .padding(12)
+        .background(RoundedRectangle(cornerRadius: 10)
+            .fill(Color(nsColor: .quaternarySystemFill)))
+        .overlay(RoundedRectangle(cornerRadius: 10)
+            .strokeBorder(.quaternary, lineWidth: 1))
+    }
+
+    private func amsReadout(value: String, icon: String, label: String) -> some View {
+        HStack(spacing: 7) {
+            Image(systemName: icon)
+                .font(.title3)
+                .foregroundStyle(.secondary)
+            Text(value)
+                .font(.system(.title2, design: .rounded).weight(.semibold))
+                .monospacedDigit()
+        }
+        .help(label)
     }
 
     private var activeSlots: Set<Int> {
@@ -240,15 +290,35 @@ struct DashboardView: View {
         .background(RoundedRectangle(cornerRadius: 8).fill(.red.opacity(0.1)))
     }
 
+    /// Fan readouts, shown inside the chamber card — the fans are physically
+    /// part of the machine the card draws. Cards style keeps them in the footer.
+    private var fanBadge: some View {
+        HStack(spacing: 8) {
+            Label("\(model.snapshot.partFanPercent)%", systemImage: "fan")
+                .help("Part cooling fan")
+            Label("\(model.snapshot.auxFanPercent)%", systemImage: "fan.desk")
+                .help("Aux fan")
+            Label("\(model.snapshot.chamberFanPercent)%", systemImage: "wind")
+                .help("Chamber fan")
+        }
+        .font(.caption2)
+        .monospacedDigit()
+        .foregroundStyle(tempStyle == .glow ? Color.white.opacity(0.55) : Color.secondary)
+        .padding(.top, 10)
+        .padding(.trailing, 12)
+    }
+
     private var footer: some View {
         VStack(alignment: .leading, spacing: 4) {
             HStack(spacing: 12) {
-                Label("\(model.snapshot.partFanPercent)%", systemImage: "fan")
-                    .help("Part cooling fan")
-                Label("\(model.snapshot.auxFanPercent)%", systemImage: "fan.desk")
-                    .help("Aux fan")
-                Label("\(model.snapshot.chamberFanPercent)%", systemImage: "wind")
-                    .help("Chamber fan")
+                if tempStyle == .cards {
+                    Label("\(model.snapshot.partFanPercent)%", systemImage: "fan")
+                        .help("Part cooling fan")
+                    Label("\(model.snapshot.auxFanPercent)%", systemImage: "fan.desk")
+                        .help("Aux fan")
+                    Label("\(model.snapshot.chamberFanPercent)%", systemImage: "wind")
+                        .help("Chamber fan")
+                }
                 Spacer()
                 Label(model.snapshot.speedLevelName, systemImage: "speedometer")
                 if !model.snapshot.wifiSignal.isEmpty {
@@ -258,7 +328,12 @@ struct DashboardView: View {
             .font(.caption)
             .foregroundStyle(.secondary)
             HStack(spacing: 8) {
-                Text(model.connectionText)
+                Circle()
+                    .fill(model.isConnected ? Color.green : Color.red)
+                    .frame(width: 8, height: 8)
+                    .shadow(color: (model.isConnected ? Color.green : Color.red).opacity(0.8),
+                            radius: 3)
+                    .help(model.connectionText)
                 Spacer()
                 if let updated = model.lastUpdate {
                     Text("Updated \(updated.formatted(date: .omitted, time: .standard))")

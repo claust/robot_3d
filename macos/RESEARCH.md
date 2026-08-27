@@ -91,6 +91,21 @@ touchscreen — ours has it enabled. Not needed for v1.
 - Caveat: newest firmware gates *some* control commands behind an "MQTT
   signature" in LAN mode; status reads are unaffected.
 
+## Device name / SSDP discovery
+
+The user-assigned printer name ("Claudia") is NOT in the MQTT report. It is
+carried in SSDP headers: the printer broadcasts NOTIFY announcements to
+255.255.255.255 UDP port 2021 every ~5 s with `DevName.bambu.com`,
+`DevModel.bambu.com` (X2D reports `N6`) and `DevVersion.bambu.com` headers.
+
+Do not listen passively on 2021: with SO_REUSEPORT the kernel delivers each
+broadcast to only ONE of the sockets bound to the port, so Bambu Studio (or a
+second app instance) starves the listener indefinitely — observed live.
+Instead send a directed M-SEARCH (`ST: urn:bambulab-com:device:3dprinter:1`)
+to the printer on UDP 1990 or 2021; it replies unicast to the sender's
+ephemeral port immediately, no port sharing involved
+(`PrinterNameSource.swift`).
+
 ## Sources
 
 - Live capture: `pushall` dump against our X2D (see `cad/printer_status.py`).

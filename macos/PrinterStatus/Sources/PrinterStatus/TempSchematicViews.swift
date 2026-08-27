@@ -49,6 +49,38 @@ struct NozzleShape: Shape {
     }
 }
 
+/// A fan drawn as spinning blades in a ring; rotation speed follows the PWM
+/// percentage (still at 0%). Static contexts (ImageRenderer) show one frame.
+struct FanGlyph: View {
+    let percent: Int
+    let diameter: CGFloat
+    let tint: Color
+    let label: String
+
+    var body: some View {
+        VStack(spacing: 3) {
+            TimelineView(.animation(minimumInterval: 1.0 / 30.0, paused: percent == 0)) { context in
+                let t = context.date.timeIntervalSinceReferenceDate
+                Image(systemName: "fanblades.fill")
+                    .resizable()
+                    .scaledToFit()
+                    .padding(diameter * 0.16)
+                    // 100% ≈ 1.5 revolutions per second
+                    .rotationEffect(.degrees((t * Double(percent) * 5.4)
+                        .truncatingRemainder(dividingBy: 360)))
+                    .frame(width: diameter, height: diameter)
+                    .overlay(Circle().strokeBorder(tint.opacity(0.4), lineWidth: 1.5))
+            }
+            .foregroundStyle(tint.opacity(percent == 0 ? 0.5 : 0.95))
+            Text("\(percent)%")
+                .font(.caption2)
+                .foregroundStyle(tint)
+                .monospacedDigit()
+        }
+        .help(label)
+    }
+}
+
 struct PrinterSchematicView: View {
     let snapshot: PrinterSnapshot
     let style: TempVisualStyle
@@ -88,17 +120,30 @@ struct ChamberSchematicView: View {
             .padding(.horizontal, 12)
             .padding(.top, 10)
 
-            // gantry with the two toolheads
+            // gantry with the toolhead: both nozzles and the part-cooling
+            // fan ride one carriage on the real machine, so box them together
             Rectangle()
                 .fill(secondaryText.opacity(0.35))
                 .frame(height: 4)
                 .padding(.horizontal, 20)
                 .padding(.top, 6)
-            HStack(alignment: .top, spacing: 34) {
-                ForEach(nozzles) { nozzle in
+            HStack(alignment: .top, spacing: 14) {
+                if let first = nozzles.first {
+                    nozzleGlyph(first)
+                }
+                FanGlyph(percent: snapshot.partFanPercent, diameter: 22,
+                         tint: secondaryText, label: "Part cooling fan")
+                    .padding(.top, 10)
+                ForEach(Array(nozzles.dropFirst())) { nozzle in
                     nozzleGlyph(nozzle)
                 }
             }
+            .padding(.horizontal, 10)
+            .padding(.vertical, 6)
+            .background(RoundedRectangle(cornerRadius: 8)
+                .fill(darkChamber ? Color.white.opacity(0.07) : Color.black.opacity(0.05)))
+            .overlay(RoundedRectangle(cornerRadius: 8)
+                .strokeBorder(.quaternary, lineWidth: 1))
             .padding(.top, -1)
 
             Spacer(minLength: 6)
@@ -115,7 +160,7 @@ struct ChamberSchematicView: View {
             }
             .padding(.bottom, 10)
         }
-        .frame(height: 186)
+        .frame(height: 200)
         .frame(maxWidth: .infinity)
         .background(
             RoundedRectangle(cornerRadius: 10)
@@ -124,6 +169,21 @@ struct ChamberSchematicView: View {
         .overlay(
             RoundedRectangle(cornerRadius: 10)
                 .strokeBorder(.quaternary, lineWidth: 1))
+        // wall fans, placed where they sit on the real machine (front view):
+        // aux part-cooling fan on the left wall, chamber exhaust fan on the
+        // right inner liner behind the carbon filter
+        .overlay(alignment: .leading) {
+            FanGlyph(percent: snapshot.auxFanPercent, diameter: 24,
+                     tint: secondaryText, label: "Aux part cooling fan (left wall)")
+                .padding(.leading, 10)
+                .offset(y: 8)
+        }
+        .overlay(alignment: .trailing) {
+            FanGlyph(percent: snapshot.chamberFanPercent, diameter: 30,
+                     tint: secondaryText, label: "Chamber exhaust fan (right wall)")
+                .padding(.trailing, 10)
+                .offset(y: 8)
+        }
     }
 
     private var secondaryText: Color {

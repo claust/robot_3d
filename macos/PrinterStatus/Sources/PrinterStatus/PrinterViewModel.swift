@@ -1,3 +1,4 @@
+import AppKit
 import Foundation
 import SwiftUI
 
@@ -13,6 +14,10 @@ final class PrinterViewModel: ObservableObject {
     @Published var connectionText = "Starting…"
     @Published var isConnected = false
     @Published var lastUpdate: Date?
+    @Published var cameraFrame: NSImage?
+    @Published var cameraStatus = "Camera off"
+    @Published var lastFrame: Date?
+    @Published var printerName: String?
     @Published var mode: Mode {
         didSet { if mode != oldValue { restart() } }
     }
@@ -21,6 +26,8 @@ final class PrinterViewModel: ObservableObject {
     private let config: PrinterConfig?
     private var mqtt: BambuMQTTSource?
     private var sim: SimulatedSource?
+    private var camera: CameraSource?
+    private var nameSource: PrinterNameSource?
     private var merged: [String: Any] = [:]
 
     init(forceSimulate: Bool = false) {
@@ -33,14 +40,19 @@ final class PrinterViewModel: ObservableObject {
     private func restart() {
         mqtt?.stop(); mqtt = nil
         sim?.stop(); sim = nil
+        camera?.stop(); camera = nil
+        nameSource?.stop(); nameSource = nil
         merged = [:]
         snapshot = PrinterSnapshot()
         lastUpdate = nil
+        cameraFrame = nil
+        lastFrame = nil
 
         switch mode {
         case .simulated:
             connectionText = "Simulated data"
             isConnected = true
+            cameraStatus = "No camera in simulation"
             let source = SimulatedSource()
             source.onReport = { [weak self] report in
                 Task { @MainActor in self?.apply(report) }
@@ -67,6 +79,29 @@ final class PrinterViewModel: ObservableObject {
             }
             source.start()
             mqtt = source
+
+            let cam = CameraSource(config: config)
+            cam.onFrame = { [weak self] image in
+                Task { @MainActor in
+                    self?.cameraFrame = image
+                    self?.cameraStatus = "Live"
+                    self?.lastFrame = Date()
+                }
+            }
+            cam.onStatus = { [weak self] text in
+                Task { @MainActor in self?.cameraStatus = text }
+            }
+            cam.start()
+            camera = cam
+
+            // the friendly device name only exists in SSDP announcements;
+            // keep the last one we heard if the listener has nothing yet
+            let names = PrinterNameSource(ip: config.ip)
+            names.onName = { [weak self] name in
+                Task { @MainActor in self?.printerName = name }
+            }
+            names.start()
+            nameSource = names
         }
     }
 
