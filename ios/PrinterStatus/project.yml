@@ -1,0 +1,86 @@
+name: PrinterStatus
+options:
+  bundleIdPrefix: dk.delectosoft
+  deploymentTarget:
+    iOS: "17.0"
+  createIntermediateGroups: true
+settings:
+  base:
+    SWIFT_VERSION: "5.0"
+    TARGETED_DEVICE_FAMILY: "1,2"
+    MARKETING_VERSION: "0.1"
+    CURRENT_PROJECT_VERSION: "1"
+packages:
+  mqtt-nio:
+    url: https://github.com/swift-server-community/mqtt-nio.git
+    from: 2.11.0
+  # BambuMQTTSource imports these directly (TLS config, event loop groups),
+  # so they must be declared products, not just transitive deps of MQTTNIO.
+  swift-nio:
+    url: https://github.com/apple/swift-nio.git
+    from: 2.65.0
+  swift-nio-ssl:
+    url: https://github.com/apple/swift-nio-ssl.git
+    from: 2.27.0
+  swift-nio-transport-services:
+    url: https://github.com/apple/swift-nio-transport-services.git
+    from: 1.20.0
+targets:
+  PrinterStatus:
+    type: application
+    platform: iOS
+    sources:
+      - path: Sources
+      # The protocol layer is shared with the macOS app — MQTT decode, TLS
+      # trust, SSDP name lookup and the simulated source are pure
+      # Foundation/NIO and compile unchanged on iOS. The UI, config and
+      # camera layers are per-platform and deliberately not shared.
+      - path: ../../macos/PrinterStatus/Sources/PrinterStatus
+        includes:
+          - BambuMQTTSource.swift
+          - BambuTrust.swift
+          - PrinterNameSource.swift
+          - PrinterSnapshot.swift
+          - Simulator.swift
+        group: Shared
+    dependencies:
+      - package: mqtt-nio
+        product: MQTTNIO
+      - package: swift-nio
+        product: NIOCore
+      - package: swift-nio
+        product: NIOPosix
+      - package: swift-nio-ssl
+        product: NIOSSL
+      - package: swift-nio-transport-services
+        product: NIOTransportServices
+    info:
+      path: Sources/Info.plist
+      properties:
+        CFBundleDisplayName: Printer Status
+        CFBundleShortVersionString: $(MARKETING_VERSION)
+        CFBundleVersion: $(CURRENT_PROJECT_VERSION)
+        # MQTT (TCP 8883) and SSDP (UDP 2021) both go to the printer's LAN
+        # address, which iOS gates behind the Local Network permission.
+        # Without this key the first connect silently fails.
+        NSLocalNetworkUsageDescription: >-
+          Printer Status connects to your Bambu Lab printer on your local
+          network to show its live state.
+        # TLS to the printer is Apple's own stack — exempt, and answering in
+        # the bundle keeps every TestFlight build out of "Missing Compliance".
+        ITSAppUsesNonExemptEncryption: false
+        UILaunchScreen: {}
+        UISupportedInterfaceOrientations:
+          - UIInterfaceOrientationPortrait
+        UISupportedInterfaceOrientations~ipad:
+          - UIInterfaceOrientationPortrait
+          - UIInterfaceOrientationPortraitUpsideDown
+          - UIInterfaceOrientationLandscapeLeft
+          - UIInterfaceOrientationLandscapeRight
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: dk.delectosoft.printerstatus
+        ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
+        # DEVELOPMENT_TEAM comes from the environment (CI) or Xcode's own
+        # signing UI; simulator builds need neither.
+        CODE_SIGN_STYLE: Automatic
