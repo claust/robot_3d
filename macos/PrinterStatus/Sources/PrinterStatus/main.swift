@@ -20,8 +20,9 @@ if CommandLine.arguments.contains("--dump") {
                 : nil
         }
     let path = CommandLine.arguments[idx + 1]
+    let live = CommandLine.arguments.contains("--live")
     Task { @MainActor in
-        await renderSnapshot(to: path, style: style)
+        await renderSnapshot(to: path, style: style, live: live)
     }
     RunLoop.main.run()  // renderSnapshot exits the process when done
 } else {
@@ -36,6 +37,7 @@ struct PrinterStatusApp: App {
     var body: some Scene {
         Window("Printer Status", id: "main") {
             DashboardView(model: model)
+                .navigationTitle(model.printerName ?? "Printer Status")
         }
         .windowResizability(.contentSize)
     }
@@ -55,10 +57,17 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 }
 
 @MainActor
-func renderSnapshot(to path: String, style: TempVisualStyle? = nil) async {
-    let model = PrinterViewModel(forceSimulate: true)
-    // let a few simulated reports arrive
-    try? await Task.sleep(for: .seconds(3))
+func renderSnapshot(to path: String, style: TempVisualStyle? = nil, live: Bool = false) async {
+    let model = PrinterViewModel(forceSimulate: !live)
+    if live {
+        // wait for a full status report and the first camera frame
+        for _ in 0..<40 where model.lastUpdate == nil || model.cameraFrame == nil {
+            try? await Task.sleep(for: .seconds(0.5))
+        }
+    } else {
+        // let a few simulated reports arrive
+        try? await Task.sleep(for: .seconds(3))
+    }
     let renderer = ImageRenderer(content: DashboardView(model: model, forcedStyle: style)
         .background(Color(nsColor: .windowBackgroundColor)))
     renderer.scale = 2
@@ -89,7 +98,15 @@ func runDump() {
     // so all access to the accumulated state goes through a lock.
     let lock = NSLock()
     var merged: [String: Any] = [:]
+    var deviceName: String?
     let done = DispatchSemaphore(value: 0)
+    let names = PrinterNameSource(ip: config.ip)
+    names.onName = { name in
+        lock.lock()
+        deviceName = name
+        lock.unlock()
+    }
+    names.start()
     let source = BambuMQTTSource(config: config)
     source.onStatus = { text, _ in print("status: \(text)") }
     source.onReport = { report in
@@ -110,10 +127,13 @@ func runDump() {
     Thread.sleep(forTimeInterval: 1.5)
     lock.lock()
     let stableState = merged
+    let stableName = deviceName
     lock.unlock()
     let snapshot = PrinterSnapshot.decode(from: stableState)
     source.stop()
+    names.stop()
 
+    if let stableName { print("printer:    \(stableName)") }
     print("state:      \(snapshot.gcodeState)")
     print("job:        \(snapshot.jobName)")
     print("progress:   \(snapshot.percent)%  layer \(snapshot.layer)/\(snapshot.totalLayers)  \(snapshot.remainingMinutes) min left")

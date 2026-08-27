@@ -8,6 +8,18 @@ type, remaining filament, humidity), fans, speed profile, and HMS alerts
 Data comes straight from the printer's LAN MQTT report stream (~1 update/s
 while printing); see [../RESEARCH.md](../RESEARCH.md) for the protocol notes.
 
+The right half of the window is the live chamber camera. The X2D serves it
+as RTSPS on port 322, which AVFoundation can't play, so the app runs a small
+`ffmpeg` subprocess that transcodes the stream to 5 fps MJPEG on a pipe
+(`brew install ffmpeg` if missing — the pane says so). The stream
+reconnects automatically if it drops; the LIVE badge is shown only while
+frames are actually arriving.
+
+The camera URL embeds the printer access code, so it is never passed as an
+ffmpeg argument — `ps` would show it to anyone able to read this process's
+arguments. It goes in over ffmpeg's stdin as a one-line concat playlist
+instead, leaving the argument vector credential-free.
+
 ## Run
 
 ```
@@ -55,4 +67,5 @@ that config file instead if you'd rather not depend on the repo.
 ```
 swift run PrinterStatus --dump               # print one decoded status, exit
 swift run PrinterStatus --snapshot out.png   # render the dashboard (simulated) to PNG
+swift run PrinterStatus --snapshot out.png --live   # ...with live data + camera frame
 ```
