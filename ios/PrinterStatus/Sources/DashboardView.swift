@@ -215,8 +215,10 @@ struct DashboardView: View {
             .font(.caption2)
             .foregroundStyle(.tertiary)
             // iOS cannot chain-verify the printer's certificate (see the
-            // README); be honest about it instead of implying full TLS
-            if model.mode == .live {
+            // README); be honest about it instead of implying full TLS.
+            // Only while actually connected — there is no session to
+            // describe while connecting or offline.
+            if model.mode == .live && model.isConnected {
                 Label("Encrypted connection — printer identity not verified",
                       systemImage: "lock.open")
                     .font(.caption2)

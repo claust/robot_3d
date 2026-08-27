@@ -10,7 +10,7 @@ struct SettingsView: View {
     @State private var ip = UserDefaults.standard.string(forKey: SettingsKey.ip) ?? ""
     @State private var serial = UserDefaults.standard.string(forKey: SettingsKey.serial) ?? ""
     @State private var accessCode = Keychain.accessCode ?? ""
-    @State private var showKeychainError = false
+    @State private var saveError: String?
 
     var body: some View {
         NavigationStack {
@@ -56,22 +56,39 @@ struct SettingsView: View {
                     Button("Cancel") { dismiss() }
                 }
                 ToolbarItem(placement: .confirmationAction) {
-                    Button("Save") {
-                        if PrinterConfig.save(ip: ip, serial: serial, accessCode: accessCode) {
-                            model.reloadConfig()
-                            dismiss()
-                        } else {
-                            showKeychainError = true
-                        }
-                    }
+                    Button("Save") { save() }
                 }
             }
-            .alert("Couldn't save the access code", isPresented: $showKeychainError) {
+            .alert("Couldn't save", isPresented: Binding(
+                get: { saveError != nil },
+                set: { if !$0 { saveError = nil } }
+            )) {
                 Button("OK", role: .cancel) {}
             } message: {
-                Text("The Keychain rejected the write, so the access code is "
-                    + "not stored. Try saving again.")
+                Text(saveError ?? "")
             }
         }
+    }
+
+    /// All three fields, or none: a partial config would silently land the
+    /// app in simulate mode with no explanation. All-empty is legitimate —
+    /// it clears the printer and returns to simulated data.
+    private func save() {
+        let ip = ip.trimmingCharacters(in: .whitespaces)
+        let serial = serial.trimmingCharacters(in: .whitespaces)
+        let accessCode = accessCode.trimmingCharacters(in: .whitespaces)
+        let filled = [ip, serial, accessCode].filter { !$0.isEmpty }.count
+        guard filled == 0 || filled == 3 else {
+            saveError = "Fill in all three printer fields, or clear all of "
+                + "them to use simulated data."
+            return
+        }
+        guard PrinterConfig.save(ip: ip, serial: serial, accessCode: accessCode) else {
+            saveError = "The Keychain rejected the write, so the access code "
+                + "is not stored. Try saving again."
+            return
+        }
+        model.reloadConfig()
+        dismiss()
     }
 }
