@@ -42,6 +42,15 @@ FILAMENT = f"{PROFILES}/filament/Bambu PLA Basic @BBL X2D 0.4 nozzle.json"
 # and pauses the print on mismatch.
 BED_TYPE = "Textured PEI Plate"
 
+# Dual-nozzle support printing: filament 1 (body, AMS-fed left extruder) and
+# filament 2 (support, aux Bowden extruder fed from the external spool).
+# Colours are cosmetic in the gcode but make Studio/preview sanity checks easy.
+BODY_COLOUR = "#0A2989"     # AMS slot 2, PLA Basic dark blue (tray_color)
+SUPPORT_COLOUR = "#FFFFFF"  # external spool on the aux nozzle, white PLA
+# The aux (Bowden) extruder's external spool reports as virtual tray 255 in
+# the printer's vir_slot status (254 is the other, empty, virtual slot).
+EXT_SPOOL_TRAY = 255
+
 
 # ---------- slicing ----------
 
@@ -63,36 +72,89 @@ def resolve_profile(path: Path) -> dict:
     return merged
 
 
-def flatten_profiles(build_dir: Path) -> tuple[Path, Path, Path]:
+def flatten_profiles(
+    build_dir: Path,
+    supports: bool = False,
+    support_type: str = "normal(auto)",
+    overrides: dict[str, str] | None = None,
+) -> tuple[Path, Path, list[Path]]:
     build_dir.mkdir(exist_ok=True)
-    out = []
-    for src in (MACHINE, PROCESS, FILAMENT):
-        resolved = resolve_profile(Path(src))
-        if src == PROCESS:
-            resolved["curr_bed_type"] = BED_TYPE
+
+    machine = resolve_profile(Path(MACHINE))
+    process = resolve_profile(Path(PROCESS))
+    process["curr_bed_type"] = BED_TYPE
+
+    filaments = []
+    body = resolve_profile(Path(FILAMENT))
+    if supports:
+        # Filament indices are 1-based in process settings; "0" means default.
+        # Print all support (base + interface) with filament 2. The
+        # filament->extruder map must go on the CLI, not in this profile:
+        # as a profile key it segfaults the CLI (BambuStudio issue #9119).
+        process.update({
+            "enable_support": "1",
+            "support_type": support_type,
+            "support_filament": "2",
+            "support_interface_filament": "2",
+        })
+        support = resolve_profile(Path(FILAMENT))
+        support["name"] = support["name"] + " aux support"
+        sup_path = build_dir / (Path(FILAMENT).stem + " aux support.json")
+        sup_path.write_text(json.dumps(support, indent=1))
+        filaments.append(sup_path)
+
+    process.update(overrides or {})
+
+    paths = []
+    for src, resolved in ((MACHINE, machine), (PROCESS, process), (FILAMENT, body)):
         dst = build_dir / Path(src).name
         dst.write_text(json.dumps(resolved, indent=1))
-        out.append(dst)
-    return tuple(out)
+        paths.append(dst)
+    machine_p, process_p, body_p = paths
+    return machine_p, process_p, [body_p, *filaments]
 
 
-def slice_stl(stl: Path, name: str | None = None) -> Path:
+def slice_stl(
+    stl: Path,
+    name: str | None = None,
+    supports: bool = False,
+    support_type: str = "normal(auto)",
+    overrides: dict[str, str] | None = None,
+) -> Path:
     name = name or stl.stem
     out = stl.parent / f"{name}.gcode.3mf"
-    machine, process, filament = flatten_profiles(stl.parent / "profiles_resolved")
+    machine, process, filaments = flatten_profiles(
+        stl.parent / "profiles_resolved", supports, support_type, overrides
+    )
     cmd = [
         STUDIO, "--debug", "1",
         "--load-settings", f"{machine};{process}",
-        "--load-filaments", str(filament),
+        "--load-filaments", ";".join(str(f) for f in filaments),
         "--slice", "0", "--arrange", "1",
         "--export-3mf", str(out.resolve()),
         str(stl.resolve()),
     ]
+    if supports:
+        cmd[3:3] = [
+            "--allow-multicolor-oneplate",
+            # filament 1 (body) -> extruder 1 (AMS, direct drive),
+            # filament 2 (support) -> extruder 2 (aux Bowden, external spool)
+            "--filament-map", "1,2",
+            "--filament-map-mode", "Manual",
+            "--nozzle-volume-type", "Standard,Standard",
+            "--filament-colour", f"{BODY_COLOUR};{SUPPORT_COLOUR}",
+            # The default prime tower position lies outside the aux extruder's
+            # reachable area (X >= 20.5), which fails the multi-extruder
+            # printable-area check; park it where both extruders reach.
+            "--wipe-tower-x", "180",
+            "--wipe-tower-y", "180",
+        ]
     res = subprocess.run(cmd, capture_output=True, text=True)
     if not out.exists():
         print(res.stdout[-2000:], res.stderr[-2000:])
         raise RuntimeError("Slicing failed")
-    print(f"Sliced {stl.name} -> {out.name}")
+    print(f"Sliced {stl.name} -> {out.name}"
+          + (" (supports on aux-nozzle filament)" if supports else ""))
     return out
 
 
@@ -113,12 +175,20 @@ def verify(threemf: Path, plot: bool = True) -> bool:
         re.findall(r"^; ([\w \[\]]+?) ?[:=] (.+)$", gcode.split("EXECUTABLE_BLOCK_START")[0], re.M)
     )
 
-    # Simulate moves (Bambu gcode uses relative E via M83)
+    # Simulate moves (Bambu gcode uses relative E via M83), per tool.
+    # T0 = left/AMS extruder; T1 = aux Bowden extruder (reaches only X>=20.5).
+    # Bambu templates also emit pseudo tools (T255, T1000, T65535...) — ignore.
     x = y = z = 0.0
-    extruded = 0.0
+    tool = 0
+    extruded_by_tool: dict[int, float] = {}
+    minx_by_tool: dict[int, float] = {}
     minx, maxx, miny, maxy, maxz = 1e9, -1e9, 1e9, -1e9, 0.0
     body = gcode.split("EXECUTABLE_BLOCK_START")[-1]
     for line in body.splitlines():
+        t = re.match(r"^T(\d)\b", line)
+        if t:
+            tool = int(t.group(1))
+            continue
         if not line.startswith(("G0 ", "G1 ", "G2 ", "G3 ")):
             continue
         coords = dict(re.findall(r"([XYZE])([-\d.]+)", line))
@@ -126,30 +196,43 @@ def verify(threemf: Path, plot: bool = True) -> bool:
         nx, ny = float(coords.get("X", x)), float(coords.get("Y", y))
         z = float(coords.get("Z", z))
         if e > 0 and ("X" in coords or "Y" in coords):
-            extruded += e
+            extruded_by_tool[tool] = extruded_by_tool.get(tool, 0.0) + e
+            minx_by_tool[tool] = min(minx_by_tool.get(tool, 1e9), x, nx)
             minx, maxx = min(minx, x, nx), max(maxx, x, nx)
             miny, maxy = min(miny, y, ny), max(maxy, y, ny)
             maxz = max(maxz, z)
         x, y = nx, ny
+    extruded = sum(extruded_by_tool.values())
     nozzle_temps = [float(t) for t in re.findall(r"M10[49] S(\d+)", body)]
     bed_temps = [float(t) for t in re.findall(r"M1[49]0 S(\d+)", body)]
 
-    header_len = float(header.get("total filament length [mm]", "0").split(",")[0])
+    header_len = sum(
+        float(v) for v in header.get("total filament length [mm]", "0").split(",")
+    )
     checks = [
         ("AMS filament load present (M620)", gcode.count("M620") >= 1),
         ("tool selection present (T cmd)", re.search(r"^T\d+", gcode, re.M) is not None),
         ("extrusion moves exist", extruded > 0),
         ("extrusion matches header estimate",
          header_len > 0 and 0.5 < (extruded / header_len) < 2.0),
-        ("print stays on bed (0..325 mm)",
-         0 <= minx and maxx <= 325 and 0 <= miny and maxy <= 325),
+        ("print stays on bed (0..256 mm)",
+         0 <= minx and maxx <= 256 and 0 <= miny and maxy <= 256),
         ("nozzle reaches print temp, none above 320",
          nozzle_temps and 180 <= max(nozzle_temps) <= 320),
         ("bed temps sane (<=110)", all(t <= 110 for t in bed_temps)),
     ]
+    if 1 in extruded_by_tool:
+        checks.append(
+            ("aux nozzle (T1) stays in its reachable area (X>=20.5)",
+             minx_by_tool[1] >= 20.5)
+        )
 
     print(f"Verifying {threemf.name}:")
-    print(f"  extruded {extruded:.0f} mm filament (header says {header_len:.0f} mm), "
+    per_tool = ", ".join(
+        f"T{t}: {e:.0f} mm" for t, e in sorted(extruded_by_tool.items())
+    )
+    print(f"  extruded {extruded:.0f} mm filament ({per_tool}; header says "
+          f"{header_len:.0f} mm), "
           f"footprint X {minx:.0f}-{maxx:.0f} Y {miny:.0f}-{maxy:.0f}, max Z {maxz:.1f}")
     ok = True
     for label, passed in checks:
@@ -174,11 +257,16 @@ def plot_toolpath(gcode: str, out: Path) -> Path:
     fig, ax = plt.subplots(figsize=(6, 6))
     x = y = 0.0
     layer = 0
+    tool = 0
     cmap = plt.get_cmap("viridis")
     segments_by_layer: dict[int, list] = {}
+    aux_segments: list = []  # T1 (support) moves, drawn flat-colored on top
     for line in gcode.split("EXECUTABLE_BLOCK_START")[-1].splitlines():
         if line.startswith("; CHANGE_LAYER"):
             layer += 1
+        t = re.match(r"^T(\d)\b", line)
+        if t:
+            tool = int(t.group(1))
         if not line.startswith(("G0 ", "G1 ", "G2 ", "G3 ")):
             continue
         coords = dict(re.findall(r"([XYZEIJ])([-\d.]+)", line))
@@ -200,19 +288,28 @@ def plot_toolpath(gcode: str, out: Path) -> Path:
                     cy + r * math.sin(a0 + (a1 - a0) * i / steps))
                    for i in range(steps + 1)]
             for (px, py), (qx, qy) in zip(pts, pts[1:]):
-                segments_by_layer.setdefault(layer, []).append(((px, qx), (py, qy)))
+                seg = ((px, qx), (py, qy))
+                (aux_segments if tool == 1
+                 else segments_by_layer.setdefault(layer, [])).append(seg)
         elif extruding:
-            segments_by_layer.setdefault(layer, []).append(((x, nx), (y, ny)))
+            seg = ((x, nx), (y, ny))
+            (aux_segments if tool == 1
+             else segments_by_layer.setdefault(layer, [])).append(seg)
         x, y = nx, ny
     total_layers = max(segments_by_layer, default=1)
     for lyr, segs in segments_by_layer.items():
         color = cmap(lyr / max(total_layers, 1))
         for (xs, ys) in segs:
             ax.plot(xs, ys, color=color, linewidth=0.5)
+    for (xs, ys) in aux_segments:
+        ax.plot(xs, ys, color="crimson", linewidth=0.5, alpha=0.6)
     ax.set_aspect("equal")
     ax.set_xlabel("X (mm)")
     ax.set_ylabel("Y (mm)")
-    ax.set_title(f"Toolpath (extrusion only), {total_layers} layers")
+    title = f"Toolpath (extrusion only), {total_layers} layers"
+    if aux_segments:
+        title += " — aux nozzle (support) in red"
+    ax.set_title(title)
     fig.savefig(out, dpi=150, bbox_inches="tight")
     plt.close(fig)
     return out
@@ -279,7 +376,29 @@ def get_status(timeout: float = 8.0) -> dict:
     return state
 
 
-def start_print(filename: str, ams_slot: int, wait: float = 90.0) -> None:
+def build_tray_mappings(trays: list[str]) -> tuple[list[int], list[dict]]:
+    """Map sliced filament slots (in order) to printer trays.
+
+    Each entry is an AMS slot number ("0".."3") or "ext" for the external
+    spool feeding the aux nozzle. Returns (ams_mapping, ams_mapping2) in the
+    wire format Bambu Studio's network plugin uses: external-spool filaments
+    are -1 in the flat v0 array and carried by ams_id in the v2 array.
+    """
+    m1: list[int] = []
+    m2: list[dict] = []
+    for item in trays:
+        if item == "ext":
+            m1.append(-1)
+            m2.append({"ams_id": EXT_SPOOL_TRAY, "slot_id": 0})
+        else:
+            slot = int(item)
+            m1.append(slot)  # global tray id: ams_id * 4 + slot (one AMS unit)
+            m2.append({"ams_id": 0, "slot_id": slot})
+    return m1, m2
+
+
+def start_print(filename: str, trays: list[str], wait: float = 90.0) -> None:
+    ams_mapping, ams_mapping2 = build_tray_mappings(trays)
     cmd = {
         "print": {
             "sequence_id": "0",
@@ -294,7 +413,8 @@ def start_print(filename: str, ams_slot: int, wait: float = 90.0) -> None:
             "vibration_cali": False,
             "layer_inspect": False,
             "use_ams": True,
-            "ams_mapping": [ams_slot],
+            "ams_mapping": ams_mapping,
+            "ams_mapping2": ams_mapping2,
             "subtask_id": "0",
             "task_id": "0",
             "project_id": "0",
@@ -307,7 +427,7 @@ def start_print(filename: str, ams_slot: int, wait: float = 90.0) -> None:
     def on_connect(c, u, f, rc, p):
         c.subscribe(f"device/{SERIAL}/report")
         c.publish(f"device/{SERIAL}/request", json.dumps(cmd))
-        print(f"Print command sent for {filename} (AMS slot {ams_slot})")
+        print(f"Print command sent for {filename} (trays: {', '.join(trays)})")
 
     def on_message(c, u, msg):
         d = json.loads(msg.payload).get("print", {})
@@ -343,6 +463,12 @@ if __name__ == "__main__":
     p_slice = sub.add_parser("slice")
     p_slice.add_argument("stl", type=Path)
     p_slice.add_argument("--name")
+    p_slice.add_argument("--supports", action="store_true",
+                         help="enable supports, printed white from the aux nozzle")
+    p_slice.add_argument("--support-type", default="normal(auto)",
+                         help="normal(auto), tree(auto), normal(manual), tree(manual)")
+    p_slice.add_argument("--set", action="append", default=[], metavar="KEY=VALUE",
+                         help="override a process-profile setting (repeatable)")
 
     p_ver = sub.add_parser("verify")
     p_ver.add_argument("file", type=Path)
@@ -352,7 +478,12 @@ if __name__ == "__main__":
 
     p_pr = sub.add_parser("print")
     p_pr.add_argument("file", type=Path)
-    p_pr.add_argument("--ams-slot", type=int, default=0)
+    p_pr.add_argument("--ams-slot", type=int, default=0,
+                      help="AMS slot for a single-filament print")
+    p_pr.add_argument("--trays",
+                      help="comma-separated tray per sliced filament, e.g. "
+                           "'2,ext' = filament 1 from AMS slot 2, filament 2 "
+                           "from the aux nozzle's external spool")
     p_pr.add_argument("--yes", action="store_true", help="skip confirmation")
 
     sub.add_parser("status")
@@ -360,7 +491,8 @@ if __name__ == "__main__":
     args = ap.parse_args()
 
     if args.cmd == "slice":
-        slice_stl(args.stl, args.name)
+        overrides = dict(kv.split("=", 1) for kv in getattr(args, "set"))
+        slice_stl(args.stl, args.name, args.supports, args.support_type, overrides)
     elif args.cmd == "verify":
         sys.exit(0 if verify(args.file) else 1)
     elif args.cmd == "upload":
@@ -385,4 +517,5 @@ if __name__ == "__main__":
             if answer.strip().lower() != "yes":
                 print("Aborted")
                 sys.exit(0)
-        start_print(args.file.name, args.ams_slot)
+        trays = args.trays.split(",") if args.trays else [str(args.ams_slot)]
+        start_print(args.file.name, trays)

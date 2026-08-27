@@ -21,14 +21,21 @@ everything with `uv run` from inside `cad/`.
 - `demo_04/assembly_check.py [steps]` — automated PASS/FAIL design checks
   (interference, clearances, mesh sweep, snap strain, sliceability incl. a
   mesh overhang scan). Run it before slicing; exit 0 only if all pass.
+- `demo_05/overhang_demo.py [arm_length_mm]` — support demo bracket: a pure
+  90° cantilever (needs support) next to a 45°-gusseted arm (doesn't).
+  `demo_05/nozzle_test.py` is the quick dual-nozzle coupon. Read
+  `demo_05/README.md` before any dual-nozzle/support job — it documents the
+  workflow and the failure modes (prime tower, filament_map, tray mapping).
 
 ## Printing (print_pipeline.py)
 
 ```
 uv run print_pipeline.py slice <model.stl>     # -> <model>.gcode.3mf
+uv run print_pipeline.py slice <model.stl> --supports  # supports in white from the aux nozzle
 uv run print_pipeline.py verify <file.gcode.3mf>  # pre-flight checks + toolpath PNG
 uv run print_pipeline.py upload <file.gcode.3mf>  # FTPS to printer USB stick
 uv run print_pipeline.py print <file.gcode.3mf> --ams-slot N  # MQTT start
+uv run print_pipeline.py print <file.gcode.3mf> --trays 2,ext  # dual-filament start
 uv run print_pipeline.py status
 ```
 
@@ -39,6 +46,15 @@ uv run print_pipeline.py status
 - AMS slots are 0-indexed: 0=black, 1=white, 2=dark blue, 3=green (PLA Basic).
 - Slicing resolves Bambu profile inheritance locally — the Bambu Studio CLI does
   not, which silently drops the AMS load gcode and causes air prints.
+- `--supports` slices two filaments (body + support) and maps support to the
+  aux Bowden extruder. The filament→extruder map MUST be CLI args
+  (`--filament-map 1,2 --filament-map-mode Manual`) — as process-profile keys
+  they segfault the CLI (BambuStudio #9119). The prime tower must be moved
+  inside the aux extruder's reachable area (X≥20.5), or the multi-extruder
+  printable-area check rejects the gcode.
+- `print --trays 2,ext` maps sliced filament order to trays: AMS slot number
+  or `ext` = the aux nozzle's external spool (virtual tray 255 in vir_slot;
+  sent as -1 in ams_mapping + ams_id 255 in ams_mapping2).
 
 ## macOS status app (macos/PrinterStatus)
 
