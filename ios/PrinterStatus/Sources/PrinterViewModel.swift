@@ -34,12 +34,17 @@ final class PrinterViewModel: ObservableObject {
     }
 
     /// Called when the settings sheet saves: re-resolve credentials and
-    /// reconnect. Switches into live mode when credentials first appear.
+    /// reconnect. Switches into live mode when credentials first appear,
+    /// and back to simulated when they are cleared — the sheet disables
+    /// the mode picker without credentials, so staying in live mode would
+    /// strand the user on "No printer configured".
     func reloadConfig() {
         config = PrinterConfig.load()
         hasCredentials = config != nil
         if config != nil, mode == .simulated {
             mode = .live  // didSet restarts
+        } else if config == nil, mode == .live {
+            mode = .simulated  // didSet restarts
         } else {
             restart()
         }

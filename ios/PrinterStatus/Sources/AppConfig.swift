@@ -81,7 +81,9 @@ enum Keychain {
         guard let data = value.data(using: .utf8) else { return false }
         var q = query
         q[kSecValueData as String] = data
-        q[kSecAttrAccessible as String] = kSecAttrAccessibleAfterFirstUnlock
+        // ThisDeviceOnly keeps the code out of backups and iCloud Keychain;
+        // WhenUnlocked suffices since the app only reads it in the foreground.
+        q[kSecAttrAccessible as String] = kSecAttrAccessibleWhenUnlockedThisDeviceOnly
         return SecItemAdd(q as CFDictionary, nil) == errSecSuccess
     }
 }

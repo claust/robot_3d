@@ -32,9 +32,11 @@ struct SettingsView: View {
                 }
 
                 Section {
+                    // not .decimalPad: in comma-decimal locales it has no "."
+                    // key, which makes a dotted IPv4 address untypeable
                     TextField("192.168.1.…", text: $ip)
-                        .keyboardType(.decimalPad)
-                        .textContentType(.URL)
+                        .keyboardType(.numbersAndPunctuation)
+                        .autocorrectionDisabled()
                     TextField("Serial number", text: $serial)
                         .autocorrectionDisabled()
                         .textInputAutocapitalization(.characters)
