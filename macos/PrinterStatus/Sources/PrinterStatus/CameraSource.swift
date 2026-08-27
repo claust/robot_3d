@@ -53,18 +53,26 @@ final class CameraSource {
             onStatus?("ffmpeg not found — brew install ffmpeg")
             return
         }
+        // The URL carries the access code, so it must not appear in the
+        // argument vector — `ps` exposes that to anyone who can read this
+        // process's arguments. Feed it through stdin instead, as a one-line
+        // concat playlist; rtsps is TLS over TCP, so no transport flag is
+        // needed. The credential then lives only in the pipe between us.
         let url = "rtsps://bblp:\(config.accessCode)@\(config.ip):322/streaming/live/1"
         let proc = Process()
         proc.executableURL = URL(fileURLWithPath: ffmpeg)
         proc.arguments = [
             "-hide_banner", "-loglevel", "quiet",
-            "-rtsp_transport", "tcp",
-            "-i", url,
+            "-f", "concat", "-safe", "0",
+            "-protocol_whitelist", "pipe,file,rtsp,rtsps,tcp,tls,crypto,udp",
+            "-i", "pipe:0",
             "-an", "-f", "mjpeg", "-q:v", "4", "-r", "\(Self.frameRate)",
             "pipe:1",
         ]
         let out = Pipe()
+        let input = Pipe()
         proc.standardOutput = out
+        proc.standardInput = input
         proc.standardError = FileHandle.nullDevice
         out.fileHandleForReading.readabilityHandler = { [weak self] handle in
             let data = handle.availableData
@@ -86,6 +94,9 @@ final class CameraSource {
             try proc.run()
             ChildReaper.register(proc.processIdentifier)
             process = proc
+            let playlist = Data("file '\(url)'\n".utf8)
+            try? input.fileHandleForWriting.write(contentsOf: playlist)
+            try? input.fileHandleForWriting.close()
             onStatus?("Camera connecting…")
         } catch {
             onStatus?("Camera failed: \(error.localizedDescription)")

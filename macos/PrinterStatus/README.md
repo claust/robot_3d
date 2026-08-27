@@ -15,6 +15,11 @@ as RTSPS on port 322, which AVFoundation can't play, so the app runs a small
 reconnects automatically if it drops; the LIVE badge is shown only while
 frames are actually arriving.
 
+The camera URL embeds the printer access code, so it is never passed as an
+ffmpeg argument — `ps` would show it to anyone able to read this process's
+arguments. It goes in over ffmpeg's stdin as a one-line concat playlist
+instead, leaving the argument vector credential-free.
+
 ## Run
 
 ```
