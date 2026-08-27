@@ -87,8 +87,11 @@ struct DashboardView: View {
             GeometryReader { geo in
                 ZStack(alignment: .leading) {
                     Capsule().fill(Color(.tertiarySystemFill))
+                    // the 10pt floor keeps a visible nub once printing has
+                    // begun; 0% genuinely shows an empty bar
                     Capsule().fill(stateColor.gradient)
-                        .frame(width: max(10, geo.size.width * Double(model.snapshot.percent) / 100))
+                        .frame(width: model.snapshot.percent == 0 ? 0
+                            : max(10, geo.size.width * Double(model.snapshot.percent) / 100))
                         .animation(.easeInOut(duration: 0.5), value: model.snapshot.percent)
                 }
             }

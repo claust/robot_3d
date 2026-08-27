@@ -27,11 +27,16 @@ struct PrinterConfig {
 
     /// False when the access code could not be stored in the Keychain —
     /// the caller must surface that, or the credential is silently lost.
+    /// The Keychain write goes first: a failed save must not leave a
+    /// half-updated config (new IP/serial, old or missing access code).
     static func save(ip: String, serial: String, accessCode: String) -> Bool {
+        guard Keychain.setAccessCode(accessCode.trimmingCharacters(in: .whitespaces)) else {
+            return false
+        }
         let defaults = UserDefaults.standard
         defaults.set(ip.trimmingCharacters(in: .whitespaces), forKey: SettingsKey.ip)
         defaults.set(serial.trimmingCharacters(in: .whitespaces), forKey: SettingsKey.serial)
-        return Keychain.setAccessCode(accessCode.trimmingCharacters(in: .whitespaces))
+        return true
     }
 
     private static func make(_ ip: String?, _ serial: String?, _ code: String?)

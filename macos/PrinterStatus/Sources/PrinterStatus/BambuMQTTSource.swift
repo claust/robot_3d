@@ -109,7 +109,14 @@ final class BambuMQTTSource {
     /// but the chain itself must validate. Set BAMBU_TLS_INSECURE=1 to skip
     /// verification entirely (e.g. for non-Bambu test brokers).
     private func makeClient() throws -> MQTTClient {
-        let identifier = "PrinterStatusMac-\(ProcessInfo.processInfo.processIdentifier)"
+        // Platform-tagged and random: two devices sharing a client id would
+        // have the broker drop the older session on each reconnect.
+        #if os(macOS)
+        let platform = "Mac"
+        #else
+        let platform = "iOS"
+        #endif
+        let identifier = "PrinterStatus\(platform)-\(UUID().uuidString.prefix(8))"
         if ProcessInfo.processInfo.environment["BAMBU_TLS_INSECURE"] == "1" {
             return MQTTClient(
                 host: config.ip,
