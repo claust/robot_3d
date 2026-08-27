@@ -13,6 +13,14 @@ everything with `uv run` from inside `cad/`.
   also exports a half-section STL to inspect the thread profile.
 - `demo_03/gear.py [module] [teeth] [face_width] [bore]` — involute spur gear
   (py_gearworks, local editable checkout at ~/Repos/py_gearworks).
+- `demo_04/fit_test.py [clearance_mm]` — post/washer coupons that calibrate
+  running clearances by hand-feel. 0.2 mm radial is the calibrated value.
+- `demo_04/gearbox.py [module] [z1] [z2] [z3] [face_width]` — three-gear train
+  on an open frame; center distances come from py_gearworks' `mesh_to()`,
+  never hand-computed. Exports each part plus assembly and section STLs.
+- `demo_04/assembly_check.py [steps]` — automated PASS/FAIL design checks
+  (interference, clearances, mesh sweep, snap strain, sliceability incl. a
+  mesh overhang scan). Run it before slicing; exit 0 only if all pass.
 
 ## Printing (print_pipeline.py)
 
