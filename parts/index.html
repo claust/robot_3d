@@ -1,0 +1,273 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Parts Library — robot_3d</title>
+<style>
+  :root {
+    --bg: #faf9f7;
+    --card: #ffffff;
+    --ink: #1d2129;
+    --muted: #6b7280;
+    --line: #e3e0da;
+    --accent: #b45309;
+    --untested: #92722a;
+    --untested-bg: #faf3dd;
+    --verify: #9a3412;
+    --verify-bg: #fbeae2;
+    --ok: #166534;
+    --ok-bg: #e3f2e6;
+    --retired: #52525b;
+    --retired-bg: #ececee;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #16181d;
+      --card: #1e2128;
+      --ink: #e8e6e1;
+      --muted: #9aa0ab;
+      --line: #33373f;
+      --accent: #e5a453;
+      --untested: #d9b45c;
+      --untested-bg: #35301f;
+      --verify: #e08a5e;
+      --verify-bg: #38261d;
+      --ok: #7dc98b;
+      --ok-bg: #1f3323;
+      --retired: #a1a1aa;
+      --retired-bg: #2a2c31;
+    }
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--ink);
+    font: 16px/1.55 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  }
+  main { max-width: 880px; margin: 0 auto; padding: 2.5rem 1.25rem 4rem; }
+  h1 { font-size: 1.7rem; margin: 0 0 .3rem; }
+  .subtitle { color: var(--muted); margin: 0 0 2rem; }
+  h2 { font-size: 1.2rem; margin: 0; }
+  code {
+    font-family: ui-monospace, "SF Mono", Menlo, monospace;
+    font-size: .85em;
+    background: var(--line);
+    padding: .1em .35em;
+    border-radius: 4px;
+  }
+  a { color: var(--accent); }
+
+  table { border-collapse: collapse; width: 100%; margin: 0 0 2.5rem; font-size: .95rem; }
+  th, td { text-align: left; padding: .5rem .7rem; border-bottom: 1px solid var(--line); }
+  th { color: var(--muted); font-weight: 600; font-size: .8rem; text-transform: uppercase; letter-spacing: .04em; }
+  td.qty { text-align: center; }
+
+  .badge {
+    display: inline-block;
+    font-size: .75rem;
+    font-weight: 600;
+    padding: .1rem .55rem;
+    border-radius: 999px;
+    white-space: nowrap;
+  }
+  .badge.untested { color: var(--untested); background: var(--untested-bg); }
+  .badge.verify   { color: var(--verify);   background: var(--verify-bg); }
+  .badge.ok       { color: var(--ok);       background: var(--ok-bg); }
+  .badge.retired  { color: var(--retired);  background: var(--retired-bg); }
+
+  .part {
+    background: var(--card);
+    border: 1px solid var(--line);
+    border-radius: 12px;
+    padding: 1.4rem 1.6rem;
+    margin-bottom: 1.6rem;
+  }
+  .part-head { display: flex; align-items: baseline; gap: .7rem; flex-wrap: wrap; margin-bottom: .2rem; }
+  .part-id { font-family: ui-monospace, "SF Mono", Menlo, monospace; color: var(--muted); font-weight: 600; }
+  .part-body { display: flex; gap: 1.4rem; align-items: flex-start; flex-wrap: wrap; }
+  .part-text { flex: 1 1 24rem; min-width: 0; }
+  figure { flex: 0 1 240px; margin: .8rem 0 0; }
+  figure img {
+    width: 100%;
+    max-width: 100%;
+    border-radius: 8px;
+    border: 1px solid var(--line);
+    display: block;
+  }
+  figcaption { color: var(--muted); font-size: .8rem; margin-top: .35rem; }
+  ul { padding-left: 1.2rem; margin: .7rem 0; }
+  li { margin: .25rem 0; }
+  ul.checklist { list-style: none; padding-left: .2rem; }
+  ul.checklist li::before { content: "☐ "; color: var(--muted); }
+  .note { color: var(--muted); font-size: .9rem; }
+</style>
+</head>
+<body>
+<main>
+  <h1>Parts Library</h1>
+  <p class="subtitle">Hardware on hand for the robot platform — things we might use, might not.
+  One card per part; keep the table and cards in sync. Photos live in <code>photos/</code>.</p>
+
+  <table>
+    <thead>
+      <tr><th>ID</th><th>Part</th><th>Qty</th><th>Status</th><th>Notes</th></tr>
+    </thead>
+    <tbody>
+      <tr><td><a href="#m1">M1</a></td><td>Canon CK35-H12CH-22V DC motor</td><td class="qty">2</td>
+          <td><span class="badge untested">untested</span></td><td>22 V brushed, from old robot</td></tr>
+      <tr><td><a href="#d1">D1</a></td><td>Devantech MD22 dual motor driver</td><td class="qty">1</td>
+          <td><span class="badge untested">untested</span></td><td>I2C/analog/RC, 5 A per channel</td></tr>
+      <tr><td><a href="#r1">R1</a></td><td>Devantech CM02 radio module</td><td class="qty">1</td>
+          <td><span class="badge verify">verify</span></td><td>glimpsed on same robot, unconfirmed</td></tr>
+      <tr><td><a href="#b1">B1</a></td><td>GP TC204 NiMH pack 7.2 V 3300 mAh</td><td class="qty">1</td>
+          <td><span class="badge verify">verify</span></td><td>~20 years old; check before use</td></tr>
+      <tr><td><a href="#b2">B2</a></td><td>Yowoo 2S LiPo 7.4 V 2200 mAh</td><td class="qty">2</td>
+          <td><span class="badge untested">untested</span></td><td>XT60 + JST-XH balance lead</td></tr>
+    </tbody>
+  </table>
+
+  <p class="note">Status legend: <span class="badge untested">untested</span> not powered up yet ·
+  <span class="badge verify">verify</span> needs a bench check before trusting ·
+  <span class="badge ok">ok</span> tested working ·
+  <span class="badge retired">retired</span> kept for reference, don't design around it.</p>
+
+  <section class="part" id="m1">
+    <div class="part-head"><span class="part-id">M1</span><h2>Canon CK35-H12CH-22V brushed DC motor</h2><span class="badge untested">untested</span><span class="note">×2</span></div>
+    <div class="part-body">
+      <div class="part-text">
+        <p>Label: <code>Canon Precision Japan / CK35-H12CH-22V / I-5635A / 2EF</code>
+        (<code>I-5635A</code> is an OEM customer part number, <code>2EF</code> a lot/date code).</p>
+        <ul>
+          <li>Vintage (1970s–90s) Canon Precision 35 mm-class round-can brushed DC motor,
+              same family as the CA35/EN35 tape-transport motors.</li>
+          <li>Rated 22 V per the label suffix — higher than the usual 12 V cassette motors;
+              this class came out of reel-to-reel decks, projectors, and office machines with a ~24 V rail.</li>
+          <li>Two leads (black/white), double-ended shaft: long ~2 mm working shaft one end,
+              short stub the other (pulley/flywheel/sensor side).</li>
+          <li>No public datasheet found. Expectations for the class: ~1–3 W, 2 000–6 000 rpm
+              no-load at rated voltage, tens of mA no-load, very low torque — needs a
+              ~20–50:1 reduction to drive a wheel.</li>
+          <li>Two wires means either a plain brushed motor or one with an internal speed
+              governor. Governor check: run at 6/12/18 V — if speed plateaus instead of
+              scaling with voltage, it's governed (bad for PWM control).</li>
+        </ul>
+        <p>To verify before designing around them:</p>
+        <ul class="checklist">
+          <li>Governor check (above)</li>
+          <li>No-load current at a few voltages</li>
+          <li>No-load speed (slow-mo video of a tape flag, or strobe app)</li>
+          <li>Terminal resistance (spin slowly, take the lowest reading)</li>
+          <li>Measure shaft diameter and can dimensions for the CAD model</li>
+        </ul>
+      </div>
+      <figure>
+        <a href="photos/m1-ck35-motor.jpg"><img src="photos/m1-ck35-motor.jpg" alt="Canon CK35-H12CH-22V motor, label side"></a>
+        <figcaption>One of the pair, label side.</figcaption>
+      </figure>
+    </div>
+  </section>
+
+  <section class="part" id="d1">
+    <div class="part-head"><span class="part-id">D1</span><h2>Devantech MD22 dual DC motor driver</h2><span class="badge untested">untested</span><span class="note">×1</span></div>
+    <div class="part-body">
+      <div class="part-text">
+        <p>UK-made dual H-bridge board, early 2000s (PIC16F873 date code 2004).
+        Docs: <a href="https://www.robot-electronics.co.uk/htm/md22tech.htm">robot-electronics.co.uk/htm/md22tech.htm</a></p>
+        <ul>
+          <li>Two channels, 5 A continuous each; motor supply up to 24 V — plenty for the
+              M1 motors, and works fine down at 7.2 V.</li>
+          <li>Separate 5 V logic supply, ≤50 mA.</li>
+          <li>Bottom screw terminals: +V, M1, M2, GND (battery + both motors).
+              Top terminal block: 5 V logic and control lines.</li>
+          <li>Four control modes, set by the blue DIP switch <strong>at power-up only</strong>:
+              I2C (addresses 0xB0–0xBE; registers for mode, speed1, speed2/turn, acceleration),
+              analog 0–5 V (2.5 V = stop), RC servo pulses (1–2 ms), and combined modes with
+              differential steering.</li>
+          <li>The current DIP setting records how the original robot drove it — decode before changing.</li>
+          <li>Age caution: bring up on a current-limited supply first; eyeball the
+              2200 µF/63 V Nover electrolytic.</li>
+        </ul>
+        <p class="note">No photo in the library yet.</p>
+      </div>
+    </div>
+  </section>
+
+  <section class="part" id="r1">
+    <div class="part-head"><span class="part-id">R1</span><h2>Devantech CM02 radio module</h2><span class="badge verify">verify</span><span class="note">×1, unconfirmed</span></div>
+    <div class="part-body">
+      <div class="part-text">
+        <p>Small green board silkscreened <code>CM02</code> seen mounted above the MD22 on the
+        old robot chassis — matches Devantech's CM02 radio communications module (I2C radio
+        link, companion to the MD22 era). Not yet removed or inspected; confirm identity and
+        condition before listing specs.</p>
+        <p class="note">No photo in the library yet.</p>
+      </div>
+    </div>
+  </section>
+
+  <section class="part" id="b1">
+    <div class="part-head"><span class="part-id">B1</span><h2>GP TC204 NiMH battery pack, 7.2 V 3300 mAh</h2><span class="badge verify">verify</span><span class="note">×1</span></div>
+    <div class="part-body">
+      <div class="part-text">
+        <p>Six-cell NiMH stick pack ("Racing Car" type) with Tamiya connector.
+        Same vintage as the robot — almost certainly its original power source.</p>
+        <ul>
+          <li>NiMH, so no lithium-style fire risk; realistic failure modes are dead cells,
+              leakage, or warming during charge.</li>
+          <li>Even if revived, expect well under 3300 mAh and higher internal resistance.
+              For bench work prefer a current-limited PSU; for the real robot a modern pack is cheap.</li>
+          <li>Disposal, if it comes to that: battery recycling bin / genbrugsstation,
+              never household waste.</li>
+        </ul>
+        <p>Decision procedure (as of 2026-08-27, not yet done):</p>
+        <ul class="checklist">
+          <li>Inspect under the shrink wrap for crust/damp/bulging → recycle if any</li>
+          <li>Open-circuit voltage: 7.0–8.0 V healthy · 4–7 V deeply discharged, maybe
+              recoverable · &lt;3 V cell(s) reversed/shorted → recycle</li>
+          <li>If reviving: first charge at ~300 mA (0.1 C), supervised; hot pack → stop and recycle</li>
+        </ul>
+        <p class="note">No photo in the library yet.</p>
+      </div>
+    </div>
+  </section>
+
+  <section class="part" id="b2">
+    <div class="part-head"><span class="part-id">B2</span><h2>Yowoo "Graphene" 2S LiPo, 7.4 V 2200 mAh</h2><span class="badge untested">untested</span><span class="note">×2</span></div>
+    <div class="part-body">
+      <div class="part-text">
+        <p>Modern LiPo packs, XT60 main connector, JST-XH 3-pin balance lead, 12 AWG silicone
+        wires. Label claims 130C discharge — marketing fiction (that would be 286 A through
+        12 AWG); treat them as good-quality ~30C packs, still far more current than this
+        robot will ever draw.</p>
+        <ul>
+          <li>2S: 7.4 V nominal, 8.4 V full, don't discharge below ~6.4 V (3.2 V/cell) —
+              the robot should have a low-voltage cutoff or alarm.</li>
+          <li>Charge only with a balance charger (via the JST-XH lead), 1C = 2.2 A max,
+              supervised, on a non-flammable surface.</li>
+          <li>Store at storage charge (~3.8 V/cell ≈ 7.6 V), not full — full packs sitting
+              for months puff and age fast.</li>
+          <li>Inspect for puffing/soft swelling before each use; a puffed pack is retired to
+              the recycling bin (discharged first).</li>
+          <li>Fit: drop-in for the MD22 (well within 24 V max); drives the M1 motors gently
+              at ~⅓ of their 22 V rating. XT60 → MD22 screw terminals needs a short pigtail;
+              NiMH pack B1 uses Tamiya, so connectors don't interchange without an adapter.</li>
+        </ul>
+        <p>To verify:</p>
+        <ul class="checklist">
+          <li>Cell voltages via balance lead (healthy: 3.7–4.2 V/cell, delta &lt;0.05 V)</li>
+          <li>No puffing; packs feel firm</li>
+          <li>Capacity check on the charger if it supports discharge cycles</li>
+        </ul>
+      </div>
+      <figure>
+        <a href="photos/b2-yowoo-lipo.jpg"><img src="photos/b2-yowoo-lipo.jpg" alt="Two Yowoo 2S 2200 mAh LiPo packs with XT60 connectors"></a>
+        <figcaption>Both packs, XT60 + balance leads.</figcaption>
+      </figure>
+    </div>
+  </section>
+
+</main>
+</body>
+</html>
