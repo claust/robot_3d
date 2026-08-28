@@ -67,6 +67,18 @@ Protocol notes in `macos/RESEARCH.md`. Credentials resolve from BAMBU_* env
 vars, then `~/Library/Application Support/PrinterStatus/config.env` (which
 may hold a `BAMBU_ENV_FILE=` pointer), then `cad/.env` found by walking up.
 
+## iOS status app (ios/PrinterStatus)
+
+iPhone port of the macOS app; shares the protocol layer (MQTT, snapshot
+decode, SSDP, simulator) straight from the macOS package via XcodeGen path
+references — UI and config are iOS-specific, and there is no camera pane
+(needs ffmpeg, which iOS can't spawn). From `ios/PrinterStatus`: `xcodegen
+generate`, then build with xcodebuild for the simulator (see its README).
+Credentials come from the in-app settings sheet or `SIMCTL_CHILD_BAMBU_*`
+env vars. TestFlight releases: `Scripts/testflight.sh` locally, or the
+manual `testflight-ios.yml` GitHub workflow (secrets: ASC_KEY_ID,
+ASC_ISSUER_ID, ASC_KEY_P8, DEVELOPMENT_TEAM).
+
 ## Conventions
 
 - Generated outputs (STL, STEP, PNG, gcode) are gitignored; commit only source.

@@ -109,7 +109,14 @@ final class BambuMQTTSource {
     /// but the chain itself must validate. Set BAMBU_TLS_INSECURE=1 to skip
     /// verification entirely (e.g. for non-Bambu test brokers).
     private func makeClient() throws -> MQTTClient {
-        let identifier = "PrinterStatusMac-\(ProcessInfo.processInfo.processIdentifier)"
+        // Platform-tagged and random: two devices sharing a client id would
+        // have the broker drop the older session on each reconnect.
+        #if os(macOS)
+        let platform = "Mac"
+        #else
+        let platform = "iOS"
+        #endif
+        let identifier = "PrinterStatus\(platform)-\(UUID().uuidString.prefix(8))"
         if ProcessInfo.processInfo.environment["BAMBU_TLS_INSECURE"] == "1" {
             return MQTTClient(
                 host: config.ip,
@@ -125,6 +132,7 @@ final class BambuMQTTSource {
                 )
             )
         }
+        #if os(macOS)
         var tls = TLSConfiguration.makeClientConfiguration()
         tls.certificateVerification = .noHostnameVerification
         tls.trustRoots = .certificates(try BambuTrust.trustRoots())
@@ -144,6 +152,34 @@ final class BambuMQTTSource {
                 sniServerName: "bambu-printer"
             )
         )
+        #elseif os(iOS)
+        // iOS builds of MQTTNIO compile NIOSSL support out, leaving only the
+        // Network.framework path — whose trust evaluation always applies the
+        // SSL policy, which the printer's certificate can never pass (it
+        // names the serial, not the IP, lacks the serverAuth EKU and outlives
+        // the 825-day limit; verified live: pinning BambuTrust's roots as
+        // anchors still fails with SSLHostname/ServerAuthEKU). So iOS skips
+        // verification, like the BAMBU_TLS_INSECURE escape hatch; the
+        // session is still encrypted, just not authenticated. macOS keeps
+        // real chain pinning via NIOSSL above.
+        return MQTTClient(
+            host: config.ip,
+            port: 8883,
+            identifier: identifier,
+            eventLoopGroupProvider: .shared(NIOTSEventLoopGroup.singleton),
+            configuration: .init(
+                version: .v3_1_1,
+                userName: "bblp",
+                password: config.accessCode,
+                useSSL: true,
+                tlsConfiguration: .ts(TSTLSConfiguration(certificateVerification: .none))
+            )
+        )
+        #else
+        // Each platform must consciously pick its TLS posture; do not let a
+        // new platform silently inherit the unverified iOS path.
+        #error("Unsupported platform: add an explicit TLS configuration for it")
+        #endif
     }
 
     private func requestPushAll(_ client: MQTTClient) async throws {
