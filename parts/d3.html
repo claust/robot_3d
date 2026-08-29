@@ -1,0 +1,57 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>D3 — DRV8833 driver (RealPoy) — Parts Library</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<main>
+  <a class="back-link" href="index.html">&larr; Parts Library</a>
+
+  <section class="part" id="d3">
+    <div class="part-head"><span class="part-id">D3</span><h2>DRV8833 dual H-bridge motor driver module (RealPoy)</h2><span class="badge untested">untested</span><span class="note">×2</span></div>
+    <div class="part-body">
+      <div class="part-text">
+        <p>A second, different DRV8833 breakout &mdash; same driver IC as D2, but a different
+        board (red PCB, "RealPoy" branding, different size and pin naming). Not a substitute
+        part for D2; keep both entries since the silkscreen and pinout don't match.</p>
+        <ul>
+          <li>Board 18 × 21 mm (D2's board is 18.5 × 16 mm).</li>
+          <li>Input: <code>VM</code> (chip + motor supply) 2.7&ndash;10.8 V. Logic inputs run
+              0&ndash;5 V regardless of VM.</li>
+          <li>Single H-bridge output current 1.5 A, can drive two DC motors (or a 4-wire
+              stepper across both bridges) &mdash; same headline spec as D2, consistent with
+              both being DRV8833-based.</li>
+          <li>Protections: overcurrent, short-circuit, undervoltage lockout, overtemperature,
+              plus a low-power sleep mode &mdash; per the seller's spec sheet.</li>
+          <li>Pinout (this board's own naming, different from D2's IN1&ndash;4/OUT1&ndash;4):
+              <code>ANI1</code>/<code>AIN2</code> drive H-bridge <code>A</code>
+              (<code>AO1</code>/<code>AO2</code>); <code>BMI1</code>/<code>BIN2</code> drive
+              H-bridge <code>B</code> (<code>BO1</code>/<code>BO2</code>).</li>
+          <li><code>STBY</code>: grounded (or floating) = chip disabled, no output; tie to 5 V
+              (or a logic-high) for normal operation. This is the RealPoy board's equivalent of
+              D2's <code>ULT</code> pin &mdash; same idea, opposite default (D2's ULT floats
+              toward enabled; this one needs an explicit pull-up).</li>
+          <li><code>NC</code> pins: empty feet, no connection.</li>
+        </ul>
+        <p>To verify:</p>
+        <ul class="checklist">
+          <li>Confirm STBY needs an active pull-up before the board will output anything</li>
+          <li>Confirm VM range (2.7&ndash;10.8 V) before wiring a battery &mdash; narrower than
+              D2's 3&ndash;10 V, so double-check against whatever pack is in use</li>
+          <li>Bench-test each H-bridge independently against an M2 motor</li>
+          <li>Compare against D2 once both are tested &mdash; decide if we standardize on one
+              DRV8833 breakout going forward</li>
+        </ul>
+      </div>
+      <figure>
+        <a href="photos/d3-drv8833-realpoy-spec.jpg"><img src="photos/d3-drv8833-realpoy-spec.jpg" alt="RealPoy DRV8833 module product details: features, pin description, and board photo with 18mm x 21mm dimensions"></a>
+        <figcaption>Seller spec sheet: features, pin description, dimensions.</figcaption>
+      </figure>
+    </div>
+  </section>
+</main>
+</body>
+</html>

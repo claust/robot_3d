@@ -1,0 +1,73 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>P1 — MP1584EN buck converter — Parts Library</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<main>
+  <a class="back-link" href="index.html">&larr; Parts Library</a>
+
+  <section class="part" id="p1">
+    <div class="part-head"><span class="part-id">P1</span><h2>MP1584EN adjustable buck (step-down) converter module</h2><span class="badge untested">untested</span><span class="note">×5</span></div>
+    <div class="part-body">
+      <div class="part-text">
+        <p>New-bought stock, a tiny adjustable switching regulator board — a common
+        LM2596-alternative built around the Monolithic Power Systems <code>MP1584EN</code>
+        (SOP-8), a higher-frequency synchronous-ish buck IC that lets the board run much
+        smaller than an LM2596 design for the same output current.</p>
+        <ul>
+          <li>Board 22 × 17 mm. Four pads per side: <code>IN+</code>/<code>IN&minus;</code> on
+              one edge, <code>OUT+</code>/<code>OUT&minus;</code> on the opposite edge (labeled
+              on both the front annotation and the bare back-side silkscreen, which also
+              prints an arrow for current direction).</li>
+          <li>Input 4.5&ndash;28 V. Output adjustable via the onboard trimpot &mdash; clockwise
+              steps the output down, counterclockwise steps it up, per the seller's own
+              diagram.</li>
+          <li>Output range: the seller's listing states 2&ndash;20 V, but the board's own
+              printed diagram says 0.8&ndash;20 V &mdash; 0.8 V matches the MP1584's native
+              feedback reference, so treat the low end below ~2 V as achievable but not
+              necessarily as clean or well-regulated as the listing implies.</li>
+          <li>Rated output current: 3 A max. Switching frequency up to 1.5 MHz (~1 MHz
+              typical). Output ripple &lt;30 mV. Efficiency up to 96%. Operating range
+              &minus;40&deg;C to +85&deg;C &mdash; all per the seller's spec sheet, not yet
+              independently checked.</li>
+          <li>Visible components: the MP1584EN itself, a shielded power inductor marked
+              <code>4R7</code> (4.7 &micro;H), an <code>SS34</code> Schottky diode (3 A/40 V
+              class), a few ceramic caps, and the blue multi-turn trimpot that sets the
+              feedback divider (and so the output voltage).</li>
+          <li>No obvious reverse-polarity protection on the input &mdash; wire it carefully.</li>
+          <li>Likely use here: stepping a higher-voltage source (e.g. the B1/B2 packs, or the
+              M1 motors' 22 V rail) down to a clean logic rail (5 V, 3.3 V) for boards like the
+              D2 DRV8833 or a microcontroller, rather than driving motors directly.</li>
+        </ul>
+        <p>To verify:</p>
+        <ul class="checklist">
+          <li>Set the output voltage with a multimeter under no load before connecting anything
+              &mdash; the trimpot ships at an arbitrary factory position, not a known default</li>
+          <li>Confirm real clean output current at the Vin/Vout we actually use (3 A is a
+              datasheet ceiling; expect derating without a heatsink or airflow)</li>
+          <li>Check ripple with a scope at the intended load, not just the datasheet figure</li>
+          <li>Decide a mounting method &mdash; the four corner pads are unplated, not threaded
+              holes</li>
+        </ul>
+      </div>
+      <figure>
+        <a href="photos/p1-mp1584-pinout.jpg"><img src="photos/p1-mp1584-pinout.jpg" alt="MP1584EN buck converter board with input/output pins and voltage adjustment labeled"></a>
+        <figcaption>Seller's annotated pinout &mdash; I/O pads, voltage range, trimpot direction.</figcaption>
+      </figure>
+      <figure>
+        <a href="photos/p1-mp1584-dimensions.jpg"><img src="photos/p1-mp1584-dimensions.jpg" alt="MP1584EN board dimension diagram, 22mm by 17mm"></a>
+        <figcaption>Board outline: 22 &times; 17 mm.</figcaption>
+      </figure>
+      <figure>
+        <a href="photos/p1-mp1584-back.jpg"><img src="photos/p1-mp1584-back.jpg" alt="Front and back of the board; back side silkscreen labels IN+/IN-/OUT+/OUT- with a current-direction arrow"></a>
+        <figcaption>Back-side silkscreen confirms the pad layout and current direction.</figcaption>
+      </figure>
+    </div>
+  </section>
+</main>
+</body>
+</html>

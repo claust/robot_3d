@@ -1,0 +1,54 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>D4 — TB6612FNG driver — Parts Library</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<main>
+  <a class="back-link" href="index.html">&larr; Parts Library</a>
+
+  <section class="part" id="d4">
+    <div class="part-head"><span class="part-id">D4</span><h2>TB6612FNG dual DC motor driver module</h2><span class="badge untested">untested</span><span class="note">×2</span></div>
+    <div class="part-body">
+      <div class="part-text">
+        <p>A Toshiba TB6612FNG breakout &mdash; the other common small dual-H-bridge driver
+        alongside the DRV8833 boards (D2/D3), higher current-rated but with a higher VCC floor
+        and a lower VM ceiling than either DRV8833 module.</p>
+        <ul>
+          <li>Board ~19 × 21 mm (0.8 × 0.8"), all TB6612FNG pins broken out to 0.1" headers,
+              filtering caps on both supply lines.</li>
+          <li>Two supply pins: <code>VCC</code> (logic) 2.7&ndash;5.5 V, <code>VM</code> (motor)
+              up to 15 V max &mdash; unlike the DRV8833 boards, logic and motor power are
+              separate here.</li>
+          <li>Two independent channels (<code>A</code>, <code>B</code>), each with its own
+              <code>IN1</code>/<code>IN2</code> pair selecting CW / CCW / short-brake / stop,
+              plus a per-channel <code>PWM</code> input (up to 100 kHz) for speed control.</li>
+          <li>Output current: 1.2 A continuous per channel, 3.2 A peak (single short pulse) &mdash;
+              noticeably higher continuous rating than the DRV8833's 1.5 A/channel once you
+              account for the DRV8833 figure being closer to a peak spec.</li>
+          <li><code>STBY</code>: pull high to take the chip out of standby; this is shared
+              across both channels (one standby pin, not per-channel).</li>
+          <li>Built-in thermal shutdown and low-voltage detection.</li>
+        </ul>
+        <p>To verify:</p>
+        <ul class="checklist">
+          <li>Confirm VCC (logic) and VM (motor) are wired to the right pins &mdash; easy to
+              mix up coming from the single-supply DRV8833 boards</li>
+          <li>Confirm STBY pull-up before expecting any output</li>
+          <li>Bench-test CW/CCW/brake/stop against an M2 motor on channel A, then channel B</li>
+          <li>Decide whether this replaces or complements the DRV8833 boards (D2/D3) as the
+              default small motor driver going forward</li>
+        </ul>
+      </div>
+      <figure>
+        <a href="photos/d4-tb6612-spec.jpg"><img src="photos/d4-tb6612-spec.jpg" alt="TB6612FNG module product details: description, features, and board photo with 19mm x 21mm dimensions"></a>
+        <figcaption>Seller spec sheet: description, features, dimensions.</figcaption>
+      </figure>
+    </div>
+  </section>
+</main>
+</body>
+</html>

@@ -1,0 +1,73 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>D2 — DRV8833 dual H-bridge driver — Parts Library</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<main>
+  <a class="back-link" href="index.html">&larr; Parts Library</a>
+
+  <section class="part" id="d2">
+    <div class="part-head"><span class="part-id">D2</span><h2>DRV8833 dual H-bridge motor driver module</h2><span class="badge untested">untested</span><span class="note">×5</span></div>
+    <div class="part-body">
+      <div class="part-text">
+        <p>New-bought stock, a small breakout carrying a chip marked <code>V8833 / 82K / CV25</code>
+        (a DRV8833, partly obscured by the photo angle) — a dual H-bridge motor driver, tiny
+        enough to sit right next to a gearmotor rather than on a central driver board like the
+        MD22 (D1).</p>
+        <ul>
+          <li>Board 18.5 × 16 mm; ships with two loose 6-pin header strips — solder before use.</li>
+          <li>VCC 3–10 V. Unlike the MD22 there's no separate logic supply: VCC powers both the
+              logic and the motor outputs (the DRV8833 doesn't need a separate low-voltage rail).</li>
+          <li>Two independent H-bridges, 1.5 A per channel: <code>OUT1</code>/<code>OUT2</code>
+              driven by <code>IN1</code>/<code>IN2</code>, <code>OUT3</code>/<code>OUT4</code>
+              driven by <code>IN3</code>/<code>IN4</code> — can drive two DC motors, or one
+              stepper in bipolar mode across both bridges.</li>
+          <li>Protections per the datasheet/listing: overcurrent, short-circuit, undervoltage
+              lockout, and overheat, all "YES" — good, since these will likely get driven from
+              a bench supply before anything else.</li>
+          <li><code>ULT</code> pin: mode/sleep select — low level puts the chip in low-power
+              sleep (outputs off); pull high for normal operation.</li>
+          <li><code>EEP</code> pin: labelled "output protection" in the listing; default is
+              not connected. Function not independently confirmed.</li>
+          <li>A two-pad solder-jumper silkscreened <code>J1</code> sits between the
+              <code>en</code>/<code>sleep</code> labels near <code>EEP</code>/<code>OUT1</code> —
+              looks like a default-state selector for enable/sleep; trace it before relying on
+              the board's out-of-the-box behavior.</li>
+          <li>Full 12-pin layout, as silkscreened (two 6-pin rows, top to bottom):
+              <br><code>IN4</code>/<code>EEP</code>, <code>IN3</code>/<code>OUT1</code>,
+              <code>GND</code>/<code>OUT2</code>, <code>VCC</code>/<code>OUT3</code>,
+              <code>IN2</code>/<code>OUT4</code>, <code>IN1</code>/<code>ULT</code>.</li>
+          <li>Good fit for the M2 N20 gearmotors (6 V, ~0.2 A stall — well inside the 1.5 A/channel
+              rating and the 3–10 V supply window). Not a fit for the M1 Canon motors — 22 V
+              is well over this board's 10 V max; the MD22 stays the driver for those.</li>
+        </ul>
+        <p>To verify:</p>
+        <ul class="checklist">
+          <li>Solder the header strips</li>
+          <li>Confirm VCC range and that it really does double as the motor supply before wiring a battery</li>
+          <li>Confirm ULT behavior (high = run, low = sleep) with a bench supply, no motor attached</li>
+          <li>Trace the J1 jumper's default state</li>
+          <li>Bench-test each H-bridge independently against an M2 motor before trusting both channels at once</li>
+        </ul>
+      </div>
+      <figure>
+        <a href="photos/d2-drv8833-product.jpg"><img src="photos/d2-drv8833-product.jpg" alt="DRV8833 breakout board with two loose 6-pin header strips"></a>
+        <figcaption>As shipped — headers loose, need soldering.</figcaption>
+      </figure>
+      <figure>
+        <a href="photos/d2-drv8833-pinout.jpg"><img src="photos/d2-drv8833-pinout.jpg" alt="DRV8833 board silkscreen showing the 12-pin layout: IN1-4, OUT1-4, VCC, GND, EEP, ULT"></a>
+        <figcaption>Silkscreened pinout (seller image).</figcaption>
+      </figure>
+      <figure>
+        <a href="photos/d2-drv8833-chip.jpg"><img src="photos/d2-drv8833-chip.jpg" alt="Close-up of the DRV8833 chip and surrounding passives"></a>
+        <figcaption>The driver IC and surrounding passives, close up.</figcaption>
+      </figure>
+    </div>
+  </section>
+</main>
+</body>
+</html>
