@@ -67,8 +67,10 @@ enum SSDP {
         let headers = parseHeaders(body)
         guard let serial = headers["usn"], !serial.isEmpty else { return nil }
         // Other UPnP devices on the LAN answer too when they see an
-        // M-SEARCH; only Bambu's own search target is a printer.
-        guard headers["st"]?.contains("bambulab") == true
+        // M-SEARCH; only Bambu's own search target is a printer. Match the
+        // value case-insensitively: header names are normalised above, but
+        // no firmware promises the casing of what it sends back.
+        guard headers["st"]?.lowercased().contains("bambulab") == true
             || headers["devmodel.bambu.com"] != nil else { return nil }
         return DiscoveredPrinter(
             ip: ip,
@@ -236,7 +238,9 @@ final class SSDPProbe {
         }
         var requeue: [(host: String, port: UInt16)] = []
         for _ in 0..<min(batchSize, pending.count) {
-            let target = pending.removeFirst()
+            // from the back: the order hosts are probed in does not matter,
+            // and removeFirst would shift the whole array on every datagram
+            let target = pending.removeLast()
             // ENOBUFS means the interface queue is full — the packet was
             // never sent, so put it back rather than dropping a host, up to
             // the budget. Past that the next round is the retry: dropping a

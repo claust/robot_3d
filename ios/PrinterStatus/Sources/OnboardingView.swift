@@ -1,5 +1,8 @@
 import BambuKit
 import SwiftUI
+// UIApplication (for the jump into iPhone Settings) comes in through
+// SwiftUI today; import it explicitly rather than relying on that.
+import UIKit
 
 /// First run: sweep the network, pick the printer that answers, type the one
 /// credential SSDP can't tell us (the access code). Manual entry stays one
