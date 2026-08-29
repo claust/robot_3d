@@ -1,0 +1,39 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>D1 — Devantech MD22 driver — Parts Library</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<main>
+  <a class="back-link" href="index.html">&larr; Parts Library</a>
+
+  <section class="part" id="d1">
+    <div class="part-head"><span class="part-id">D1</span><h2>Devantech MD22 dual DC motor driver</h2><span class="badge untested">untested</span><span class="note">×1</span></div>
+    <div class="part-body">
+      <div class="part-text">
+        <p>UK-made dual H-bridge board, early 2000s (PIC16F873 date code 2004).
+        Docs: <a href="https://www.robot-electronics.co.uk/htm/md22tech.htm">robot-electronics.co.uk/htm/md22tech.htm</a></p>
+        <ul>
+          <li>Two channels, 5 A continuous each; motor supply up to 24 V — plenty for the
+              M1 motors, and works fine down at 7.2 V.</li>
+          <li>Separate 5 V logic supply, ≤50 mA.</li>
+          <li>Bottom screw terminals: +V, M1, M2, GND (battery + both motors).
+              Top terminal block: 5 V logic and control lines.</li>
+          <li>Four control modes, set by the blue DIP switch <strong>at power-up only</strong>:
+              I2C (addresses 0xB0–0xBE; registers for mode, speed1, speed2/turn, acceleration),
+              analog 0–5 V (2.5 V = stop), RC servo pulses (1–2 ms), and combined modes with
+              differential steering.</li>
+          <li>The current DIP setting records how the original robot drove it — decode before changing.</li>
+          <li>Age caution: bring up on a current-limited supply first; eyeball the
+              2200 µF/63 V Nover electrolytic.</li>
+        </ul>
+        <p class="note">No photo in the library yet.</p>
+      </div>
+    </div>
+  </section>
+</main>
+</body>
+</html>

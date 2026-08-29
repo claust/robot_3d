@@ -1,0 +1,58 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>M1 — Canon CK35-H12CH-22V motor — Parts Library</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<main>
+  <a class="back-link" href="index.html">&larr; Parts Library</a>
+
+  <section class="part" id="m1">
+    <div class="part-head"><span class="part-id">M1</span><h2>Canon CK35-H12CH-22V brushed DC motor</h2><span class="badge untested">untested</span><span class="note">×2</span></div>
+    <div class="part-body">
+      <div class="part-text">
+        <p>Label: <code>Canon Precision Japan / CK35-H12CH-22V / I-5635A / 2EF</code>
+        (<code>I-5635A</code> is an OEM customer part number, <code>2EF</code> a lot/date code).</p>
+        <ul>
+          <li>Vintage (1970s–90s) Canon Precision 35 mm-class round-can brushed DC motor,
+              same family as the CA35/EN35 tape-transport motors.</li>
+          <li>Rated 22 V per the label suffix — higher than the usual 12 V cassette motors;
+              this class came out of reel-to-reel decks, projectors, and office machines with a ~24 V rail.</li>
+          <li>Two leads (black/white), double-ended shaft: long ~2 mm working shaft one end,
+              short stub the other (pulley/flywheel/sensor side).</li>
+          <li>No public datasheet found. Expectations for the class: ~1–3 W, 2 000–6 000 rpm
+              no-load at rated voltage, tens of mA no-load, very low torque — needs a
+              ~20–50:1 reduction to drive a wheel.</li>
+          <li>Two wires means either a plain brushed motor or one with an internal speed
+              governor. Governor check: run at 6/12/18 V — if speed plateaus instead of
+              scaling with voltage, it's governed (bad for PWM control).</li>
+        </ul>
+        <p>To verify before designing around them:</p>
+        <ul class="checklist">
+          <li>Governor check (above)</li>
+          <li>No-load current at a few voltages</li>
+          <li>No-load speed (slow-mo video of a tape flag, or strobe app)</li>
+          <li>Terminal resistance (spin slowly, take the lowest reading)</li>
+          <li>Measured 2026-08-29: parametric CAD model in
+              <code>cad/parts/ck35_motor.py</code> — can Ø34.3 × 27.6 mm,
+              Ø2.0 shaft (9.0 mm working end / short stub), six front holes
+              on a Ø25.7 bolt circle (4 × ~2.4 mm likely tapped 4-40 per the
+              "INCH" face stamp, 2 × Ø3.0 plain, opposite each other)</li>
+        </ul>
+      </div>
+      <figure>
+        <a href="photos/m1-ck35-motor.jpg"><img src="photos/m1-ck35-motor.jpg" alt="Canon CK35-H12CH-22V motor, label side"></a>
+        <figcaption>One of the pair, label side.</figcaption>
+      </figure>
+      <figure>
+        <a href="photos/m1-ck35-model.png"><img src="photos/m1-ck35-model.png" alt="CAD reference model, front mounting face with the six-hole pattern"></a>
+        <figcaption>Caliper-measured CAD model (<code>cad/parts/ck35_motor.py</code>), mounting face.</figcaption>
+      </figure>
+    </div>
+  </section>
+</main>
+</body>
+</html>
