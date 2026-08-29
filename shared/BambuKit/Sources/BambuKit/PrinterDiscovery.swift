@@ -149,6 +149,12 @@ public final class PrinterDiscovery {
     /// `PrinterDiscovery` — which is what the scan buttons do. A second call
     /// while a sweep is running is ignored.
     public func start() {
+        onMain { [self] in
+            startOnMain()
+        }
+    }
+
+    private func startOnMain() {
         guard probe == nil, !stopped else { return }
         found = []
 
@@ -192,10 +198,26 @@ public final class PrinterDiscovery {
         probe.start()
     }
 
-    /// Stops the sweep; no further callbacks fire.
+    /// Stops the sweep; no further callbacks fire. Callable from any
+    /// thread: it takes effect in order with the callbacks, so a stop that
+    /// comes from elsewhere cannot land midway through one.
     public func stop() {
-        stopped = true
-        probe?.stop()
-        probe = nil
+        onMain { [self] in
+            stopped = true
+            probe?.stop()
+            probe = nil
+        }
+    }
+
+    /// All of this object's state lives on the main queue — that is where
+    /// the callbacks are delivered, so putting `start()` and `stop()` there
+    /// too means nothing has to be synchronised. Already-on-main callers
+    /// run inline, so a scan starts within the same turn as the tap.
+    private func onMain(_ work: @escaping () -> Void) {
+        if Thread.isMainThread {
+            work()
+        } else {
+            DispatchQueue.main.async(execute: work)
+        }
     }
 }
