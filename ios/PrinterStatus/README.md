@@ -5,10 +5,29 @@ LAN MQTT, redesigned as a single scrolling column of cards — print progress,
 the glowing chamber schematic, AMS trays, connection footer. It never sends
 print commands.
 
-The protocol layer (MQTT decode, TLS, SSDP name lookup, simulator) is shared
-with `macos/PrinterStatus` — see `project.yml`, which compiles those files
-straight out of the macOS package. The UI, credential storage and the app
-shell are iOS-specific.
+The protocol layer (MQTT decode, TLS, SSDP discovery, simulator) comes from
+[BambuKit](../../shared/BambuKit), the package the macOS app also depends
+on, so protocol fixes land in both apps at once. The UI, credential storage
+and the app shell are iOS-specific.
+
+## Onboarding
+
+On a first launch with no credentials the app offers to find the printer
+itself: it sweeps the local subnet with directed SSDP `M-SEARCH` datagrams
+and lists whatever answers, with the name, model and address already filled
+in. Picking one leaves just the access code to type — that is a secret on
+the printer's screen and the one thing discovery cannot supply. Manual
+entry is one tap away, and the settings sheet has the same scan under
+"Scan for printers" (handy when DHCP moves the printer: it refreshes the
+address and serial and leaves the stored access code alone).
+
+The sweep is unicast, which is what keeps it off the
+`com.apple.developer.networking.multicast` entitlement — see the discovery
+notes in [../../macos/RESEARCH.md](../../macos/RESEARCH.md). It does need
+the Local Network permission, and iOS has no API to tell a refusal from an
+empty network, so the empty state offers both explanations and a link into
+Settings. Note that the *simulator* is not subject to that permission at
+all — it uses the Mac's network — so the prompt only appears on a device.
 
 What the macOS app has that this one doesn't: the chamber camera. That pane
 rides on a local ffmpeg subprocess transcoding the printer's RTSPS stream,

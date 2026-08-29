@@ -1,12 +1,11 @@
+import BambuKit
 import Foundation
 
-/// Printer credentials, resolved from the environment, the installed app's
-/// own config file, or the repo's `cad/.env`.
-struct PrinterConfig {
-    let ip: String
-    let serial: String
-    let accessCode: String
-
+/// How the Mac resolves the credentials in `PrinterConfig` (which BambuKit
+/// defines): from the environment, the installed app's own config file, or
+/// the repo's `cad/.env`. The phone resolves the same type from its
+/// settings sheet — see the iOS app's AppConfig.swift.
+extension PrinterConfig {
     /// Config file used by the installed app, which lives in /Applications
     /// and so cannot find the repo by walking up from its own location.
     /// It holds either the three BAMBU_* values directly, or a single

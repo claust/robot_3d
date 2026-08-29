@@ -104,7 +104,28 @@ second app instance) starves the listener indefinitely — observed live.
 Instead send a directed M-SEARCH (`ST: urn:bambulab-com:device:3dprinter:1`)
 to the printer on UDP 1990 or 2021; it replies unicast to the sender's
 ephemeral port immediately, no port sharing involved
-(`PrinterNameSource.swift`).
+(`shared/BambuKit/Sources/BambuKit/SSDP.swift`).
+
+The unicast reply carries everything needed to configure a printer except
+the access code — `USN` is the serial, plus `DevName`/`DevModel`/`DevVersion`
+(and `DevConnect: lan`, `DevBind: free`). So *discovery* is the same request
+sent to every address on the subnet: 254 hosts × 2 ports left this Mac in
+10 ms and the printer answered in 130 ms (`PrinterDiscovery.swift`, or
+`swift run PrinterStatus --discover`). Pace the sends — a phone that dumps
+hundreds of datagrams at an empty ARP table gets ENOBUFS and silently loses
+most of them.
+
+Sweeping unicast rather than listening for the broadcast is not only about
+SO_REUSEPORT: on iOS, broadcast and multicast both require the
+`com.apple.developer.networking.multicast` entitlement, which Apple grants
+by application only. Unicast to LAN addresses needs just the ordinary Local
+Network permission. Neither platform exposes an API for reading that grant,
+so a refusal and an empty network look identical — a sweep that finds
+nothing has to offer both explanations.
+
+Bambu printers advertise nothing over Bonjour/mDNS (browsed
+`_services._dns-sd._udp`, August 2026), so SSDP is the only discovery
+channel.
 
 ## Sources
 

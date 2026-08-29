@@ -1,3 +1,4 @@
+import BambuKit
 import SwiftUI
 
 /// Heat as color: cool parts stay neutral gray, warming parts blend toward

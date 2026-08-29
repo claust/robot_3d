@@ -56,26 +56,36 @@ uv run print_pipeline.py status
   or `ext` = the aux nozzle's external spool (virtual tray 255 in vir_slot;
   sent as -1 in ams_mapping + ams_id 255 in ams_mapping2).
 
+## Shared protocol layer (shared/BambuKit)
+
+SwiftPM package both status apps depend on: MQTT session + report decode,
+Bambu's TLS trust roots, SSDP discovery, and the simulated source. UI-free
+and declared for macOS 14 + iOS 17, so a platform-only import fails to build
+here rather than in one app. `swift build --package-path shared/BambuKit`,
+`swift test --package-path shared/BambuKit` (SSDP parsing, subnet math).
+Anything protocol-shaped belongs here, not in an app target.
+
 ## macOS status app (macos/PrinterStatus)
 
 Swift Package (SwiftUI + MQTTNIO) showing live printer status in a small
 window — read-only, never sends print commands. From `macos/PrinterStatus`:
 `swift run PrinterStatus` (live), `--simulate` (fake data), `--dump`
-(headless status to stdout), `--snapshot out.png` (render UI to PNG for
-verification). `./install.sh` installs it to /Applications for Spotlight.
+(headless status to stdout), `--discover` (sweep the LAN for printers),
+`--snapshot out.png` (render UI to PNG for verification). `./install.sh`
+installs it to /Applications for Spotlight.
 Protocol notes in `macos/RESEARCH.md`. Credentials resolve from BAMBU_* env
 vars, then `~/Library/Application Support/PrinterStatus/config.env` (which
 may hold a `BAMBU_ENV_FILE=` pointer), then `cad/.env` found by walking up.
 
 ## iOS status app (ios/PrinterStatus)
 
-iPhone port of the macOS app; shares the protocol layer (MQTT, snapshot
-decode, SSDP, simulator) straight from the macOS package via XcodeGen path
-references — UI and config are iOS-specific, and there is no camera pane
-(needs ffmpeg, which iOS can't spawn). From `ios/PrinterStatus`: `xcodegen
-generate`, then build with xcodebuild for the simulator (see its README).
-Credentials come from the in-app settings sheet or `SIMCTL_CHILD_BAMBU_*`
-env vars. TestFlight releases: `Scripts/testflight.sh` locally, or the
+iPhone port of the macOS app; both take the protocol layer from
+`shared/BambuKit` — UI and config are iOS-specific, and there is no camera
+pane (needs ffmpeg, which iOS can't spawn). From `ios/PrinterStatus`:
+`xcodegen generate`, then build with xcodebuild for the simulator (see its
+README). First launch offers network discovery (unicast SSDP sweep) to fill
+in address and serial; credentials otherwise come from the in-app settings
+sheet or `SIMCTL_CHILD_BAMBU_*` env vars. TestFlight releases: `Scripts/testflight.sh` locally, or the
 manual `testflight-ios.yml` GitHub workflow (secrets: ASC_KEY_ID,
 ASC_ISSUER_ID, ASC_KEY_P8, DEVELOPMENT_TEAM).
 

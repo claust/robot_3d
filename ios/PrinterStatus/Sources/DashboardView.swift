@@ -1,3 +1,4 @@
+import BambuKit
 import SwiftUI
 
 /// The phone layout: one scrolling column of cards — status & progress,
@@ -7,6 +8,7 @@ import SwiftUI
 struct DashboardView: View {
     @ObservedObject var model: PrinterViewModel
     @State private var showSettings = false
+    @State private var showOnboarding = false
 
     var body: some View {
         NavigationStack {
@@ -38,6 +40,15 @@ struct DashboardView: View {
             }
             .sheet(isPresented: $showSettings) {
                 SettingsView(model: model)
+            }
+            .fullScreenCover(isPresented: $showOnboarding) {
+                OnboardingView(model: model)
+            }
+            .onAppear {
+                guard !model.hasCredentials,
+                      !UserDefaults.standard.bool(forKey: SettingsKey.onboardingShown)
+                else { return }
+                showOnboarding = true
             }
         }
     }

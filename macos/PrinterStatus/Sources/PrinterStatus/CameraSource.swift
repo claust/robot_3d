@@ -1,4 +1,5 @@
 import AppKit
+import BambuKit
 import Foundation
 
 /// Live frames from the printer's chamber camera. The X2D serves RTSPS on

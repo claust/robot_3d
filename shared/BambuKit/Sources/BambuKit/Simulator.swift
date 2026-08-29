@@ -2,11 +2,13 @@ import Foundation
 
 /// Fake data source that emits reports in the printer's own JSON schema,
 /// so the whole decode path is exercised. Simulates a 45-layer print.
-final class SimulatedSource {
+public final class SimulatedSource {
     private var task: Task<Void, Never>?
-    var onReport: (([String: Any]) -> Void)?
+    public var onReport: (([String: Any]) -> Void)?
 
-    func start() {
+    public init() {}
+
+    public func start() {
         stop()  // idempotent: never run two simulation loops
         // detached: don't inherit the caller's (Main)actor — onReport hops
         // back to the main actor itself
@@ -21,12 +23,12 @@ final class SimulatedSource {
         }
     }
 
-    func stop() {
+    public func stop() {
         task?.cancel()
         task = nil
     }
 
-    static func report(tick: Int) -> [String: Any] {
+    public static func report(tick: Int) -> [String: Any] {
         let totalLayers = 45
         let secondsPerLayer = 8
         let layer = min(totalLayers, 1 + tick / secondsPerLayer)
