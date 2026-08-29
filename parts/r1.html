@@ -11,15 +11,59 @@
   <a class="back-link" href="index.html">&larr; Parts Library</a>
 
   <section class="part" id="r1">
-    <div class="part-head"><span class="part-id">R1</span><h2>Devantech CM02 radio module</h2><span class="badge verify">verify</span><span class="note">×1, unconfirmed</span></div>
+    <div class="part-head"><span class="part-id">R1</span><h2>Devantech CM02 radio module</h2><span class="badge verify">verify</span><span class="note">×1</span></div>
     <div class="part-body">
       <div class="part-text">
-        <p>Small green board silkscreened <code>CM02</code> seen mounted above the MD22 on the
-        old robot chassis — matches Devantech's CM02 radio communications module (I2C radio
-        link, companion to the MD22 era). Not yet removed or inspected; confirm identity and
-        condition before listing specs.</p>
-        <p class="note">No photo in the library yet.</p>
+        <p>Small green board silkscreened <code>CM02</code> on both faces — same board glimpsed
+        mounted above the MD22 (D1) on the old robot chassis. Now removed and photographed
+        front and back; identity confirmed, electrical condition still unknown.</p>
+        <ul>
+          <li>MCU: Microchip <code>PIC16F688-I/SO</code>, SOIC-14, date/lot code
+              <code>0337OKC</code> (week 37 by Microchip's date-code convention) — same
+              family as the MD22's PIC16F873, and a plausible contemporary of its 2004 code.</li>
+          <li>RF module: a black brick stamped <strong>"easy radio"</strong> with a radio-wave
+              logo — a hybrid FM transceiver module from Easy Radio Ltd (UK maker of
+              license-exempt short-range radio modules for the 433/869 MHz ISM bands). Exact
+              model/frequency isn't legible on the visible marking.</li>
+          <li>Voltage regulator: TO-220 part marked <code>JM35AR / LM2940CT-5.0 P+</code> — a
+              National Semiconductor LM2940CT-5.0, a 1 A low-dropout 5 V linear regulator.
+              Its presence means the board takes a higher unregulated input and makes its own
+              5 V locally for the PIC and RF module (LM2940 dropout ~0.5 V; works from roughly
+              5.5 V up to a 26 V absolute max).</li>
+          <li>Small black canister part just ahead of the regulator/RF module — possibly a
+              crystal, resonator, or inductor for the RF stage; not identified.</li>
+          <li>4-position black slide/DIP switch on the top face, next to the header banks —
+              likely sets channel/address/mode as on the MD22, but function is unconfirmed;
+              don't assume the current setting means anything until checked.</li>
+          <li>Red and green SMD LEDs — likely TX/RX or link/power status indicators.</li>
+          <li>Gold card-edge contacts along the board's right edge — suggests this board was
+              meant to plug into an edge-connector socket rather than only using the pin
+              headers. Worth figuring out what it mated to on the original chassis.</li>
+          <li>Four groups of 4-pin through-hole headers on the top face (16 pins total) line up
+              with pins protruding on the back face near the RF module — likely power, ground,
+              serial TX/RX, and antenna feed, but the pinout isn't mapped yet.</li>
+          <li>A single thin wire is soldered to a corner via and trails off-board — almost
+              certainly the antenna (simple wire whip). Don't shorten, coil, or power the
+              module with this disconnected; RF power stages can be damaged driving an
+              open/mismatched load.</li>
+        </ul>
+        <p>To verify:</p>
+        <ul class="checklist">
+          <li>Identify the Easy Radio module's exact model and operating frequency</li>
+          <li>Map the 16-pin header pinout with a multimeter before connecting anything</li>
+          <li>Determine the DIP switch function empirically, or via any Devantech docs found online</li>
+          <li>Confirm the regulator's input voltage range before applying power</li>
+          <li>Never power the board with the antenna wire disconnected</li>
+        </ul>
       </div>
+      <figure>
+        <a href="photos/r1-cm02-top.jpg"><img src="photos/r1-cm02-top.jpg" alt="CM02 board, top face: PIC16F688, DIP switch, header banks, and antenna wire"></a>
+        <figcaption>Top face: PIC16F688, DIP switch, 4×4-pin header banks, card-edge contacts, antenna wire.</figcaption>
+      </figure>
+      <figure>
+        <a href="photos/r1-cm02-bottom.jpg"><img src="photos/r1-cm02-bottom.jpg" alt="CM02 board, bottom face: Easy Radio module and LM2940CT-5.0 regulator"></a>
+        <figcaption>Bottom face: the Easy Radio module and the LM2940CT-5.0 regulator.</figcaption>
+      </figure>
     </div>
   </section>
 </main>
