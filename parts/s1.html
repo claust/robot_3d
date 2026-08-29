@@ -1,0 +1,91 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>S1 — Devantech SRF08 ultrasonic rangefinder — Parts Library</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<main>
+  <a class="back-link" href="index.html">&larr; Parts Library</a>
+
+  <section class="part" id="s1">
+    <div class="part-head"><span class="part-id">S1</span><h2>Devantech SRF08 ultrasonic rangefinder</h2><span class="badge verify">verify</span><span class="note">×1</span></div>
+    <div class="part-body">
+      <div class="part-text">
+        <p>Yellow board silkscreened <code>SRF08</code> beside the left transducer &mdash; a
+        Devantech SRF08, from the same Attleborough outfit (trading as Robot Electronics) that
+        made the MD22 (<a href="d1.html">D1</a>) and the CM02 radio (<a href="r1.html">R1</a>),
+        so it's almost certainly out of the same old-robot stash. It ranges with
+        <strong>ultrasound</strong>, not UV: two 40&nbsp;kHz transducers, one transmitting and
+        one listening. The small orange disc between them is a light-dependent resistor &mdash;
+        the SRF08's onboard light sensor, which is the one thing on this board that does care
+        about light.</p>
+        <ul>
+          <li>Interface is <strong>I&sup2;C</strong>, 5&nbsp;V. Default address <code>0xE0</code>,
+              changeable to any of 16 (<code>0xE0</code>&ndash;<code>0xFE</code>, even values);
+              every unit also answers the broadcast address <code>0x00</code>. It could share a
+              bus with the MD22, which is also I&sup2;C.</li>
+          <li>Range: roughly 3&nbsp;cm to 6&nbsp;m. The ranging window is set by the range
+              register &mdash; <code>(n × 43 mm) + 43 mm</code> &mdash; and defaults to a
+              65&nbsp;ms listen, i.e. everything out to about 11&nbsp;m of flight time. Shorten
+              it and you both cut spurious far echoes and get a faster update rate.</li>
+          <li>Registers, write side: <code>0</code> = command
+              (<code>0x50</code> inches, <code>0x51</code> cm, <code>0x52</code> µs),
+              <code>1</code> = max analogue gain (0&ndash;31), <code>2</code> = range.
+              Read side: <code>0</code> = software revision, <code>1</code> = light level,
+              <code>2</code>&ndash;<code>35</code> = echo results as high/low byte pairs.</li>
+          <li><strong>Up to 17 echoes</strong> per ping, not just the nearest &mdash; you can see
+              past a near obstacle to what's behind it, which the cheap HC-SR04-class modules
+              can't do.</li>
+          <li>Light level comes free with every ranging: about 2&ndash;3 in the dark, up to
+              ~248 in bright light. Cheap ambient-light input for the robot with no extra part.</li>
+          <li>Current: ~12&nbsp;mA while ranging, ~3&nbsp;mA standby, with brief peaks around
+              275&nbsp;mA a few microseconds long. Give it local decoupling and don't feed it
+              through a long thin wire.</li>
+          <li>The 5-way connector is documented as
+              <code>1 = +5V</code>, <code>2 = SDA</code>, <code>3 = SCL</code>,
+              <code>4 = do not connect</code> (the PIC's MCLR line), <code>5 = 0V</code>.
+              Our harness has four wires hand-soldered to the pads &mdash; red, yellow, blue,
+              black &mdash; with the fourth position deliberately left empty, which lines up
+              with that pinout exactly (red&nbsp;=&nbsp;+5V, yellow&nbsp;=&nbsp;SDA,
+              blue&nbsp;=&nbsp;SCL, black&nbsp;=&nbsp;0V). Ring it out anyway before powering.
+              The free end is a 4-way 0.1" DuPont housing.</li>
+          <li>Back face: Microchip <code>PIC16F872</code> in SOIC-28 (lot code
+              <code>G4189SEP</code>) doing all the work, a 16-pin SOIC over by the transducer
+              drive that isn't identified, a can crystal marked <code>8000M</code>
+              (8&nbsp;MHz), a red status LED by the header, and discrete SMD passives for the
+              receive amplifier chain. Two mounting holes on the diagonal corners.</li>
+        </ul>
+        <p>To verify:</p>
+        <ul class="checklist">
+          <li>Continuity-check the four wires against the documented pinout, and check the
+              hand-soldered pads for bridges, before applying 5&nbsp;V</li>
+          <li>Scan the I&sup2;C bus for its actual address &mdash; it may have been changed
+              away from <code>0xE0</code> on the old robot</li>
+          <li>First liveness test: read register <code>0</code> for the software revision</li>
+          <li>Check whether this board has I&sup2;C pull-ups fitted, or provide them on the bus</li>
+          <li>Level-shift SDA/SCL if the controller ends up being 3.3&nbsp;V</li>
+          <li>Beam pattern is a wide cone (~55°) &mdash; work out mounting height and tilt so
+              the floor isn't the first echo</li>
+          <li>Measure the board outline and hole spacing before designing a printed mount</li>
+        </ul>
+      </div>
+      <figure>
+        <a href="photos/s1-srf08-front.jpg"><img src="photos/s1-srf08-front.jpg" alt="SRF08 front face: two 40 kHz transducers, SRF08 silkscreen, and the orange light-dependent resistor between them"></a>
+        <figcaption>Front: the two 40&nbsp;kHz transducers, <code>SRF08</code> silkscreen, and the LDR light sensor between them.</figcaption>
+      </figure>
+      <figure>
+        <a href="photos/s1-srf08-back.jpg"><img src="photos/s1-srf08-back.jpg" alt="SRF08 back face: PIC16F872 in SOIC-28, 8 MHz crystal, red LED, and SMD passives"></a>
+        <figcaption>Back: PIC16F872, the 8&nbsp;MHz crystal, status LED, and the receive amplifier passives.</figcaption>
+      </figure>
+      <figure>
+        <a href="photos/s1-srf08-harness.jpg"><img src="photos/s1-srf08-harness.jpg" alt="SRF08 with its four-wire harness terminating in a 4-way DuPont housing"></a>
+        <figcaption>The harness: four wires soldered to the pads, 4-way DuPont housing at the far end.</figcaption>
+      </figure>
+    </div>
+  </section>
+</main>
+</body>
+</html>
