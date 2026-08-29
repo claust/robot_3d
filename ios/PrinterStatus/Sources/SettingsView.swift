@@ -1,8 +1,9 @@
+import BambuKit
 import SwiftUI
 
-/// Where the phone gets its credentials: the values that live in `cad/.env`
-/// on the Mac are typed in once here. IP and serial persist in
-/// UserDefaults, the access code in the Keychain.
+/// Where the phone gets its credentials: found by scanning the network, or
+/// typed in from the values that live in `cad/.env` on the Mac. IP and
+/// serial persist in UserDefaults, the access code in the Keychain.
 struct SettingsView: View {
     @ObservedObject var model: PrinterViewModel
     @Environment(\.dismiss) private var dismiss
@@ -11,6 +12,7 @@ struct SettingsView: View {
     @State private var serial = UserDefaults.standard.string(forKey: SettingsKey.serial) ?? ""
     @State private var accessCode = Keychain.accessCode ?? ""
     @State private var saveError: String?
+    @State private var showScan = false
 
     var body: some View {
         NavigationStack {
@@ -29,6 +31,17 @@ struct SettingsView: View {
                     if !model.hasCredentials {
                         Text("Enter the printer details below to enable live mode.")
                     }
+                }
+
+                Section {
+                    Button {
+                        showScan = true
+                    } label: {
+                        Label("Scan for printers", systemImage: "dot.radiowaves.left.and.right")
+                    }
+                } footer: {
+                    Text("Fills in the address and serial from whatever answers "
+                        + "on this network. The access code still has to be typed.")
                 }
 
                 Section {
@@ -57,6 +70,16 @@ struct SettingsView: View {
                 }
                 ToolbarItem(placement: .confirmationAction) {
                     Button("Save") { save() }
+                }
+            }
+            .sheet(isPresented: $showScan) {
+                ScanSheet { printer in
+                    // A rediscovered printer may have moved: take the new
+                    // address and serial, and leave the access code alone —
+                    // it does not change with the lease.
+                    ip = printer.ip
+                    serial = printer.serial
+                    showScan = false
                 }
             }
             .alert("Couldn't save", isPresented: Binding(
@@ -90,5 +113,33 @@ struct SettingsView: View {
         }
         model.reloadConfig()
         dismiss()
+    }
+}
+
+/// The settings-sheet wrapper around `PrinterScanList` — picking a printer
+/// here fills the form in rather than connecting straight away.
+private struct ScanSheet: View {
+    var onSelect: (DiscoveredPrinter) -> Void
+
+    @StateObject private var scanner = PrinterScanner()
+    @Environment(\.dismiss) private var dismiss
+
+    var body: some View {
+        NavigationStack {
+            PrinterScanList(scanner: scanner, onSelect: onSelect)
+                .navigationTitle("Scan")
+                .navigationBarTitleDisplayMode(.inline)
+                .toolbar {
+                    ToolbarItem(placement: .cancellationAction) {
+                        Button("Cancel") { dismiss() }
+                    }
+                    ToolbarItem(placement: .confirmationAction) {
+                        Button("Scan again") { scanner.scan() }
+                            .disabled(scanner.isScanning)
+                    }
+                }
+        }
+        .onAppear { scanner.scan() }
+        .onDisappear { scanner.cancel() }
     }
 }

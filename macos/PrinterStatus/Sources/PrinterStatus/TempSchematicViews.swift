@@ -1,3 +1,4 @@
+import BambuKit
 import SwiftUI
 
 /// Alternative renderings of the temperature section: a schematic of the

@@ -1,3 +1,4 @@
+import BambuKit
 import SwiftUI
 
 struct DashboardView: View {

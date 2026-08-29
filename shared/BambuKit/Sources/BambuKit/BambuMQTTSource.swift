@@ -7,20 +7,20 @@ import NIOTransportServices
 
 /// Live data source: subscribes to the printer's MQTT report topic and
 /// delivers each `print` report dictionary. Reconnects forever until stopped.
-final class BambuMQTTSource {
+public final class BambuMQTTSource {
     private let config: PrinterConfig
     private var task: Task<Void, Never>?
 
     /// Called with every incoming `print` report (raw dictionary).
-    var onReport: (([String: Any]) -> Void)?
+    public var onReport: (([String: Any]) -> Void)?
     /// Called with human-readable connection state changes.
-    var onStatus: ((String, Bool) -> Void)?  // (message, isConnected)
+    public var onStatus: ((String, Bool) -> Void)?  // (message, isConnected)
 
-    init(config: PrinterConfig) {
+    public init(config: PrinterConfig) {
         self.config = config
     }
 
-    func start() {
+    public func start() {
         stop()  // idempotent: never run two session loops
         task = Task.detached { [weak self] in
             while let self, !Task.isCancelled {
@@ -57,7 +57,7 @@ final class BambuMQTTSource {
     /// Cancellation propagates into runSession's sleeps immediately; its
     /// defer owns the client shutdown, so there is a single shutdown path
     /// and nothing here can block the caller's thread.
-    func stop() {
+    public func stop() {
         task?.cancel()
         task = nil
     }

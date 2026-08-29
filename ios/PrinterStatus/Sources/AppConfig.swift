@@ -1,18 +1,14 @@
+import BambuKit
 import Foundation
 import Security
 
-/// Printer credentials. Same shape as the macOS app's PrinterConfig — the
-/// shared BambuMQTTSource and PrinterNameSource compile against it — but
-/// resolved differently: a phone has no `cad/.env` to walk up to, so the
-/// values come from the in-app settings sheet (IP and serial in
-/// UserDefaults, access code in the Keychain). BAMBU_* environment
+/// How the phone resolves the credentials in `PrinterConfig` (which
+/// BambuKit defines): a phone has no `cad/.env` to walk up to, so the
+/// values come from onboarding or the settings sheet — IP and serial in
+/// UserDefaults, access code in the Keychain. BAMBU_* environment
 /// variables still win when present, which is how the simulator gets live
 /// credentials injected during development.
-struct PrinterConfig {
-    let ip: String
-    let serial: String
-    let accessCode: String
-
+extension PrinterConfig {
     static func load() -> PrinterConfig? {
         let env = ProcessInfo.processInfo.environment
         if let cfg = make(env["BAMBU_PRINTER_IP"], env["BAMBU_PRINTER_SERIAL"],
@@ -51,6 +47,10 @@ struct PrinterConfig {
 enum SettingsKey {
     static let ip = "printerIP"
     static let serial = "printerSerial"
+    /// Onboarding is a first-run offer, not a gate: once it has been shown
+    /// the app never reopens it by itself, even if it was dismissed without
+    /// a printer.
+    static let onboardingShown = "onboardingShown"
 }
 
 /// Minimal Keychain wrapper for the one secret the app holds. The access

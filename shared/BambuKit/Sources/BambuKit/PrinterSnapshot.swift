@@ -3,64 +3,66 @@ import Foundation
 /// A decoded view of one Bambu `print` report (see ../RESEARCH.md for the
 /// raw field reference). All decoding is tolerant: the printer mixes strings
 /// and numbers freely between firmware versions.
-struct PrinterSnapshot: Equatable {
-    struct Nozzle: Equatable, Identifiable {
-        let id: Int          // 0 = right, 1 = left
-        var name: String { id == 1 ? "Left" : "Right" }
-        var current: Double
-        var target: Double
-        var active: Bool
-        var diameter: String
-        var type: String
-        var amsSlot: Int?    // 0-based AMS tray feeding this nozzle, nil if none
+public struct PrinterSnapshot: Equatable {
+    public init() {}
+
+    public struct Nozzle: Equatable, Identifiable {
+        public let id: Int          // 0 = right, 1 = left
+        public var name: String { id == 1 ? "Left" : "Right" }
+        public var current: Double
+        public var target: Double
+        public var active: Bool
+        public var diameter: String
+        public var type: String
+        public var amsSlot: Int?    // 0-based AMS tray feeding this nozzle, nil if none
     }
 
-    struct Tray: Equatable, Identifiable {
-        let id: Int
-        var type: String     // "PLA" or "" when empty
-        var colorHex: String // RRGGBBAA
-        var remainPercent: Int
-        var isEmpty: Bool { type.isEmpty }
+    public struct Tray: Equatable, Identifiable {
+        public let id: Int
+        public var type: String     // "PLA" or "" when empty
+        public var colorHex: String // RRGGBBAA
+        public var remainPercent: Int
+        public var isEmpty: Bool { type.isEmpty }
     }
 
-    struct HMSAlert: Equatable, Identifiable {
-        var id: String { code }
-        let code: String     // "0300_0100_0001_0007"
-        var wikiURL: URL? {
+    public struct HMSAlert: Equatable, Identifiable {
+        public var id: String { code }
+        public let code: String     // "0300_0100_0001_0007"
+        public var wikiURL: URL? {
             URL(string: "https://wiki.bambulab.com/en/x1/troubleshooting/hmscode/\(code)")
         }
     }
 
-    var gcodeState = "UNKNOWN"     // IDLE / PREPARE / RUNNING / PAUSE / FINISH / FAILED …
-    var jobName = ""
-    var percent = 0
-    var layer = 0
-    var totalLayers = 0
-    var remainingMinutes = 0
-    var stageText: String?
+    public var gcodeState = "UNKNOWN"     // IDLE / PREPARE / RUNNING / PAUSE / FINISH / FAILED …
+    public var jobName = ""
+    public var percent = 0
+    public var layer = 0
+    public var totalLayers = 0
+    public var remainingMinutes = 0
+    public var stageText: String?
 
-    var nozzles: [Nozzle] = []
-    var bedCurrent = 0.0
-    var bedTarget = 0.0
-    var chamberCurrent = 0.0
+    public var nozzles: [Nozzle] = []
+    public var bedCurrent = 0.0
+    public var bedTarget = 0.0
+    public var chamberCurrent = 0.0
 
-    var amsHumidityPercent: Int?
-    var amsTemp: Double?
-    var trays: [Tray] = []
+    public var amsHumidityPercent: Int?
+    public var amsTemp: Double?
+    public var trays: [Tray] = []
 
-    var partFanPercent = 0
-    var auxFanPercent = 0
-    var chamberFanPercent = 0
-    var speedLevel = 2
-    var speedMagnitude = 100
-    var wifiSignal = ""
-    var alerts: [HMSAlert] = []
-    var printErrorCode = 0
+    public var partFanPercent = 0
+    public var auxFanPercent = 0
+    public var chamberFanPercent = 0
+    public var speedLevel = 2
+    public var speedMagnitude = 100
+    public var wifiSignal = ""
+    public var alerts: [HMSAlert] = []
+    public var printErrorCode = 0
 
-    var isPrinting: Bool { ["RUNNING", "PREPARE", "PAUSE", "SLICING"].contains(gcodeState) }
+    public var isPrinting: Bool { ["RUNNING", "PREPARE", "PAUSE", "SLICING"].contains(gcodeState) }
 
 
-    var speedLevelName: String {
+    public var speedLevelName: String {
         switch speedLevel {
         case 1: return "Silent"
         case 2: return "Standard"
@@ -114,7 +116,7 @@ enum JSONValue {
 
 extension PrinterSnapshot {
     /// Decode from a merged `print` report dictionary.
-    static func decode(from p: [String: Any]) -> PrinterSnapshot {
+    public static func decode(from p: [String: Any]) -> PrinterSnapshot {
         var s = PrinterSnapshot()
         s.gcodeState = JSONValue.string(p["gcode_state"]) ?? "UNKNOWN"
         s.jobName = JSONValue.string(p["subtask_name"]) ?? ""
@@ -228,7 +230,7 @@ extension PrinterSnapshot {
 /// Nested dictionaries merge recursively; everything else — arrays (e.g.
 /// AMS trays) included — is replaced wholesale, and keys absent from the
 /// incoming report are kept. The X2D usually sends full reports anyway.
-func deepMerge(_ base: inout [String: Any], _ incoming: [String: Any]) {
+public func deepMerge(_ base: inout [String: Any], _ incoming: [String: Any]) {
     for (key, value) in incoming {
         if var baseDict = base[key] as? [String: Any],
            let newDict = value as? [String: Any] {

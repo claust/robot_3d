@@ -11,49 +11,20 @@ settings:
     MARKETING_VERSION: "0.1"
     CURRENT_PROJECT_VERSION: "1"
 packages:
-  mqtt-nio:
-    url: https://github.com/swift-server-community/mqtt-nio.git
-    from: 2.11.0
-  # BambuMQTTSource imports these directly (TLS config, event loop groups),
-  # so they must be declared products, not just transitive deps of MQTTNIO.
-  swift-nio:
-    url: https://github.com/apple/swift-nio.git
-    from: 2.65.0
-  swift-nio-ssl:
-    url: https://github.com/apple/swift-nio-ssl.git
-    from: 2.27.0
-  swift-nio-transport-services:
-    url: https://github.com/apple/swift-nio-transport-services.git
-    from: 1.20.0
+  # The protocol layer shared with the macOS app — MQTT decode, TLS trust,
+  # SSDP discovery, the simulated source. It owns the MQTTNIO and SwiftNIO
+  # dependencies, so this project does not declare them itself.
+  BambuKit:
+    path: ../../shared/BambuKit
 targets:
   PrinterStatus:
     type: application
     platform: iOS
     sources:
       - path: Sources
-      # The protocol layer is shared with the macOS app — MQTT decode, TLS
-      # trust, SSDP name lookup and the simulated source are pure
-      # Foundation/NIO and compile unchanged on iOS. The UI, config and
-      # camera layers are per-platform and deliberately not shared.
-      - path: ../../macos/PrinterStatus/Sources/PrinterStatus
-        includes:
-          - BambuMQTTSource.swift
-          - BambuTrust.swift
-          - PrinterNameSource.swift
-          - PrinterSnapshot.swift
-          - Simulator.swift
-        group: Shared
     dependencies:
-      - package: mqtt-nio
-        product: MQTTNIO
-      - package: swift-nio
-        product: NIOCore
-      - package: swift-nio
-        product: NIOPosix
-      - package: swift-nio-ssl
-        product: NIOSSL
-      - package: swift-nio-transport-services
-        product: NIOTransportServices
+      - package: BambuKit
+        product: BambuKit
     info:
       path: Sources/Info.plist
       properties:

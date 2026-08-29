@@ -5,12 +5,13 @@ let package = Package(
     name: "PrinterStatus",
     platforms: [.macOS(.v14)],
     dependencies: [
-        .package(url: "https://github.com/swift-server-community/mqtt-nio.git", from: "2.11.0")
+        // The protocol layer, shared with the iOS app. See shared/BambuKit.
+        .package(path: "../../shared/BambuKit")
     ],
     targets: [
         .executableTarget(
             name: "PrinterStatus",
-            dependencies: [.product(name: "MQTTNIO", package: "mqtt-nio")],
+            dependencies: [.product(name: "BambuKit", package: "BambuKit")],
             swiftSettings: [.swiftLanguageMode(.v5)]
         )
     ]

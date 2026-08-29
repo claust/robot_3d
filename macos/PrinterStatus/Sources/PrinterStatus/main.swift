@@ -1,13 +1,17 @@
 import AppKit
+import BambuKit
 import Foundation
 import ImageIO
 import SwiftUI
 
 // `--dump` runs headless: connect, print one decoded snapshot, exit.
+// `--discover` sweeps the LAN for printers and prints what answers.
 // `--snapshot <out.png>` renders the dashboard with simulated data to a PNG.
-// Both exist so the app can be verified without opening a window.
+// All three exist so the app can be verified without opening a window.
 if CommandLine.arguments.contains("--dump") {
     runDump()
+} else if CommandLine.arguments.contains("--discover") {
+    runDiscover()
 } else if let idx = CommandLine.arguments.firstIndex(of: "--snapshot"),
           idx + 1 < CommandLine.arguments.count {
     let style: TempVisualStyle? = CommandLine.arguments
@@ -155,4 +159,27 @@ func runDump() {
     print("speed:      \(snapshot.speedLevelName) (\(snapshot.speedMagnitude)%)   wifi \(snapshot.wifiSignal)")
     for alert in snapshot.alerts { print("HMS:        \(alert.code)") }
     exit(0)
+}
+
+/// Headless SSDP sweep — the same code path the iOS onboarding screen runs,
+/// where its results can be checked against a printer you can walk over to.
+func runDiscover() {
+    let discovery = PrinterDiscovery()
+    discovery.onPrinter = { printer in
+        print("found \(printer.displayName)  \(printer.ip)  serial \(printer.serial)  "
+            + "model \(printer.modelName)  firmware \(printer.version)")
+    }
+    discovery.onFinished = { printers, outcome in
+        switch outcome {
+        case .noLocalNetwork:
+            print("no Ethernet or Wi-Fi address — nothing was probed")
+            exit(1)
+        case .completed(let hosts, let truncated):
+            print("probed \(hosts) hosts\(truncated ? " (subnet clamped)" : "")"
+                + " — \(printers.count) printer(s)")
+            exit(printers.isEmpty ? 1 : 0)
+        }
+    }
+    discovery.start()
+    RunLoop.main.run()  // the callbacks exit the process
 }

@@ -7,6 +7,9 @@ type, remaining filament, humidity), fans, speed profile, and HMS alerts
 
 Data comes straight from the printer's LAN MQTT report stream (~1 update/s
 while printing); see [../RESEARCH.md](../RESEARCH.md) for the protocol notes.
+The protocol code itself lives in [BambuKit](../../shared/BambuKit), shared
+with the iOS app; this package is the Mac's UI, config and camera on top of
+it.
 
 The right half of the window is the live chamber camera. The X2D serves it
 as RTSPS on port 322, which AVFoundation can't play, so the app runs a small
@@ -34,7 +37,8 @@ print pipeline uses: `BAMBU_PRINTER_IP`, `BAMBU_PRINTER_SERIAL`,
 working directory to the repo's `cad/.env`.
 
 The TLS connection validates the printer's certificate chain against Bambu's
-public device CA (vendored from Bambu Studio, see `BambuTrust.swift`) —
+public device CA (vendored from Bambu Studio, see BambuKit's
+`BambuTrust.swift`) —
 hostname checks are off because the certificate names the printer's serial,
 not its IP. Set `BAMBU_TLS_INSECURE=1` to skip verification (e.g. for a
 non-Bambu test broker).
@@ -66,6 +70,7 @@ that config file instead if you'd rather not depend on the repo.
 
 ```
 swift run PrinterStatus --dump               # print one decoded status, exit
+swift run PrinterStatus --discover           # sweep the LAN, list printers that answer
 swift run PrinterStatus --snapshot out.png   # render the dashboard (simulated) to PNG
 swift run PrinterStatus --snapshot out.png --live   # ...with live data + camera frame
 ```
