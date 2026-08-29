@@ -34,7 +34,9 @@ public struct IPv4Subnet: Equatable, Sendable {
         var start = first
         var end = last
         var truncated = false
-        let window = UInt32(max(2, limit))
+        // clamping: `limit` is public API, and a caller's Int can be
+        // larger than UInt32 can hold
+        let window = UInt32(clamping: max(2, limit))
         if last - first + 1 > window {
             truncated = true
             let half = window / 2
@@ -142,8 +144,10 @@ public final class PrinterDiscovery {
         self.hostLimit = hostLimit
     }
 
-    /// Sweeps every local subnet. Safe to call again after `stop()`; a
-    /// second call while a sweep is running is ignored.
+    /// Sweeps every local subnet. Single-shot: once it has finished or been
+    /// stopped this object is spent, and another sweep means another
+    /// `PrinterDiscovery` — which is what the scan buttons do. A second call
+    /// while a sweep is running is ignored.
     public func start() {
         guard probe == nil, !stopped else { return }
         found = []
@@ -176,6 +180,9 @@ public final class PrinterDiscovery {
         probe.onFinished = {
             DispatchQueue.main.async { [weak self] in
                 guard let self, !self.stopped else { return }
+                // spent either way, so a stray restart cannot mix a new
+                // sweep's results into this one's
+                self.stopped = true
                 self.probe = nil
                 self.onFinished?(self.found,
                                  .completed(hostsProbed: hosts.count, truncated: truncated))
@@ -190,11 +197,5 @@ public final class PrinterDiscovery {
         stopped = true
         probe?.stop()
         probe = nil
-    }
-
-    /// Restarts a stopped instance — the settings sheet's "Scan again".
-    public func reset() {
-        stop()
-        stopped = false
     }
 }
