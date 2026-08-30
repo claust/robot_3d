@@ -61,8 +61,10 @@ PLATE_GAP = 12.0
 
 
 def make_motor_dummy(d: N20Dims | None = None) -> Part:
-    """N20 stand-in, printed rear-face-down: Z=0 is the (flattened) rear can
-    face, the shaft tip is the highest point."""
+    """N20 stand-in, printed LYING DOWN: built axis-up (Z=0 at the
+    flattened rear can face), then rotated onto its -X can flat so the
+    shaft runs horizontally with its D-flat facing the bed, plus a
+    breakaway fin under the otherwise-floating shaft."""
     d = d or N20Dims()
 
     can = Cylinder(radius=d.can_diameter / 2, height=d.can_length, align=ALIGN_BOTTOM)

@@ -73,10 +73,11 @@ def min_mesh_distance(mesh_a: trimesh.Trimesh, mesh_b: trimesh.Trimesh) -> float
     """Minimum distance between two meshes' surfaces, via nearest-point
     sampling at every vertex of each mesh against the other (both
     directions, since neither mesh's own vertices necessarily land at the
-    true closest point pair). trimesh's face-accurate ProximityQuery needs
-    the optional `rtree` package (not installed here), so this uses a
-    vertex-to-vertex scipy cKDTree instead -- a good approximation given
-    the STL tessellation is fine relative to the 0.5 mm check tolerance."""
+    true closest point pair). trimesh's face-accurate ProximityQuery
+    (rtree-backed) would also work now that rtree is a project dependency,
+    but the vertex-to-vertex scipy cKDTree remains -- a good approximation
+    given the STL tessellation is fine relative to the 0.5 mm check
+    tolerance, with no accuracy complaint on record."""
     tree_b = cKDTree(mesh_b.vertices)
     dist_ab, _ = tree_b.query(mesh_a.vertices)
     tree_a = cKDTree(mesh_a.vertices)

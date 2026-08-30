@@ -54,8 +54,9 @@ DEVIATIONS FROM THE ORIGINAL BRIEF (see the final report for the why):
 5. Battery strap-slot X stations are ~13 mm apart, not "~45 mm" -- the
    available corridor between the cradle, the relocated driver trays and
    the battery's own footprint is only ~29 mm wide. See the report.
-6. wheel_diameter default is 62 mm (measured O-ring tire OD, not the
-   original 45 mm placeholder) and the skid post is Ø10, not Ø8 -- widened
+6. wheel_diameter default is 59 mm -- the wood-copy wheel's rolling
+   diameter (groove root 39 + 2 x 10 mm cord; earlier revisions used the
+   45 mm placeholder, then 62) -- and the skid post is Ø10, not Ø8 -- widened
    for stiffness now that the post is ~22 mm of exposed length below the
    plate. Both plate skid holes are Ø10 to match.
 7. The rear skid hole moved from X=-60 to X=-58 (still "on centerline,
