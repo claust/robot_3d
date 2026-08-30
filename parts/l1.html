@@ -1,0 +1,85 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>L1 — GYXM-1388ASRG2 8×8 LED matrix — Parts Library</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<main>
+  <a class="back-link" href="index.html">&larr; Parts Library</a>
+
+  <section class="part" id="l1">
+    <div class="part-head"><span class="part-id">L1</span><h2>GYXM-1388ASRG2 8×8 LED dot-matrix display</h2><span class="badge untested">untested</span><span class="note">×1</span></div>
+    <div class="part-body">
+      <div class="part-text">
+        <p>A single 8×8 LED dot-matrix module, cream body with a black lens face, marked
+        <code>GYXM-1388ASRG2</code> and <code>E15 015 2</code> on the side. 64 round dots in a
+        square 8×8 grid &mdash; the obvious "face"/status display for the robot, driven as a
+        multiplexed matrix rather than 64 separate pins.</p>
+        <p>Measured (calipers, ours):</p>
+        <ul>
+          <li>Body <strong>32 × 32 mm</strong> square, <strong>8 mm</strong> tall.</li>
+          <li>Standing on four <strong>1 mm</strong> corner standoffs moulded into the body, so
+              the lens face sits 9&nbsp;mm above the PCB it's plugged into.</li>
+          <li><strong>13.5 mm</strong> overall from lens face to pin tips &mdash; i.e. the pins
+              run 5.5&nbsp;mm below the body, 4.5&nbsp;mm below the standoff feet.</li>
+          <li>Two rows of pins on opposite edges, 12 per row (<strong>24 pins</strong> total),
+              on what measures out as the usual 2.54&nbsp;mm pitch (27.9&nbsp;mm span inside a
+              32&nbsp;mm body &mdash; confirm with calipers).</li>
+        </ul>
+        <p>What the part number implies:</p>
+        <ul>
+          <li><code>88</code> = 8×8. <code>RG</code> = <strong>red/green bi-color</strong>: each
+              dot is two dies, so the matrix needs 8 common lines + 8 red + 8 green = 24 pins.
+              That matches the pin count exactly, and rules out this being a plain single-color
+              module (those are 16-pin).</li>
+          <li>Red and green lit together give amber, so it's effectively a three-state display
+              per dot without any extra wiring.</li>
+          <li><code>1388</code> is the vendor's family number for this style. Note our part
+              measures 32&nbsp;mm square, not the 38&nbsp;mm that number is usually attached to
+              &mdash; trust the measurements above, not the catalogue name.</li>
+          <li>The <code>A</code>/<code>B</code> letter is the common-anode/common-cathode marker,
+              but sellers use it inconsistently. <strong>Don't assume it</strong> &mdash; ring
+              out the polarity before wiring anything.</li>
+          <li>Typical for this class of part: ~2.0&nbsp;V forward on red, ~2.1&nbsp;V on green,
+              20&nbsp;mA per dot. Multiplexed 1-of-8, peak current per dot goes up and average
+              brightness down; every column needs its own series resistor.</li>
+        </ul>
+        <p>One corner pin is bent flat against the body in the photos &mdash; straighten it
+        before trying to seat the part.</p>
+        <p>Driving it: a MAX7219 handles one 8×8 single-color matrix, so a bi-color panel needs
+        two of them (or a pair of 74HC595 column drivers plus a row sink). We have neither on
+        hand yet &mdash; bit-banging 24 lines off the Uno (<a href="c2.html">C2</a>) is not
+        realistic, so a driver chip is a purchase this part implies.</p>
+        <p>To verify:</p>
+        <ul class="checklist">
+          <li>Diode-test every pin pair at 3&nbsp;V to build the actual pin map: which 8 pins are
+              common, which are red, which are green, and whether the commons are anodes or
+              cathodes</li>
+          <li>Confirm 12+12 pins at 2.54&nbsp;mm pitch and measure the row-to-row spacing &mdash;
+              needed for both a breadboard test and any printed bezel</li>
+          <li>Light every dot in both colors through a resistor to find dead or dim pixels
+              (it's old stock)</li>
+          <li>Straighten the bent corner pin</li>
+          <li>Decide the driver (2× MAX7219 vs. shift registers) before designing a mount</li>
+          <li>Check it clears a breadboard's center channel &mdash; a 32&nbsp;mm body with pins
+              27.9&nbsp;mm apart straddles more than the 7.6&nbsp;mm gutter, so it will need
+              flying leads or its own perfboard</li>
+        </ul>
+      </div>
+      <figure>
+        <a href="photos/l1-1388-front.jpg"><img src="photos/l1-1388-front.jpg" alt="8x8 LED dot matrix module, lens face with 64 round dots, pins along the far edge"></a>
+        <figcaption>Lens face: 64 dots in an 8×8 grid, one pin row visible along the far edge.</figcaption>
+      </figure>
+      <figure>
+        <a href="photos/l1-1388-marking.jpg"><img src="photos/l1-1388-marking.jpg" alt="Side of the LED matrix showing the marking GYXM-1388ASRG2 E15 015 2 above a row of 12 pins"></a>
+        <figcaption>Side marking <code>GYXM-1388ASRG2</code> / <code>E15 015 2</code>, with the
+        12-pin row below it and the bent corner pin at the left.</figcaption>
+      </figure>
+    </div>
+  </section>
+</main>
+</body>
+</html>

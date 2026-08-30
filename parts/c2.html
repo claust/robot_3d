@@ -1,0 +1,77 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>C2 — Arduino Uno on a breadboard plate — Parts Library</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<main>
+  <a class="back-link" href="index.html">&larr; Parts Library</a>
+
+  <section class="part" id="c2">
+    <div class="part-head"><span class="part-id">C2</span><h2>Arduino Uno + 400-point breadboard on a mounting plate</h2><span class="badge untested">untested</span><span class="note">×1</span></div>
+    <div class="part-body">
+      <div class="part-text">
+        <p>A genuine <strong>Arduino Uno</strong> (<code>MADE IN ITALY</code> on the silkscreen)
+        screwed to a clear plastic base plate alongside a solderless breadboard &mdash; the
+        classic starter-kit mounting plate. The two are held by white plastic screws through the
+        Uno's mounting holes; the breadboard is stuck down with its own adhesive backing.</p>
+        <ul>
+          <li>MCU is a socketed DIP-28 <code>ATMEGA328P-PU</code>, date code <code>1016</code>
+              (2010, week 16). 16&nbsp;MHz, 32&nbsp;KB flash, 5&nbsp;V logic.</li>
+          <li>USB bridge is an Atmel <code>MEGA8U2</code> in QFN by the USB-B socket, with its
+              own 16&nbsp;MHz crystal and an unpopulated 2×3 ICSP pad field next to it
+              (<code>RESET-EN</code> is silkscreened beside the main ICSP header).</li>
+          <li>This is a <strong>pre-R3 board</strong>. The headers are the old layout: 8+8 pins
+              on the digital side ending at <code>GND</code>/<code>AREF</code> with
+              <em>no</em> <code>SCL</code>/<code>SDA</code> pair, and a 6-pin
+              <code>POWER</code> header (<code>RESET</code>, <code>3.3V</code>, <code>5V</code>,
+              <code>GND</code>, <code>GND</code>, <code>Vin</code>) with <em>no</em>
+              <code>IOREF</code>. Shields that expect the R3 pinout won't find those pins
+              &mdash; I²C is on <code>A4</code>&nbsp;(SDA)/<code>A5</code>&nbsp;(SCL) here.</li>
+          <li>Headers as fitted: digital <code>D0</code>&ndash;<code>D13</code> +
+              <code>GND</code> + <code>AREF</code>, analog <code>A0</code>&ndash;<code>A5</code>,
+              and the 6-pin power header. PWM on <code>3</code>, <code>5</code>, <code>6</code>,
+              <code>9</code>, <code>10</code>, <code>11</code> &mdash; six channels, which is
+              what the motor drivers (<a href="d2.html">D2</a>/<a href="d3.html">D3</a>,
+              <a href="d4.html">D4</a>) want.</li>
+          <li>Power in: USB-B, or the barrel jack through the onboard linear regulator
+              (7&ndash;12&nbsp;V recommended, two 47&nbsp;µF/25&nbsp;V electrolytics on the
+              rail). The regulator is the weak point on a robot &mdash; feed <code>5V</code>
+              from the buck converter (<a href="p1.html">P1</a>) instead of dropping a 2S LiPo
+              (<a href="b2.html">B2</a>) across it.</li>
+          <li>5&nbsp;V logic pairs directly with the 5&nbsp;V I²C of the SRF08
+              (<a href="s1.html">S1</a>) and the MD22 (<a href="d1.html">D1</a>) with no level
+              shifting &mdash; the one thing this old board is genuinely better at than the
+              3.3&nbsp;V Pi Zero 2 W (<a href="c1.html">C1</a>) that runs the prototype.</li>
+          <li>Breadboard: half-size, 30 rows (<code>a</code>&ndash;<code>e</code> /
+              <code>f</code>&ndash;<code>j</code>) plus two dual power rails, i.e. the usual
+              400 tie points. The plastic has yellowed with age; the contacts are unknown.</li>
+        </ul>
+        <p>To verify:</p>
+        <ul class="checklist">
+          <li>Plug in USB and confirm it enumerates, then upload Blink &mdash; that clears the
+              bootloader, the 8U2 firmware and the USB cable in one go</li>
+          <li>Read the bottom silkscreen to pin down the exact revision (R1 vs R2)</li>
+          <li>Check the 5&nbsp;V and 3.3&nbsp;V rails on the power header under USB power</li>
+          <li>Continuity-check the breadboard rails and a few rows &mdash; old boards develop
+              dead columns and the rails are often split in the middle</li>
+          <li>Measure the base plate outline and its hole pattern before deciding whether to
+              bolt it to the robot deck or print a replacement plate</li>
+          <li>Decide its role &mdash; the Pi (<a href="c1.html">C1</a>) is the prototype's
+              brain, so this is most useful as a 5&nbsp;V bench rig for bringing up
+              <a href="s1.html">S1</a> and the motor drivers off the robot</li>
+        </ul>
+      </div>
+      <figure>
+        <a href="photos/c2-uno-breadboard.jpg"><img src="photos/c2-uno-breadboard.jpg" alt="Arduino Uno and a 400-point breadboard mounted side by side on a clear plastic base plate"></a>
+        <figcaption>The pair as mounted: 400-point breadboard left, Uno right, plastic screws
+        through the Uno's mounting holes.</figcaption>
+      </figure>
+    </div>
+  </section>
+</main>
+</body>
+</html>
