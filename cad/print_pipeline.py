@@ -54,6 +54,23 @@ EXT_SPOOL_TRAY = 255
 
 # ---------- slicing ----------
 
+def _lint_before_slice(stl: Path) -> None:
+    """Run print_lint's design-time printability checks on the input STL
+    and surface any HIGH findings loudly before slicing. Informational
+    only -- never blocks the slice (see print_lint.py for the checks)."""
+    try:
+        import print_lint
+        findings, _body_count = print_lint.lint(stl)
+    except Exception as e:
+        print(f"print_lint: skipped ({e})")
+        return
+    highs = [f for f in findings if f.severity == "HIGH"]
+    if highs:
+        print(f"\n*** print_lint: {len(highs)} HIGH-severity finding(s) in {stl.name} ***")
+        for f in highs:
+            print(f"    [HIGH] {f.check} @ {f.location}: {f.reason}")
+        print(f"*** slicing anyway -- run `uv run print_lint.py {stl}` for the full report ***\n")
+
 def resolve_profile(path: Path) -> dict:
     """Flatten a Bambu profile's `inherits`/`include` chain into one dict.
 
@@ -120,7 +137,11 @@ def slice_stl(
     supports: bool = False,
     support_type: str = "normal(auto)",
     overrides: dict[str, str] | None = None,
+    aux: bool = False,
 ) -> Path:
+    if aux and supports:
+        raise ValueError("--aux is a single-filament mode; it can't combine with --supports")
+    _lint_before_slice(stl)
     name = name or stl.stem
     out = stl.parent / f"{name}.gcode.3mf"
     machine, process, filaments = flatten_profiles(
@@ -149,12 +170,23 @@ def slice_stl(
             "--wipe-tower-x", "180",
             "--wipe-tower-y", "180",
         ]
+    if aux:
+        # Whole single-filament job from the aux (Bowden) extruder's external
+        # spool: map the only filament to extruder 2. No prime tower needed
+        # (no tool changes), but every move must stay in the aux reachable
+        # area (X >= 20.5) — verify checks this.
+        cmd[3:3] = [
+            "--filament-map", "2",
+            "--filament-map-mode", "Manual",
+            "--nozzle-volume-type", "Standard",
+        ]
     res = subprocess.run(cmd, capture_output=True, text=True)
     if not out.exists():
         print(res.stdout[-2000:], res.stderr[-2000:])
         raise RuntimeError("Slicing failed")
     print(f"Sliced {stl.name} -> {out.name}"
-          + (" (supports on aux-nozzle filament)" if supports else ""))
+          + (" (supports on aux-nozzle filament)" if supports else "")
+          + (" (whole job on aux nozzle)" if aux else ""))
     return out
 
 
@@ -463,6 +495,9 @@ if __name__ == "__main__":
     p_slice = sub.add_parser("slice")
     p_slice.add_argument("stl", type=Path)
     p_slice.add_argument("--name")
+    p_slice.add_argument("--aux", action="store_true",
+                         help="print the whole single-filament job from the aux "
+                              "nozzle's external spool (start it with --trays ext)")
     p_slice.add_argument("--supports", action="store_true",
                          help="enable supports, printed white from the aux nozzle")
     p_slice.add_argument("--support-type", default="normal(auto)",
@@ -492,7 +527,8 @@ if __name__ == "__main__":
 
     if args.cmd == "slice":
         overrides = dict(kv.split("=", 1) for kv in getattr(args, "set"))
-        slice_stl(args.stl, args.name, args.supports, args.support_type, overrides)
+        slice_stl(args.stl, args.name, args.supports, args.support_type, overrides,
+                  aux=args.aux)
     elif args.cmd == "verify":
         sys.exit(0 if verify(args.file) else 1)
     elif args.cmd == "upload":
