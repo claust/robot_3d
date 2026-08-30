@@ -1,0 +1,60 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>C1 — Raspberry Pi Zero 2 W — Parts Library</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<main>
+  <a class="back-link" href="index.html">&larr; Parts Library</a>
+
+  <section class="part" id="c1">
+    <div class="part-head"><span class="part-id">C1</span><h2>Raspberry Pi Zero 2 W single-board computer</h2><span class="badge verify">verify</span><span class="note">×1</span></div>
+    <div class="part-body">
+      <div class="part-text">
+        <p>Already-owned board, confirmed to be the <strong>Zero 2 W</strong> variant (onboard
+        2.4 GHz WiFi + Bluetooth). Picked as the brain for the first robot-car prototype:
+        it generates the PWM for the D2 DRV8833 driver and gives remote control over WiFi
+        (SSH / small web UI) with no extra radio hardware — which sidesteps reviving the
+        R1 CM02 module.</p>
+        <ul>
+          <li>RP3A0 system-in-package: quad-core Cortex-A53 @ 1 GHz, 512 MB RAM. Runs
+              Raspberry Pi OS from microSD.</li>
+          <li>Board 65 × 30 mm, ~5 mm thick bare; four M2.5 mounting holes on a
+              58 × 23 mm rectangle (standard Zero footprint, well documented — no
+              caliper work needed for the CAD model).</li>
+          <li>Connectors all on one long edge: mini-HDMI, micro-USB OTG (data), micro-USB
+              power. microSD slot on the short edge, CSI-2 camera connector on the other
+              short edge. Keep the SD and USB edges reachable in the chassis layout.</li>
+          <li>40-pin GPIO header along the other long edge. 3.3 V logic — drives the
+              DRV8833 inputs directly even with the driver's VCC at battery voltage.
+              Software PWM (e.g. <code>pigpio</code>) is smooth enough for brushed
+              gearmotors; no hardware PWM channel shortage.</li>
+          <li>Power: 5 V. Budget ~1 A worst case with WiFi busy (idle is far less).
+              Plan: P1 MP1584EN buck set to 5.1 V from the B2 2S pack, feeding the
+              5 V/GND GPIO pins directly (bypasses the micro-USB connector; the Pi has
+              no input protection on those pins, so the buck output must be verified
+              with a meter first).</li>
+        </ul>
+        <p>To verify:</p>
+        <ul class="checklist">
+          <li>Whether the 40-pin GPIO header is populated or needs soldering</li>
+          <li>Boots current Raspberry Pi OS from microSD; WiFi joins the LAN</li>
+          <li>Idle and WiFi-active current draw at 5 V (sets the real buck budget)</li>
+          <li>Powering via GPIO 5 V pins from the P1 buck: set and measure 5.1 V under
+              no load before first connection</li>
+          <li><code>pigpio</code> software PWM on four GPIOs, scoped or LED-checked,
+              before wiring the DRV8833</li>
+        </ul>
+      </div>
+      <figure>
+        <figcaption>No photo yet — add one (top face, so the header population is
+        visible) next time the board is out.</figcaption>
+      </figure>
+    </div>
+  </section>
+</main>
+</body>
+</html>
