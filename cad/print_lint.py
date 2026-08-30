@@ -307,15 +307,22 @@ def _first_layer_islands(mesh: trimesh.Trimesh, layer_z: float) -> list[tuple[fl
     islands sitting inside cut-outs, which polygons_full reports as their
     own separate polygons rather than folding them into the surrounding
     plate. Polygon.area and .centroid come straight from shapely."""
+    # A failure here must not masquerade as "no islands": a silently
+    # skipped check is a false clean result for a safety linter. Warn on
+    # stderr so the skip is visible in the report's context.
     try:
         section = mesh.section(plane_origin=[0, 0, layer_z], plane_normal=[0, 0, 1])
-    except Exception:
+    except Exception as e:
+        print(f"print_lint: first-layer island check SKIPPED (section failed: {e})",
+              file=sys.stderr)
         return []
     if section is None:
         return []
     try:
         planar, to_3D = section.to_2D()
-    except Exception:
+    except Exception as e:
+        print(f"print_lint: first-layer island check SKIPPED (to_2D failed: {e})",
+              file=sys.stderr)
         return []
     # to_2D's second return value maps planar points back UP into the
     # original 3D space directly (despite the name, it's a to-3D matrix) --
