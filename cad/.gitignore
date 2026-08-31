@@ -5,6 +5,7 @@ __pycache__/
 *.stl
 *.step
 *.png
+*.jpg
 *.gcode
 *.gcode.3mf
 profiles_resolved/
