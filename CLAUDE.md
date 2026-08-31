@@ -6,26 +6,11 @@ everything with `uv run` from inside `cad/`.
 
 ## Modeling
 
-- `demo_01/washer.py <outer_diameter_mm>` — example parametric part; exports STL + STEP.
-- `demo_01/render.py <model.stl>` — renders iso/top/front PNGs for visual verification.
-  Always render and check before slicing.
-- `demo_02/nut.py [size] [clearance_mm]` — printable ISO hex nut (bd_warehouse);
-  also exports a half-section STL to inspect the thread profile.
-- `demo_03/gear.py [module] [teeth] [face_width] [bore]` — involute spur gear
-  (py_gearworks, local editable checkout at ~/Repos/py_gearworks).
-- `demo_04/fit_test.py [clearance_mm]` — post/washer coupons that calibrate
-  running clearances by hand-feel. 0.2 mm radial is the calibrated value.
-- `demo_04/gearbox.py [module] [z1] [z2] [z3] [face_width]` — three-gear train
-  on an open frame; center distances come from py_gearworks' `mesh_to()`,
-  never hand-computed. Exports each part plus assembly and section STLs.
-- `demo_04/assembly_check.py [steps]` — automated PASS/FAIL design checks
-  (interference, clearances, mesh sweep, snap strain, sliceability incl. a
-  mesh overhang scan). Run it before slicing; exit 0 only if all pass.
-- `demo_05/overhang_demo.py [arm_length_mm]` — support demo bracket: a pure
-  90° cantilever (needs support) next to a 45°-gusseted arm (doesn't).
-  `demo_05/nozzle_test.py` is the quick dual-nozzle coupon. Read
-  `demo_05/README.md` before any dual-nozzle/support job — it documents the
-  workflow and the failure modes (prime tower, filament_map, tray mapping).
+Parametric part scripts live in `cad/demo_NN/` folders and export STL + STEP
+next to themselves. Always render a model and check it visually before
+slicing, and run a design's own PASS/FAIL check script, where it has one,
+before any print. Running clearances are calibrated at 0.2 mm radial — use
+that value, don't re-derive it.
 
 ## Printing (print_pipeline.py)
 
