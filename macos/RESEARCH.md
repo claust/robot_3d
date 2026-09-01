@@ -75,9 +75,47 @@ module via `{"info": {"command": "get_version"}}`.
 
 ### Camera
 `ipcam.rtsp_url` = `rtsps://<printer-ip>:322/streaming/live/1` — 1080p chamber
-live view (user `bblp` + access code, self-signed TLS; playable with ffmpeg).
-The field reads `"disable"` if "LAN Mode Liveview" is toggled off on the
-touchscreen — ours has it enabled. Not needed for v1.
+live view (user `bblp` + access code). The field reads `"disable"` if "LAN
+Mode Liveview" is toggled off on the touchscreen — ours has it enabled.
+
+Measured against our X2D while building `BambuCameraSource` (2026-09-01):
+
+- **RTSP over TLS, LIVE555 server.** The request URI must use the `rtsps://`
+  scheme — an `rtsp://` URI gets a `301` to `rtsps://<ip>/1`. Default port is
+  322. Auth is **Digest MD5**; the server issues a fresh nonce per 401, so a
+  client must re-read `WWW-Authenticate` each time rather than reuse one.
+- **`algorithm=MD5` breaks it.** A Digest response carrying the (optional,
+  RFC 7616) `algorithm` parameter is rejected even when the hash is correct.
+  Two requests differing only in that parameter: `plain -> 200 OK`,
+  `algorithm -> 401 Unauthorized`. Send it only when the challenge named one.
+- **Transport:** `RTP/AVP/TCP;interleaved=0-1` works, so RTP rides the same
+  TLS socket — no UDP, no second port. ~250 KB/s (2 Mbit/s).
+- **Video:** H.264 High 4.1, `packetization-mode=1`, 1920x1080. NAL types seen
+  are 28 (FU-A), 7 (SPS) and 8 (PPS) — parameter sets repeat in-band roughly
+  once a second, and also arrive up front in the SDP's `sprop-parameter-sets`.
+- **The two TLS ports present different chains:**
+
+  | Port | Chain sent |
+  |---|---|
+  | 8883 (MQTT) | leaf `CN=<serial>` + intermediate `BBL Device CA N6-V2` |
+  | 322 (RTSPS) | leaf only |
+
+  So the camera port alone cannot be verified — `Unable to build chain to
+  root (possible missing intermediate)` — which is why other tools disable
+  verification or pin a bare fingerprint. `BambuDeviceCA` instead harvests
+  the intermediate from a TLS-handshake-only connection to 8883 (no MQTT
+  packet is sent) and adds it as an anchor; the harvested chain must itself
+  validate against the pinned roots first, so a rogue 8883 cannot inject an
+  anchor. The device CA is issued by `BBL CA2 RSA` and runs to 2040.
+- **Hostname verification must be off, and the SSL policy avoided entirely.**
+  Under `SecPolicyCreateSSL` the leaf fails three ways: `SSL hostname does not
+  match name(s) in certificate`, `Certificate exceeds maximum temporal
+  validity period` (Apple's 398-day cap), and `Extended key usage does not
+  match certificate usage`. `SecPolicyCreateBasicX509` verifies the signature
+  chain without those, which is what the camera uses on both platforms.
+- Port 6000 (the legacy P1/A1 chamber-JPEG protocol) is open on the X2D but
+  answers the auth packet with an 8-byte `ffffffff…` error and closes. No
+  JPEG-stills shortcut here.
 
 ## Commands (topic `device/<SERIAL>/request`)
 

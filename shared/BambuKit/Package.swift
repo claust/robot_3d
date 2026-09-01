@@ -19,11 +19,21 @@ let package = Package(
         .package(url: "https://github.com/apple/swift-nio.git", from: "2.65.0"),
         .package(url: "https://github.com/apple/swift-nio-ssl.git", from: "2.27.0"),
         .package(url: "https://github.com/apple/swift-nio-transport-services.git", from: "1.20.0"),
+        // RTSP client for the chamber camera. Our fork of steelbrain/IPCamKit
+        // (MIT) on the `bambu-rtsps` branch: upstream has no TLS at all, so it
+        // cannot open an rtsps:// URL, and its Digest auth sends an
+        // `algorithm=MD5` the printer's LIVE555 server rejects. See that
+        // branch's PATCHES.md. Pinned by revision, not branch, so the build is
+        // reproducible and never moves underneath us.
+        .package(
+            url: "https://github.com/claust/IPCamKit.git",
+            revision: "e1945a693ec0e573e953338073180374ed509d7f"),
     ],
     targets: [
         .target(
             name: "BambuKit",
             dependencies: [
+                .product(name: "IPCamKit", package: "IPCamKit"),
                 .product(name: "MQTTNIO", package: "mqtt-nio"),
                 .product(name: "NIOCore", package: "swift-nio"),
                 .product(name: "NIOPosix", package: "swift-nio"),
@@ -34,7 +44,7 @@ let package = Package(
         ),
         .testTarget(
             name: "BambuKitTests",
-            dependencies: ["BambuKit"],
+            dependencies: ["BambuKit", .product(name: "IPCamKit", package: "IPCamKit")],
             swiftSettings: [.swiftLanguageMode(.v5)]
         ),
     ]

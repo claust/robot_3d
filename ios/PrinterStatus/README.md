@@ -29,22 +29,32 @@ empty network, so the empty state offers both explanations and a link into
 Settings. Note that the *simulator* is not subject to that permission at
 all — it uses the Mac's network — so the prompt only appears on a device.
 
-What the macOS app has that this one doesn't: the chamber camera. That pane
-rides on a local ffmpeg subprocess transcoding the printer's RTSPS stream,
-and iOS apps cannot spawn subprocesses; a native RTSPS/H.264 client is the
-future fix.
+The chamber camera works here too, as of the switch to the in-process
+RTSPS client in BambuKit (`BambuCameraSource`) — the old macOS pane needed a
+local ffmpeg subprocess, which iOS cannot spawn. Tapping the card opens a
+full-screen view. The stream stops with the rest of the sources when the app
+leaves the foreground.
 
 **TLS posture, iOS vs macOS:** on macOS the MQTT session is chain-verified
 against Bambu's pinned device-CA roots (NIOSSL, hostname check off since the
-certificate names the serial). On iOS that is not possible: MQTTNIO compiles
-NIOSSL out, and Network.framework's trust evaluation always applies the SSL
-policy, which the printer's certificate can never pass (serial CN, no
-serverAuth EKU, over-long validity — verified live; pinned anchors still fail
-on `SSLHostname`/`ServerAuthEKU`). The iOS session is therefore **encrypted
-but not authenticated**, like the macOS `BAMBU_TLS_INSECURE` escape hatch: a
-MITM on the local network could impersonate the printer and capture the
-access code. Acceptable for a home LAN and read-only telemetry; revisit if
-either assumption changes.
+certificate names the serial). The iOS MQTT session is not: MQTTNIO compiles
+NIOSSL out there, and its `TSTLSConfiguration` exposes no hook for a custom
+trust evaluation, so the *default* Network.framework evaluation applies —
+and that always uses the SSL policy, which the printer's certificate can
+never pass (serial CN, no serverAuth EKU, over-long validity, all verified
+live). The iOS MQTT session is therefore **encrypted but not
+authenticated**, like the macOS `BAMBU_TLS_INSECURE` escape hatch: a MITM on
+the local network could impersonate the printer and capture the access code.
+Acceptable for a home LAN and read-only telemetry.
+
+The camera connection *is* authenticated on both platforms, including iOS.
+It does not go through MQTTNIO, so it can install a
+`sec_protocol_options_set_verify_block` that pins Bambu's roots and
+evaluates under a **basic X.509 policy** instead of the SSL one — which is
+exactly the constraint the MQTT path cannot escape. Verified in the iOS
+simulator against a live printer. That suggests the MQTT gap is closable the
+same way if MQTTNIO is bypassed or taught to pass `NWProtocolTLS.Options`
+through; worth revisiting, and worth confirming on a physical device first.
 
 ## Build & run (simulator)
 

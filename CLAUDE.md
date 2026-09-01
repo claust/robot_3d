@@ -44,11 +44,22 @@ uv run print_pipeline.py status
 ## Shared protocol layer (shared/BambuKit)
 
 SwiftPM package both status apps depend on: MQTT session + report decode,
-Bambu's TLS trust roots, SSDP discovery, and the simulated source. UI-free
-and declared for macOS 14 + iOS 17, so a platform-only import fails to build
-here rather than in one app. `swift build --package-path shared/BambuKit`,
-`swift test --package-path shared/BambuKit` (SSDP parsing, subnet math).
+Bambu's TLS trust roots, SSDP discovery, the chamber camera, and the
+simulated source. UI-free and declared for macOS 14 + iOS 17, so a
+platform-only import fails to build here rather than in one app.
+`swift build --package-path shared/BambuKit`,
+`swift test --package-path shared/BambuKit` (SSDP parsing, subnet math,
+camera trust plumbing).
 Anything protocol-shaped belongs here, not in an app target.
+
+`BambuCameraSource` decodes the RTSPS chamber stream in-process (RTSP via
+`claust/IPCamKit`, our fork of steelbrain/IPCamKit pinned by revision —
+upstream has no TLS and its Digest auth trips the printer, see that repo's
+`PATCHES.md` — then VideoToolbox) and emits `CGImage`, so neither app needs
+ffmpeg or a platform image type.
+The printer omits its intermediate CA on the camera port but sends it on the
+MQTT port, so `BambuDeviceCA` harvests it from a throwaway TLS handshake —
+details in `macos/RESEARCH.md`.
 
 ## macOS status app (macos/PrinterStatus)
 
@@ -65,8 +76,8 @@ may hold a `BAMBU_ENV_FILE=` pointer), then `cad/.env` found by walking up.
 ## iOS status app (ios/PrinterStatus)
 
 iPhone port of the macOS app; both take the protocol layer from
-`shared/BambuKit` — UI and config are iOS-specific, and there is no camera
-pane (needs ffmpeg, which iOS can't spawn). From `ios/PrinterStatus`:
+`shared/BambuKit` — UI and config are iOS-specific, and the two now share
+the chamber camera too. From `ios/PrinterStatus`:
 `xcodegen generate`, then build with xcodebuild for the simulator (see its
 README). First launch offers network discovery (unicast SSDP sweep) to fill
 in address and serial; credentials otherwise come from the in-app settings

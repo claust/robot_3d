@@ -23,11 +23,20 @@ struct CameraPaneView: View {
                 .font(.caption)
                 .foregroundStyle(Color.white.opacity(0.55))
             Spacer()
-            if isLive {
-                Circle().fill(.red).frame(width: 7, height: 7)
-                Text("LIVE")
-                    .font(.caption2.weight(.bold))
-                    .foregroundStyle(Color.white.opacity(0.85))
+            // `isLive` is a function of the clock, and SwiftUI only
+            // re-evaluates on a publish. A stalled stream stops publishing —
+            // which is exactly when the badge needs to drop — so it gets its
+            // own clock. Only this two-element subtree ticks; a 2 s cadence
+            // is enough for a 5 s freshness window.
+            TimelineView(.periodic(from: .now, by: 2)) { _ in
+                if isLive {
+                    HStack(spacing: 6) {
+                        Circle().fill(.red).frame(width: 7, height: 7)
+                        Text("LIVE")
+                            .font(.caption2.weight(.bold))
+                            .foregroundStyle(Color.white.opacity(0.85))
+                    }
+                }
             }
         }
     }
@@ -35,7 +44,12 @@ struct CameraPaneView: View {
     private var videoArea: some View {
         ZStack {
             if let frame = model.cameraFrame {
-                Image(nsImage: frame)
+                // CGImage, not NSImage: the source is shared with the iOS
+                // app, so it cannot hand back an AppKit type. The labeled
+                // initializer, not `decorative:` — this is the pane's primary
+                // content, and `decorative:` makes it no accessibility
+                // element at all.
+                Image(frame, scale: 1, label: Text("Live view of the printer's chamber"))
                     .resizable()
                     .scaledToFit()
                     .clipShape(RoundedRectangle(cornerRadius: 6))

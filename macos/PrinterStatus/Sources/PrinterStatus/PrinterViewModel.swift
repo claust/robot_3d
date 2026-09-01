@@ -1,5 +1,5 @@
-import AppKit
 import BambuKit
+import CoreGraphics
 import Foundation
 import Observation
 import SwiftUI
@@ -19,10 +19,12 @@ final class PrinterViewModel {
     }
 
     /// Image and arrival time travel together in one value. As three
-    /// separate `@Published` properties each frame fired three graph
-    /// invalidations, so a 5 fps camera drove 15 SwiftUI updates a second.
+    /// separate published properties each frame fired three graph
+    /// invalidations, so even a slow camera drove several SwiftUI updates a
+    /// second. `CGImage` because the source is shared with the iOS app and
+    /// cannot hand back an AppKit type.
     struct CameraFrame {
-        let image: NSImage
+        let image: CGImage
         let received: Date
     }
 
@@ -37,17 +39,17 @@ final class PrinterViewModel {
         didSet { if mode != oldValue { restart() } }
     }
 
-    var cameraFrame: NSImage? { camera?.image }
+    var cameraFrame: CGImage? { camera?.image }
     var lastFrame: Date? { camera?.received }
 
     let hasCredentials: Bool
     private let config: PrinterConfig?
     private var mqtt: BambuMQTTSource?
     private var sim: SimulatedSource?
-    private var cameraSource: CameraSource?
+    private var cameraSource: BambuCameraSource?
     private var nameSource: PrinterNameSource?
     private var frameTask: Task<Void, Never>?
-    private var frameContinuation: AsyncStream<NSImage>.Continuation?
+    private var frameContinuation: AsyncStream<CGImage>.Continuation?
     private var merged: [String: Any] = [:]
 
     init(forceSimulate: Bool = false) {
@@ -67,7 +69,11 @@ final class PrinterViewModel {
         merged = [:]
         snapshot = PrinterSnapshot()
         lastUpdate = nil
+        // The status belongs to the session being torn down; leaving it set
+        // would show "Live" over a pane with no frame until the new source
+        // publishes its first update.
         camera = nil
+        cameraStatus = "Camera off"
 
         switch mode {
         case .simulated:
@@ -101,16 +107,16 @@ final class PrinterViewModel {
             source.start()
             mqtt = source
 
-            let cam = CameraSource(config: config)
+            let cam = BambuCameraSource(config: config)
             // Newest-frame-only buffering is the backpressure. A
             // `Task { @MainActor }` per frame is an unbounded queue: when the
-            // main actor cannot keep up with 5 fps, the pending closures pile
-            // up, each retaining a decoded NSImage. Here a slow consumer just
-            // misses frames. Reports deliberately keep the per-event Task —
-            // they are deltas that deepMerge accumulates, so dropping one
-            // would lose state that never comes again.
+            // main actor cannot keep up, the pending closures pile up, each
+            // retaining a decoded frame. Here a slow consumer just misses
+            // frames. Reports deliberately keep the per-event Task — they are
+            // deltas that deepMerge accumulates, so dropping one would lose
+            // state that never comes again.
             let (frames, continuation) = AsyncStream.makeStream(
-                of: NSImage.self, bufferingPolicy: .bufferingNewest(1))
+                of: CGImage.self, bufferingPolicy: .bufferingNewest(1))
             cam.onFrame = { continuation.yield($0) }
             frameContinuation = continuation
             frameTask = Task { @MainActor [weak self] in
