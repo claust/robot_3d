@@ -1,8 +1,9 @@
+import AppKit
 import BambuKit
 import SwiftUI
 
 struct DashboardView: View {
-    @ObservedObject var model: PrinterViewModel
+    @Bindable var model: PrinterViewModel
     @AppStorage("tempVisualStyle") private var tempStyleRaw = TempVisualStyle.glow.rawValue
     private let forcedStyle: TempVisualStyle?
 
@@ -50,6 +51,21 @@ struct DashboardView: View {
         }
         .padding(16)
         .fixedSize(horizontal: false, vertical: true)
+        .onChange(of: model.printerName, initial: true) { _, name in
+            setWindowTitle(name ?? "Printer Status")
+        }
+    }
+
+    /// Retitles the window without letting the *Scene* depend on the model.
+    /// `.navigationTitle` up in the App body reads the view model there,
+    /// which rebuilds the whole app graph — main menu included — on every
+    /// published change (see AppModel in main.swift). This fires only when
+    /// the name actually changes, and finds no window under ImageRenderer
+    /// (--snapshot), where it is simply a no-op.
+    private func setWindowTitle(_ title: String) {
+        guard let window = NSApp.mainWindow ?? NSApp.windows.first,
+              window.title != title else { return }
+        window.title = title
     }
 
     // MARK: sections
