@@ -33,15 +33,26 @@ if CommandLine.arguments.contains("--dump") {
     PrinterStatusApp.main()
 }
 
+/// The one app-lifetime view model. Deliberately *not* a `@StateObject` on
+/// the App: that subscribes the Scene body to every published change, and a
+/// Scene invalidation makes SwiftUI rebuild the main menu — re-parsing the
+/// SF Symbol SVGs and leaking observation state each time. With a 5 fps
+/// camera that ran at 15 rebuilds a second and cost ~50 MB an hour, enough
+/// for the OS to jetsam the app overnight. Nothing here may read a
+/// published property; the window title is set from inside the view
+/// hierarchy instead (see setWindowTitle in DashboardView.swift).
+@MainActor
+enum AppModel {
+    static let shared = PrinterViewModel(
+        forceSimulate: CommandLine.arguments.contains("--simulate"))
+}
+
 struct PrinterStatusApp: App {
     @NSApplicationDelegateAdaptor(AppDelegate.self) private var appDelegate
-    @StateObject private var model = PrinterViewModel(
-        forceSimulate: CommandLine.arguments.contains("--simulate"))
 
     var body: some Scene {
         Window("Printer Status", id: "main") {
-            DashboardView(model: model)
-                .navigationTitle(model.printerName ?? "Printer Status")
+            DashboardView(model: AppModel.shared)
         }
         .windowResizability(.contentSize)
     }

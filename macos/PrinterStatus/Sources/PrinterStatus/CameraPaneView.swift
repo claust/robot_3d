@@ -3,7 +3,7 @@ import SwiftUI
 /// Right half of the split view: the live chamber camera. Styled like the
 /// Glow schematic card — dark chamber, rounded, quiet border.
 struct CameraPaneView: View {
-    @ObservedObject var model: PrinterViewModel
+    var model: PrinterViewModel
 
     var body: some View {
         VStack(spacing: 8) {

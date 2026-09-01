@@ -15,10 +15,20 @@ final class PrinterViewModel: ObservableObject {
     @Published var connectionText = "Starting…"
     @Published var isConnected = false
     @Published var lastUpdate: Date?
-    @Published var cameraFrame: CGImage?
+    /// Image and arrival time travel together in one value: as separate
+    /// published properties, each frame fired several graph invalidations.
+    /// The macOS app learned this the hard way (see its PrinterViewModel).
+    struct CameraFrame {
+        let image: CGImage
+        let received: Date
+    }
+
+    @Published private(set) var camera: CameraFrame?
     @Published var cameraStatus = "Camera off"
-    @Published var lastFrame: Date?
     @Published var printerName: String?
+
+    var cameraFrame: CGImage? { camera?.image }
+    var lastFrame: Date? { camera?.received }
     @Published var mode: Mode {
         didSet { if mode != oldValue { restart() } }
     }
@@ -27,8 +37,10 @@ final class PrinterViewModel: ObservableObject {
     private var config: PrinterConfig?
     private var mqtt: BambuMQTTSource?
     private var sim: SimulatedSource?
-    private var camera: BambuCameraSource?
+    private var cameraSource: BambuCameraSource?
     private var nameSource: PrinterNameSource?
+    private var frameTask: Task<Void, Never>?
+    private var frameContinuation: AsyncStream<CGImage>.Continuation?
     private var merged: [String: Any] = [:]
 
     init() {
@@ -79,7 +91,9 @@ final class PrinterViewModel: ObservableObject {
     private func stopSources() {
         mqtt?.stop(); mqtt = nil
         sim?.stop(); sim = nil
-        camera?.stop(); camera = nil
+        cameraSource?.stop(); cameraSource = nil
+        frameContinuation?.finish(); frameContinuation = nil
+        frameTask?.cancel(); frameTask = nil
         nameSource?.stop(); nameSource = nil
     }
 
@@ -88,8 +102,7 @@ final class PrinterViewModel: ObservableObject {
         merged = [:]
         snapshot = PrinterSnapshot()
         lastUpdate = nil
-        cameraFrame = nil
-        lastFrame = nil
+        camera = nil
         // the name belongs to the previous session's printer; keeping it
         // would leave a stale title in simulate mode or after an IP change
         printerName = nil
@@ -128,18 +141,33 @@ final class PrinterViewModel: ObservableObject {
             mqtt = source
 
             let cam = BambuCameraSource(config: config)
-            cam.onFrame = { [weak self] image in
-                Task { @MainActor in
-                    self?.cameraFrame = image
-                    self?.cameraStatus = "Live"
-                    self?.lastFrame = Date()
+            // Newest-frame-only buffering is the backpressure. A
+            // `Task { @MainActor }` per frame is an unbounded queue: when the
+            // main actor cannot keep up, the pending closures pile up, each
+            // retaining a decoded frame. Here a slow consumer just misses
+            // frames. Reports deliberately keep the per-event Task — they are
+            // deltas that deepMerge accumulates, so dropping one would lose
+            // state that never comes again.
+            let (frames, continuation) = AsyncStream.makeStream(
+                of: CGImage.self, bufferingPolicy: .bufferingNewest(1))
+            cam.onFrame = { continuation.yield($0) }
+            frameContinuation = continuation
+            frameTask = Task { @MainActor [weak self] in
+                for await image in frames {
+                    guard let self else { return }
+                    self.camera = CameraFrame(image: image, received: Date())
+                    // assigning an unchanged value still publishes
+                    if self.cameraStatus != "Live" { self.cameraStatus = "Live" }
                 }
             }
             cam.onStatus = { [weak self] text in
-                Task { @MainActor in self?.cameraStatus = text }
+                Task { @MainActor in
+                    guard let self, self.cameraStatus != text else { return }
+                    self.cameraStatus = text
+                }
             }
             cam.start()
-            camera = cam
+            cameraSource = cam
 
             let names = PrinterNameSource(ip: config.ip)
             names.onName = { [weak self] name in

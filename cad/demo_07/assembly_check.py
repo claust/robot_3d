@@ -226,13 +226,35 @@ def main():
         ("post snap lip", d["post_top"] - d["lip_z0"]),
     ]:
         check(f"min height {name}", h >= two_layers, f"{h:.2f} mm (>= 0.4)")
-    floor = gb.face_width - fg.DIVOT_DEPTH
-    check("gear3 divot floor thickness", floor >= 2.0,
-          f"{floor:.2f} mm under each finger divot (>= 2.0)")
-    reach = fg.DIVOT_RPOS + fg.DIVOT_DIA / 2
+    floor = gb.face_width - fg.DISH_DEPTH
+    check("gear3 dish floor thickness", floor >= 2.0,
+          f"{floor:.2f} mm under each finger dish (>= 2.0)")
+    dish_a, knob_a = fg.face_feature_reach()
     root_r = gb.gears_pgw[2].dedendum_radius
-    check("gear3 divots clear of tooth roots", reach <= root_r - 1.0,
-          f"divot edge r{reach:.1f} vs root r{root_r:.1f} (>= 1.0 margin)")
+    check("gear3 dishes clear of tooth roots",
+          fg.FEAT_RPOS + dish_a <= root_r - 1.0,
+          f"dish rim r{fg.FEAT_RPOS + dish_a:.2f} vs root r{root_r:.2f} "
+          "(>= 1.0 margin)")
+    check("gear3 knob clear of tooth roots",
+          fg.FEAT_RPOS + knob_a <= root_r - 0.5,
+          f"knob base r{fg.FEAT_RPOS + knob_a:.2f} vs root r{root_r:.2f} "
+          "(>= 0.5 margin; it adds material, so it only has to stay off "
+          "the teeth)")
+    check("gear3 dishes clear of the bore rim",
+          fg.FEAT_RPOS - dish_a >= d["bore_r"] + 1.0,
+          f"dish rim r{fg.FEAT_RPOS - dish_a:.2f} vs bore r{d['bore_r']:.2f} "
+          "(>= 1.0 land)")
+    check("gear3 knob clear of the snap lip",
+          fg.FEAT_RPOS - knob_a >= d["lip_r"] + 0.3,
+          f"knob base r{fg.FEAT_RPOS - knob_a:.2f} vs lip r{d['lip_r']:.2f} "
+          "(>= 0.3 gap)")
+    # the dome's base is its steepest point and it only flattens going up,
+    # so no facet ever faces downward: printable with the gear flat
+    knob_wall = np.degrees(
+        np.arctan2(fg.KNOB_SPH_R - fg.KNOB_H, fg.knob_base_r())
+    )
+    check("gear3 knob dome self-supporting", knob_wall <= 50.0,
+          f"{knob_wall:.1f} deg off vertical at the base (<= 50)")
     check("finger kerf printable gap", fg.KERF >= 0.8,
           f"{fg.KERF:.2f} mm (>= 0.8, narrower gaps fuse)")
 
