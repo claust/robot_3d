@@ -55,7 +55,7 @@ public enum BambuDeviceCA {
     ) async throws -> [Data] {
         let queue = DispatchQueue(label: "BambuKit.deviceCA")
         let roots = BambuTrust.rootCertificateDERs
-        let captured = Captured()
+        let verdict = Verdict()
 
         let tls = NWProtocolTLS.Options()
         sec_protocol_options_set_verify_block(
@@ -72,13 +72,14 @@ public enum BambuDeviceCA {
                     SecTrustSetPolicies(chain, SecPolicyCreateBasicX509()) == errSecSuccess,
                     SecTrustEvaluateWithError(chain, nil)
                 else {
+                    verdict.set(.rejected)
                     complete(false)
                     return
                 }
                 let certs = (SecTrustCopyCertificateChain(chain) as? [SecCertificate]) ?? []
                 // Drop the leaf; anything above it is what the camera port
                 // fails to send. Roots repeat harmlessly as anchors.
-                captured.set(certs.dropFirst().map { SecCertificateCopyData($0) as Data })
+                verdict.set(.accepted(certs.dropFirst().map { SecCertificateCopyData($0) as Data }))
                 complete(true)
             }, queue)
 
@@ -115,9 +116,11 @@ public enum BambuDeviceCA {
             }
         } catch {
             connection.cancel()
-            // A rejected chain surfaces as a generic handshake failure; the
-            // verify block having captured nothing is what distinguishes it.
-            if captured.value == nil, case HarvestError.handshakeFailed = error {
+            // A rejected chain surfaces as a generic handshake failure, so
+            // only the verify block having *run and refused* identifies it.
+            // Everything else — refused connection, no route, timeout — keeps
+            // its own error rather than being blamed on the certificate.
+            if case .rejected = verdict.state {
                 throw HarvestError.untrustedChain
             }
             throw error
@@ -125,23 +128,35 @@ public enum BambuDeviceCA {
         // The handshake is all we wanted; never send an MQTT packet.
         connection.cancel()
 
-        guard let intermediates = captured.value else { throw HarvestError.untrustedChain }
+        guard case .accepted(let intermediates) = verdict.state else {
+            throw HarvestError.untrustedChain
+        }
         guard !intermediates.isEmpty else { throw HarvestError.noIntermediates }
         return intermediates
     }
 
-    /// Box for the verify block's result. The block and the awaiting task are
-    /// serialized by the handshake completing before `.ready`, but the lock
-    /// keeps that from being an assumption about Network.framework's ordering.
-    private final class Captured: @unchecked Sendable {
+    /// What the TLS verify block decided, kept apart from why the connection
+    /// failed. The block and the awaiting task are serialized by the handshake
+    /// completing before `.ready`, but the lock keeps that from being an
+    /// assumption about Network.framework's ordering.
+    private final class Verdict: @unchecked Sendable {
+        enum State {
+            /// The handshake never reached certificate evaluation.
+            case notRun
+            /// The chain was evaluated and did not validate against the roots.
+            case rejected
+            /// The chain validated; these are the certificates above the leaf.
+            case accepted([Data])
+        }
+
         private let lock = NSLock()
-        private var stored: [Data]?
-        var value: [Data]? {
+        private var stored: State = .notRun
+        var state: State {
             lock.lock()
             defer { lock.unlock() }
             return stored
         }
-        func set(_ value: [Data]) {
+        func set(_ value: State) {
             lock.lock()
             stored = value
             lock.unlock()
