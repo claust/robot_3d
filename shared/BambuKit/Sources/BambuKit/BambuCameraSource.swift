@@ -319,6 +319,11 @@ private final class H264Decoder {
     /// (upstream issue #9), so each unit is measured rather than trusted.
     private static func avcc(_ nalus: [Data]) -> Data {
         var out = Data()
+        // One allocation rather than a growth curve: this runs for every
+        // decoded frame, and a 1080p keyframe here is ~100 kB. The 4 bytes per
+        // unit over-reserve slightly for units that already carry their
+        // prefix, which is the harmless direction for a capacity hint.
+        out.reserveCapacity(nalus.reduce(0) { $0 + $1.count + 4 })
         for nalu in nalus where !nalu.isEmpty {
             let prefixed =
                 nalu.count >= 4
