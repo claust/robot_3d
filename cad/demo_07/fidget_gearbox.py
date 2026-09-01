@@ -30,6 +30,7 @@ from build123d import (
     Box,
     Cone,
     Cylinder,
+    GeomType,
     Part,
     Pos,
     Rectangle,
@@ -107,12 +108,19 @@ LIP_TOP = 1.5  # lip top (must stay clear of the rails: it never goes
 TAIL_MARGIN = 2.5  # rails extend this far past the disengaged carriage rear
 RET_R0, RET_R1, RET_H = 1.0, 0.3, 0.3  # retention cones on the rail tops
 
-# finger divots in the big gear's top face: fingertip recesses to crank it.
-# Three at 120 deg keep the gear balanced when it spins fast.
-DIVOT_N = 3
-DIVOT_RPOS = 8.5  # divot centers, radius from the gear axis
-DIVOT_DIA = 6.5
-DIVOT_DEPTH = 1.8  # leaves face_width - 1.8 of floor under each divot
+# finger features in the big gear's top face, three at 120 deg so the gear
+# stays balanced when it spins fast: two dished recesses to crank it, and
+# one raised dome knob (a dish turned inside out) to spin it by. All three
+# reach nearly from the bore out to the tooth roots.
+FEAT_N = 3
+FEAT_RPOS = 8.3  # feature centers, radius from the gear axis
+KNOB_INDEX = 0  # which of the three features is the raised knob
+DISH_DIA = 8.2  # dished recess footprint, before the rim round-over
+DISH_DEPTH = 2.0  # leaves face_width - 2.0 of floor under each dish
+DISH_RIM_R = 0.5  # round-over on the dish rim, so no sharp edge to the finger
+KNOB_SPH_R = 5.0  # knob dome radius (the touch surface)
+KNOB_H = 2.6  # knob apex above the gear top face
+KNOB_BLEND_R = 0.8  # concave blend from the face into the dome
 
 
 @dataclass
@@ -198,6 +206,89 @@ def post_with_lip(cx, cy, base_z, dims):
     return post + lip, slit
 
 
+def dish_sphere_r() -> float:
+    """Radius of the sphere whose cap is a DISH_DEPTH-deep DISH_DIA dish."""
+    a = DISH_DIA / 2
+    return (a**2 + DISH_DEPTH**2) / (2 * DISH_DEPTH)
+
+
+def knob_base_r() -> float:
+    """Radius where the raw dome meets the face, before the blend."""
+    return float(np.sqrt(KNOB_SPH_R**2 - (KNOB_SPH_R - KNOB_H) ** 2))
+
+
+def face_feature_reach() -> tuple:
+    """(dish, knob) outer radii on the gear face, blends included.
+
+    Both blends are rolling-ball tangencies against the flat face, so each
+    outer radius is just where the ball centre sits: the dish's round-over
+    ball rolls inside the material (below the face, outside the dish
+    sphere), the knob's blend ball rolls in the void beside the dome.
+    """
+    a = DISH_DIA / 2
+    ds = dish_sphere_r()
+    dz = ds - DISH_DEPTH + DISH_RIM_R  # dish centre to rim-ball centre, in z
+    dish = np.sqrt((ds + DISH_RIM_R) ** 2 - dz**2)
+    kz = KNOB_SPH_R - KNOB_H + KNOB_BLEND_R  # dome centre to blend centre
+    knob = np.sqrt((KNOB_SPH_R + KNOB_BLEND_R) ** 2 - kz**2)
+    assert a < dish  # the round-over only ever widens the opening
+    return float(dish), float(knob)
+
+
+def _rim_edge(part, px, py, z, radius, tol=1e-3):
+    """The horizontal circular edge of one face feature, ready to fillet."""
+    for e in part.edges().filter_by(GeomType.CIRCLE):
+        c = e.arc_center
+        if (
+            abs(c.Z - z) < tol
+            and abs(c.X - px) < tol
+            and abs(c.Y - py) < tol
+            and abs(e.radius - radius) < tol
+        ):
+            return e
+    raise ValueError(f"no rim edge at ({px:.2f}, {py:.2f}) r{radius:.2f}")
+
+
+def face_features(gear, cx, cy, top_z):
+    """Cut the dishes and raise the knob in the big gear's top face.
+
+    Everything faces upward: the dishes are cut from above, and the dome
+    only gets flatter as it rises (steepest at its base, 60 deg off
+    horizontal), so the gear still prints flat and supportless.
+    """
+    ds = dish_sphere_r()
+    for k in range(FEAT_N):
+        ang = 2 * np.pi * k / FEAT_N
+        px = cx + FEAT_RPOS * np.cos(ang)
+        py = cy + FEAT_RPOS * np.sin(ang)
+        # rotate every sphere so its mesh pole singularity lands on the
+        # equator, not on the cut/touch surface (export_stl otherwise
+        # leaves zero-volume sliver facets there)
+        if k == KNOB_INDEX:
+            dome = Sphere(radius=KNOB_SPH_R).rotate(Axis.X, 90).translate(
+                (px, py, top_z + KNOB_H - KNOB_SPH_R)
+            )
+            cap = dome & rbox(
+                px - KNOB_SPH_R,
+                px + KNOB_SPH_R,
+                py - KNOB_SPH_R,
+                py + KNOB_SPH_R,
+                top_z,
+                top_z + KNOB_H + 1,
+            )
+            gear += cap
+            edge = _rim_edge(gear, px, py, top_z, knob_base_r())
+            gear = fillet(edge, KNOB_BLEND_R)
+        else:
+            dish = Sphere(radius=ds).rotate(Axis.X, 90).translate(
+                (px, py, top_z - DISH_DEPTH + ds)
+            )
+            gear -= dish
+            edge = _rim_edge(gear, px, py, top_z, DISH_DIA / 2)
+            gear = fillet(edge, DISH_RIM_R)
+    return gear
+
+
 def build(module=MODULE, teeth=TEETH, face_width=FACE_WIDTH) -> FidgetGearbox:
     gears_pgw, mesh_centers, gear_parts = build_gear_train(
         module, teeth, face_width, BACKLASH_COEFF
@@ -222,26 +313,8 @@ def build(module=MODULE, teeth=TEETH, face_width=FACE_WIDTH) -> FidgetGearbox:
     gb.gears = [p.translate((0, 0, GEAR_Z0)) for p in gear_parts]
     gb.gears[0] = gb.gears[0].translate((-ENGAGE_BACKOFF, 0, 0))
 
-    # finger divots in the big gear's top face (spherical caps, cut from
-    # above: every divot surface faces upward, so nothing overhangs)
-    a = DIVOT_DIA / 2
-    sph_r = (a**2 + DIVOT_DEPTH**2) / (2 * DIVOT_DEPTH)
     cx3, cy3 = centers[-1]
-    for k in range(DIVOT_N):
-        ang = 2 * np.pi * k / DIVOT_N
-        # rotate the cutter so the sphere mesh's pole singularity sits on
-        # its equator, not at the divot floor (avoids degenerate STL facets)
-        gb.gears[-1] -= (
-            Sphere(radius=sph_r)
-            .rotate(Axis.X, 90)
-            .translate(
-                (
-                    cx3 + DIVOT_RPOS * np.cos(ang),
-                    cy3 + DIVOT_RPOS * np.sin(ang),
-                    gear_top - DIVOT_DEPTH + sph_r,
-                )
-            )
-        )
+    gb.gears[-1] = face_features(gb.gears[-1], cx3, cy3, gear_top)
 
     dims = dict(
         gear_top=gear_top,
