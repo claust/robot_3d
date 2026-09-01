@@ -46,12 +46,14 @@ struct CameraPaneView: View {
         ZStack {
             if let frame = model.cameraFrame {
                 // CGImage, not UIImage: the source is shared with the Mac app,
-                // so it cannot hand back a UIKit type.
-                Image(decorative: frame, scale: 1)
+                // so it cannot hand back a UIKit type. The label goes in the
+                // initializer: `decorative:` builds an image that is not an
+                // accessibility element, which a later modifier should not
+                // have to undo.
+                Image(frame, scale: 1, label: Text("Live view of the printer's chamber"))
                     .resizable()
                     .scaledToFit()
                     .clipShape(RoundedRectangle(cornerRadius: 10))
-                    .accessibilityLabel("Live view of the printer's chamber")
             } else {
                 RoundedRectangle(cornerRadius: 10)
                     .fill(Color(.tertiarySystemFill))
@@ -83,10 +85,9 @@ struct CameraFullScreenView: View {
         ZStack {
             Color.black.ignoresSafeArea()
             if let frame = model.cameraFrame {
-                Image(decorative: frame, scale: 1)
+                Image(frame, scale: 1, label: Text("Live view of the printer's chamber"))
                     .resizable()
                     .scaledToFit()
-                    .accessibilityLabel("Live view of the printer's chamber")
             } else {
                 Text(model.cameraStatus)
                     .font(.callout)

@@ -36,8 +36,11 @@ struct CameraPaneView: View {
         ZStack {
             if let frame = model.cameraFrame {
                 // CGImage, not NSImage: the source is shared with the iOS
-                // app, so it cannot hand back an AppKit type.
-                Image(decorative: frame, scale: 1)
+                // app, so it cannot hand back an AppKit type. The labeled
+                // initializer, not `decorative:` — this is the pane's primary
+                // content, and `decorative:` makes it no accessibility
+                // element at all.
+                Image(frame, scale: 1, label: Text("Live view of the printer's chamber"))
                     .resizable()
                     .scaledToFit()
                     .clipShape(RoundedRectangle(cornerRadius: 6))
