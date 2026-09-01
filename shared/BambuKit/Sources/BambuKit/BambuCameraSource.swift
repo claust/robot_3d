@@ -20,17 +20,6 @@ public final class BambuCameraSource {
     public var onFrame: ((CGImage) -> Void)?
     public var onStatus: ((String) -> Void)?
 
-    /// Frames handed to the UI per second. The camera streams H.264 at ~30 fps
-    /// and every frame is decoded to keep the reference chain intact, but only
-    /// this many become images — the rest are decoded with
-    /// `kVTDecodeFrame_DoNotOutputFrame`, which is where the savings are. A
-    /// monitoring view gains nothing from 30 fps, and a phone pays for it.
-    private static let emitFrameRate: Double = 12
-
-    /// Delay before redialing a dropped stream. The old ffmpeg-based source
-    /// used the same 3 s.
-    private static let reconnectDelay: Duration = .seconds(3)
-
     private let config: PrinterConfig
     private var task: Task<Void, Never>?
     private var stream: Stream?

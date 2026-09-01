@@ -69,7 +69,11 @@ final class PrinterViewModel {
         merged = [:]
         snapshot = PrinterSnapshot()
         lastUpdate = nil
+        // The status belongs to the session being torn down; leaving it set
+        // would show "Live" over a pane with no frame until the new source
+        // publishes its first update.
         camera = nil
+        cameraStatus = "Camera off"
 
         switch mode {
         case .simulated:

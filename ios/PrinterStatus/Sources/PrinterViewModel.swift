@@ -95,6 +95,11 @@ final class PrinterViewModel: ObservableObject {
         frameContinuation?.finish(); frameContinuation = nil
         frameTask?.cancel(); frameTask = nil
         nameSource?.stop(); nameSource = nil
+        // A decoded 1080p frame is megabytes, and backgrounding comes through
+        // here — no reason to hold one while the app is not on screen, and it
+        // would be stale on return anyway.
+        camera = nil
+        cameraStatus = "Camera off"
     }
 
     private func restart() {
@@ -102,7 +107,6 @@ final class PrinterViewModel: ObservableObject {
         merged = [:]
         snapshot = PrinterSnapshot()
         lastUpdate = nil
-        camera = nil
         // the name belongs to the previous session's printer; keeping it
         // would leave a stale title in simulate mode or after an IP change
         printerName = nil
