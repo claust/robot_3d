@@ -58,6 +58,12 @@ public enum BambuDeviceCA {
         timeout: TimeInterval = 10
     ) async throws -> [Data] {
         let queue = DispatchQueue(label: "BambuKit.deviceCA")
+        // The timeout gets its own queue. `queue` is serial and runs the
+        // connection's state updates and the TLS verify block, so a watchdog
+        // scheduled there waits behind exactly the work it is meant to bound —
+        // trust evaluation included. `Settled` already makes the two racers
+        // safe to resume from different queues.
+        let timeoutQueue = DispatchQueue(label: "BambuKit.deviceCA.timeout")
         let verdict = Verdict()
 
         // Build the anchors once, before dialing. Doing it inside the verify
@@ -136,7 +142,7 @@ public enum BambuDeviceCA {
                         break
                     }
                 }
-                queue.asyncAfter(deadline: .now() + timeout) {
+                timeoutQueue.asyncAfter(deadline: .now() + timeout) {
                     if settled.claim() { continuation.resume(throwing: HarvestError.timedOut) }
                 }
                 connection.start(queue: queue)
