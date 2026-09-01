@@ -33,39 +33,90 @@ public final class BambuCameraSource {
 
     private let config: PrinterConfig
     private var task: Task<Void, Never>?
-    /// The live session, so `stop()` can tear it down instead of waiting for
-    /// the streaming task to notice it was cancelled.
-    private let live = LiveSession()
-    /// Harvested once and reused across reconnects; cleared when a connection
-    /// fails before delivering anything, in case the printer's CA rotated.
-    private var deviceCA: [Data]?
+    private var stream: Stream?
 
     public init(config: PrinterConfig) {
         self.config = config
     }
 
+    /// Stops the stream if the owner simply lets the source go. Reachable only
+    /// because the task holds the `Stream`, not `self` — see `start()`.
+    deinit {
+        task?.cancel()
+        stream?.tearDown()
+    }
+
     public func start() {
         guard task == nil else { return }
-        task = Task { [weak self] in await self?.run() }
+        // The running task must not hold `self`. `Task { await self.run() }`
+        // would: the source owns the task and the task's frame owns the source
+        // for as long as the loop runs, which is forever. An owner that just
+        // dropped the source would then never see `deinit`, and the stream
+        // would keep decoding and holding the network for the life of the
+        // process. The `Stream` owns everything the loop needs instead, so the
+        // source stays free to deallocate — and its `deinit` can stop things.
+        let stream = Stream(config: config, onFrame: onFrame, onStatus: onStatus)
+        self.stream = stream
+        task = Task { await stream.run() }
     }
 
     public func stop() {
         task?.cancel()
         task = nil
-        // Cancellation unwinds our loop, but the RTSP session is state held on
-        // the printer — an unsent TEARDOWN leaves it streaming to nobody. Do it
-        // explicitly rather than relying on the unwind reaching the `defer`.
-        // `Task` here is unstructured, so it is not itself cancelled.
+        stream?.tearDown()
+        stream = nil
+    }
+}
+
+/// The streaming loop and everything it needs, owned by the task rather than
+/// by ``BambuCameraSource``. The callbacks are taken once at `start()`.
+private final class Stream: @unchecked Sendable {
+    /// Frames handed to the UI per second. The camera streams H.264 at ~30 fps
+    /// and every frame is decoded to keep the reference chain intact, but only
+    /// this many become images — the rest are decoded with
+    /// `kVTDecodeFrame_DoNotOutputFrame`, which is where the savings are. A
+    /// monitoring view gains nothing from 30 fps, and a phone pays for it.
+    private static let emitFrameRate: Double = 12
+
+    /// Delay before redialing a dropped stream. The old ffmpeg-based source
+    /// used the same 3 s.
+    private static let reconnectDelay: Duration = .seconds(3)
+
+    private let config: PrinterConfig
+    private let onFrame: ((CGImage) -> Void)?
+    private let onStatus: ((String) -> Void)?
+    /// The live session, so `tearDown()` can end it instead of waiting for the
+    /// streaming task to notice it was cancelled.
+    private let live = LiveSession()
+    /// Harvested once and reused across reconnects; cleared when a connection
+    /// fails before delivering anything, in case the printer's CA rotated.
+    private var deviceCA: [Data]?
+
+    init(
+        config: PrinterConfig,
+        onFrame: ((CGImage) -> Void)?,
+        onStatus: ((String) -> Void)?
+    ) {
+        self.config = config
+        self.onFrame = onFrame
+        self.onStatus = onStatus
+    }
+
+    /// Ends the RTSP session now. Cancellation unwinds the loop, but the
+    /// session is state held on the printer — an unsent TEARDOWN leaves it
+    /// streaming to nobody. `Task` here is unstructured, so it is not itself
+    /// cancelled.
+    func tearDown() {
         if let session = live.take() {
             Task { await session.stop() }
         }
     }
 
-    private func run() async {
+    func run() async {
         while !Task.isCancelled {
             var delivered = false
             do {
-                try await stream(delivered: &delivered)
+                try await connectAndStream(delivered: &delivered)
             } catch is CancellationError {
                 return
             } catch {
@@ -82,7 +133,7 @@ public final class BambuCameraSource {
         }
     }
 
-    private func stream(delivered: inout Bool) async throws {
+    private func connectAndStream(delivered: inout Bool) async throws {
         let anchors = try await anchorCertificates()
         try Task.checkCancellation()
 

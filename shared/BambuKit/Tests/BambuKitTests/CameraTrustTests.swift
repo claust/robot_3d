@@ -78,3 +78,36 @@ final class CameraTrustTests: XCTestCase {
         XCTAssertTrue(TLSOptions.derCertificates(fromPEM: "no certificates here").isEmpty)
     }
 }
+
+/// The camera source's lifetime, which is easy to get wrong and invisible
+/// when it is: a stream that outlives its owner keeps decoding and holding the
+/// network with nothing left to show it to.
+final class CameraSourceLifetimeTests: XCTestCase {
+    /// TEST-NET-3 (RFC 5737): guaranteed not to be a real printer, so `start()`
+    /// exercises the connect path without reaching anything.
+    private var unreachable: PrinterConfig {
+        PrinterConfig(ip: "203.0.113.1", serial: "TEST", accessCode: "none")
+    }
+
+    func testDroppingAStartedSourceDeallocatesIt() {
+        weak var released: BambuCameraSource?
+        do {
+            let source = BambuCameraSource(config: unreachable)
+            released = source
+            source.start()
+            XCTAssertNotNil(released)
+        }
+        // If the streaming task held the source, this is where it would show:
+        // the owner has let go and nothing else should be keeping it alive.
+        XCTAssertNil(
+            released,
+            "a started source outlived its owner — the streaming task is retaining it, "
+                + "so a caller that simply drops the source leaks a running stream")
+    }
+
+    func testStopIsSafeToCallWithoutStart() {
+        let source = BambuCameraSource(config: unreachable)
+        source.stop()
+        source.stop()
+    }
+}
