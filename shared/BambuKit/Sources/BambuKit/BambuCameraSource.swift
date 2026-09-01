@@ -33,6 +33,9 @@ public final class BambuCameraSource {
 
     private let config: PrinterConfig
     private var task: Task<Void, Never>?
+    /// The live session, so `stop()` can tear it down instead of waiting for
+    /// the streaming task to notice it was cancelled.
+    private let live = LiveSession()
     /// Harvested once and reused across reconnects; cleared when a connection
     /// fails before delivering anything, in case the printer's CA rotated.
     private var deviceCA: [Data]?
@@ -49,6 +52,13 @@ public final class BambuCameraSource {
     public func stop() {
         task?.cancel()
         task = nil
+        // Cancellation unwinds our loop, but the RTSP session is state held on
+        // the printer — an unsent TEARDOWN leaves it streaming to nobody. Do it
+        // explicitly rather than relying on the unwind reaching the `defer`.
+        // `Task` here is unstructured, so it is not itself cancelled.
+        if let session = live.take() {
+            Task { await session.stop() }
+        }
     }
 
     private func run() async {
@@ -86,9 +96,17 @@ public final class BambuCameraSource {
             // against Bambu's roots plus the harvested device CA.
             tls: TLSOptions(trust: .pinnedRoots(anchors), verifyHostname: false)
         )
+        // Registered before `start()`: a cancellation or a throw in the
+        // handshake would otherwise leave a session nothing could reach, since
+        // a `defer` placed after it is never installed.
+        live.set(session)
+        defer {
+            if let session = live.take() {
+                Task { await session.stop() }
+            }
+        }
         onStatus?("Camera connecting…")
         let description = try await session.start()
-        defer { Task { await session.stop() } }
 
         let decoder = H264Decoder()
         // Parameter sets normally arrive in the SDP's sprop-parameter-sets; the
@@ -127,6 +145,29 @@ public final class BambuCameraSource {
             return "Camera: \(harvest.description)"
         }
         return "Camera reconnecting — \(error.localizedDescription)"
+    }
+}
+
+/// Holder for the session in flight, so `stop()` on one thread and the
+/// streaming task on another agree on who tears it down. `take()` hands it
+/// over exactly once, which is what keeps a stop and a normal unwind from both
+/// calling `stop()` on the same session.
+private final class LiveSession: @unchecked Sendable {
+    private let lock = NSLock()
+    private var session: RTSPClientSession?
+
+    func set(_ session: RTSPClientSession) {
+        lock.lock()
+        self.session = session
+        lock.unlock()
+    }
+
+    func take() -> RTSPClientSession? {
+        lock.lock()
+        defer { lock.unlock() }
+        let session = self.session
+        self.session = nil
+        return session
     }
 }
 
