@@ -23,11 +23,20 @@ struct CameraPaneView: View {
                 .font(.caption)
                 .foregroundStyle(Color.white.opacity(0.55))
             Spacer()
-            if isLive {
-                Circle().fill(.red).frame(width: 7, height: 7)
-                Text("LIVE")
-                    .font(.caption2.weight(.bold))
-                    .foregroundStyle(Color.white.opacity(0.85))
+            // `isLive` is a function of the clock, and SwiftUI only
+            // re-evaluates on a publish. A stalled stream stops publishing —
+            // which is exactly when the badge needs to drop — so it gets its
+            // own clock. Only this two-element subtree ticks; a 2 s cadence
+            // is enough for a 5 s freshness window.
+            TimelineView(.periodic(from: .now, by: 2)) { _ in
+                if isLive {
+                    HStack(spacing: 6) {
+                        Circle().fill(.red).frame(width: 7, height: 7)
+                        Text("LIVE")
+                            .font(.caption2.weight(.bold))
+                            .foregroundStyle(Color.white.opacity(0.85))
+                    }
+                }
             }
         }
     }

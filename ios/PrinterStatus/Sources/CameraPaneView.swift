@@ -28,16 +28,25 @@ struct CameraPaneView: View {
                 .font(.caption)
                 .foregroundStyle(.secondary)
             Spacer()
-            if model.isCameraLive {
-                Circle().fill(.red).frame(width: 7, height: 7)
-                Text("LIVE")
-                    .font(.caption2.weight(.bold))
-                    .foregroundStyle(.secondary)
-            } else if let time = model.lastFrame {
-                Text(time.formatted(date: .omitted, time: .standard))
-                    .font(.caption2)
-                    .foregroundStyle(.tertiary)
-                    .monospacedDigit()
+            // `isCameraLive` is a function of the clock, and SwiftUI only
+            // re-evaluates on a publish. A stalled stream stops publishing —
+            // which is exactly when the badge needs to drop — so it gets its
+            // own clock. Only this two-element subtree ticks; a 2 s cadence
+            // is enough for a 5 s freshness window.
+            TimelineView(.periodic(from: .now, by: 2)) { _ in
+                if model.isCameraLive {
+                    HStack(spacing: 6) {
+                        Circle().fill(.red).frame(width: 7, height: 7)
+                        Text("LIVE")
+                            .font(.caption2.weight(.bold))
+                            .foregroundStyle(.secondary)
+                    }
+                } else if let time = model.lastFrame {
+                    Text(time.formatted(date: .omitted, time: .standard))
+                        .font(.caption2)
+                        .foregroundStyle(.tertiary)
+                        .monospacedDigit()
+                }
             }
         }
     }
