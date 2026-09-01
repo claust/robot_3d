@@ -14,9 +14,9 @@ enum BambuTrust {
 
     /// The same roots as DER, for the Security-framework trust evaluation the
     /// camera and ``BambuDeviceCA`` do (NIOSSL's own type is not usable there).
-    static var rootCertificateDERs: [Data] {
-        TLSOptions.derCertificates(fromPEM: caBundlePEM)
-    }
+    /// Parsed once — the bundle is a compile-time constant, and the camera
+    /// reads this on every connect and every reconnect.
+    static let rootCertificateDERs: [Data] = TLSOptions.derCertificates(fromPEM: caBundlePEM)
 
     private static let caBundlePEM = """
 -----BEGIN CERTIFICATE-----

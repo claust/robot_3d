@@ -189,6 +189,9 @@ private final class H264Decoder {
             self.session = nil
             return nil
         }
+        // Nothing to collect on the throttled path: the frame was decoded with
+        // `_DoNotOutputFrame` purely to keep the reference chain current.
+        guard emit else { return nil }
         // Without the asynchronous flag the handler runs before this returns;
         // waiting makes that a guarantee rather than an assumption.
         VTDecompressionSessionWaitForAsynchronousFrames(session)
