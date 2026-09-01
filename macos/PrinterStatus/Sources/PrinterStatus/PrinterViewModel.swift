@@ -1,4 +1,5 @@
 import BambuKit
+import CoreGraphics
 import Foundation
 import Observation
 import SwiftUI
