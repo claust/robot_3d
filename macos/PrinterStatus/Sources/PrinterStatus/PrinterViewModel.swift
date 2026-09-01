@@ -1,34 +1,53 @@
 import AppKit
 import BambuKit
 import Foundation
+import Observation
 import SwiftUI
 
+/// `@Observable`, not `ObservableObject`. SwiftUI's ObservableObject
+/// bridge allocates observation-registrar state on every publish and never
+/// releases it — measured at ~5 leaked allocations per update, with or
+/// without the camera running, which is what kept the app growing until the
+/// OS jetsammed it. Observation registers per property actually read.
 @MainActor
-final class PrinterViewModel: ObservableObject {
+@Observable
+final class PrinterViewModel {
     enum Mode: String, CaseIterable, Identifiable {
         case live = "Live"
         case simulated = "Simulate"
         var id: String { rawValue }
     }
 
-    @Published var snapshot = PrinterSnapshot()
-    @Published var connectionText = "Starting…"
-    @Published var isConnected = false
-    @Published var lastUpdate: Date?
-    @Published var cameraFrame: NSImage?
-    @Published var cameraStatus = "Camera off"
-    @Published var lastFrame: Date?
-    @Published var printerName: String?
-    @Published var mode: Mode {
+    /// Image and arrival time travel together in one value. As three
+    /// separate `@Published` properties each frame fired three graph
+    /// invalidations, so a 5 fps camera drove 15 SwiftUI updates a second.
+    struct CameraFrame {
+        let image: NSImage
+        let received: Date
+    }
+
+    var snapshot = PrinterSnapshot()
+    var connectionText = "Starting…"
+    var isConnected = false
+    var lastUpdate: Date?
+    private(set) var camera: CameraFrame?
+    var cameraStatus = "Camera off"
+    var printerName: String?
+    var mode: Mode {
         didSet { if mode != oldValue { restart() } }
     }
+
+    var cameraFrame: NSImage? { camera?.image }
+    var lastFrame: Date? { camera?.received }
 
     let hasCredentials: Bool
     private let config: PrinterConfig?
     private var mqtt: BambuMQTTSource?
     private var sim: SimulatedSource?
-    private var camera: CameraSource?
+    private var cameraSource: CameraSource?
     private var nameSource: PrinterNameSource?
+    private var frameTask: Task<Void, Never>?
+    private var frameContinuation: AsyncStream<NSImage>.Continuation?
     private var merged: [String: Any] = [:]
 
     init(forceSimulate: Bool = false) {
@@ -41,13 +60,14 @@ final class PrinterViewModel: ObservableObject {
     private func restart() {
         mqtt?.stop(); mqtt = nil
         sim?.stop(); sim = nil
-        camera?.stop(); camera = nil
+        cameraSource?.stop(); cameraSource = nil
         nameSource?.stop(); nameSource = nil
+        frameContinuation?.finish(); frameContinuation = nil
+        frameTask?.cancel(); frameTask = nil
         merged = [:]
         snapshot = PrinterSnapshot()
         lastUpdate = nil
-        cameraFrame = nil
-        lastFrame = nil
+        camera = nil
 
         switch mode {
         case .simulated:
@@ -82,18 +102,33 @@ final class PrinterViewModel: ObservableObject {
             mqtt = source
 
             let cam = CameraSource(config: config)
-            cam.onFrame = { [weak self] image in
-                Task { @MainActor in
-                    self?.cameraFrame = image
-                    self?.cameraStatus = "Live"
-                    self?.lastFrame = Date()
+            // Newest-frame-only buffering is the backpressure. A
+            // `Task { @MainActor }` per frame is an unbounded queue: when the
+            // main actor cannot keep up with 5 fps, the pending closures pile
+            // up, each retaining a decoded NSImage. Here a slow consumer just
+            // misses frames. Reports deliberately keep the per-event Task —
+            // they are deltas that deepMerge accumulates, so dropping one
+            // would lose state that never comes again.
+            let (frames, continuation) = AsyncStream.makeStream(
+                of: NSImage.self, bufferingPolicy: .bufferingNewest(1))
+            cam.onFrame = { continuation.yield($0) }
+            frameContinuation = continuation
+            frameTask = Task { @MainActor [weak self] in
+                for await image in frames {
+                    guard let self else { return }
+                    self.camera = CameraFrame(image: image, received: Date())
+                    // assigning an unchanged value still publishes
+                    if self.cameraStatus != "Live" { self.cameraStatus = "Live" }
                 }
             }
             cam.onStatus = { [weak self] text in
-                Task { @MainActor in self?.cameraStatus = text }
+                Task { @MainActor in
+                    guard let self, self.cameraStatus != text else { return }
+                    self.cameraStatus = text
+                }
             }
             cam.start()
-            camera = cam
+            cameraSource = cam
 
             // the friendly device name only exists in SSDP announcements;
             // keep the last one we heard if the listener has nothing yet
