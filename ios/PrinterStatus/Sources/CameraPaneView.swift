@@ -11,8 +11,17 @@ struct CameraPaneView: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 10) {
             header
-            videoArea
-                .onTapGesture { if model.cameraFrame != nil { fullScreen = true } }
+            // A Button, not `.onTapGesture`: a tap gesture is invisible to
+            // VoiceOver, which has no way to activate it. Plain style so the
+            // frame still looks like a frame, and disabled until one arrives.
+            Button {
+                fullScreen = true
+            } label: {
+                videoArea
+            }
+            .buttonStyle(.plain)
+            .disabled(model.cameraFrame == nil)
+            .accessibilityHint("Opens the chamber view full screen")
         }
         .padding(14)
         .frame(maxWidth: .infinity, alignment: .leading)

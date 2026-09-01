@@ -1,5 +1,4 @@
 import Foundation
-import IPCamKit
 import Network
 import Security
 
@@ -31,6 +30,9 @@ public enum BambuDeviceCA {
         /// sends a leaf-only chain on 8883 too, leaving nothing to harvest.
         case noIntermediates
         case untrustedChain
+        /// Our own bundled roots would not load, or the Security framework
+        /// refused the trust setup. Nothing to do with the printer.
+        case trustStoreUnavailable
 
         public var description: String {
             switch self {
@@ -39,6 +41,8 @@ public enum BambuDeviceCA {
             case .noIntermediates: return "Printer sent no intermediate CA certificate"
             case .untrustedChain:
                 return "Printer's certificate did not chain to a Bambu device CA"
+            case .trustStoreUnavailable:
+                return "Could not build a trust store from the bundled Bambu roots"
             }
         }
     }
@@ -54,24 +58,39 @@ public enum BambuDeviceCA {
         timeout: TimeInterval = 10
     ) async throws -> [Data] {
         let queue = DispatchQueue(label: "BambuKit.deviceCA")
-        let roots = BambuTrust.rootCertificateDERs
         let verdict = Verdict()
+
+        // Build the anchors once, before dialing. Doing it inside the verify
+        // block repeated the work per handshake, and — worse — an anchor set
+        // that failed to load there was indistinguishable from the printer
+        // presenting a bad chain. A broken bundle is our bug, not its
+        // certificate, so it fails here with its own error.
+        let decoded = BambuTrust.rootCertificateDERs
+            .compactMap { SecCertificateCreateWithData(nil, $0 as CFData) }
+        guard !decoded.isEmpty else { throw HarvestError.trustStoreUnavailable }
+        let anchors = Anchors(decoded)
 
         let tls = NWProtocolTLS.Options()
         sec_protocol_options_set_verify_block(
             tls.securityProtocolOptions,
             { _, secTrust, complete in
                 let chain = sec_trust_copy_ref(secTrust).takeRetainedValue()
-                let anchors = roots.compactMap { SecCertificateCreateWithData(nil, $0 as CFData) }
                 // Device certificates name a serial, not an address, and run far
                 // past Apple's 398-day SSL-policy limit — a basic X.509 policy
                 // checks the signature chain without those two constraints.
-                guard !anchors.isEmpty,
-                    SecTrustSetAnchorCertificates(chain, anchors as CFArray) == errSecSuccess,
+                guard
+                    SecTrustSetAnchorCertificates(chain, anchors.certificates as CFArray)
+                        == errSecSuccess,
                     SecTrustSetAnchorCertificatesOnly(chain, true) == errSecSuccess,
-                    SecTrustSetPolicies(chain, SecPolicyCreateBasicX509()) == errSecSuccess,
-                    SecTrustEvaluateWithError(chain, nil)
+                    SecTrustSetPolicies(chain, SecPolicyCreateBasicX509()) == errSecSuccess
                 else {
+                    // Configuring the evaluation failed — that is us, not the
+                    // certificate, and must not read as a rejected chain.
+                    verdict.set(.setupFailed)
+                    complete(false)
+                    return
+                }
+                guard SecTrustEvaluateWithError(chain, nil) else {
                     verdict.set(.rejected)
                     complete(false)
                     return
@@ -120,10 +139,11 @@ public enum BambuDeviceCA {
             // only the verify block having *run and refused* identifies it.
             // Everything else — refused connection, no route, timeout — keeps
             // its own error rather than being blamed on the certificate.
-            if case .rejected = verdict.state {
-                throw HarvestError.untrustedChain
+            switch verdict.state {
+            case .rejected: throw HarvestError.untrustedChain
+            case .setupFailed: throw HarvestError.trustStoreUnavailable
+            case .notRun, .accepted: throw error
             }
-            throw error
         }
         // The handshake is all we wanted; never send an MQTT packet.
         connection.cancel()
@@ -145,6 +165,9 @@ public enum BambuDeviceCA {
             case notRun
             /// The chain was evaluated and did not validate against the roots.
             case rejected
+            /// The evaluation could not be configured — our problem, not the
+            /// printer's certificate.
+            case setupFailed
             /// The chain validated; these are the certificates above the leaf.
             case accepted([Data])
         }
@@ -161,6 +184,14 @@ public enum BambuDeviceCA {
             stored = value
             lock.unlock()
         }
+    }
+
+    /// Anchor certificates shared with the verify block. `SecCertificate` is a
+    /// CF type without a `Sendable` conformance, but it is immutable once
+    /// created and only read here.
+    private final class Anchors: @unchecked Sendable {
+        let certificates: [SecCertificate]
+        init(_ certificates: [SecCertificate]) { self.certificates = certificates }
     }
 
     /// One-shot guard so the continuation resumes exactly once across the
