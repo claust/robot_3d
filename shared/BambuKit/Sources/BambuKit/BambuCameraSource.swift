@@ -211,12 +211,15 @@ private final class H264Decoder {
         guard let sampleBuffer = makeSampleBuffer(nalus) else { return nil }
         guard let session = decompressionSession() else { return nil }
 
-        let box = ImageBox()
+        // Only the emitting path needs somewhere to put an image; a throttled
+        // frame is decoded for the reference chain alone. The box's presence is
+        // then what tells the handler whether to produce one.
+        let box = emit ? ImageBox() : nil
         let flags: VTDecodeFrameFlags = emit ? [] : [._DoNotOutputFrame]
         let status = VTDecompressionSessionDecodeFrame(
             session, sampleBuffer: sampleBuffer, flags: flags, infoFlagsOut: nil
         ) { status, _, imageBuffer, _, _ in
-            guard status == noErr, emit, let imageBuffer else { return }
+            guard status == noErr, let box, let imageBuffer else { return }
             var image: CGImage?
             guard VTCreateCGImageFromCVPixelBuffer(imageBuffer, options: nil, imageOut: &image)
                 == noErr
@@ -232,7 +235,7 @@ private final class H264Decoder {
         }
         // Nothing to collect on the throttled path: the frame was decoded with
         // `_DoNotOutputFrame` purely to keep the reference chain current.
-        guard emit else { return nil }
+        guard let box else { return nil }
         // Without the asynchronous flag the handler runs before this returns;
         // waiting makes that a guarantee rather than an assumption.
         VTDecompressionSessionWaitForAsynchronousFrames(session)
