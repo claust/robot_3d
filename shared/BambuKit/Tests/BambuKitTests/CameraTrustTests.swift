@@ -10,14 +10,31 @@ import XCTest
 final class CameraTrustTests: XCTestCase {
     func testRootsParseToUsableCertificates() {
         let ders = BambuTrust.rootCertificateDERs
-        // Bambu ships five: three self-signed roots plus two cross-signed
-        // CA2 certificates. A parser bug usually shows up as a short count.
-        XCTAssertEqual(ders.count, 5)
+        // Bambu ships five today: three self-signed roots plus two cross-signed
+        // CA2 certificates. A minimum, not an equality — adding a root or a
+        // cross-sign is a legitimate bundle update and should not fail a test
+        // about whether the roots are usable. Dropped blocks are caught by
+        // `testPEMParserKeepsEveryBlock`, which does not depend on the bundle.
+        XCTAssertGreaterThanOrEqual(ders.count, 5)
         for der in ders {
             XCTAssertNotNil(
                 SecCertificateCreateWithData(nil, der as CFData),
                 "a root failed to decode as DER — the PEM parser mangled it")
         }
+    }
+
+    func testPEMParserKeepsEveryBlock() {
+        // The failure that actually matters: a bundle goes in, fewer
+        // certificates come out, and trust evaluation quietly loses an anchor.
+        let blocks = [
+            Data([0x30, 0x82, 0x01, 0x02]),
+            Data([0x30, 0x82, 0x03, 0x04]),
+            Data([0x30, 0x82, 0x05, 0x06]),
+        ]
+        let pem = blocks
+            .map { "-----BEGIN CERTIFICATE-----\n\($0.base64EncodedString())\n-----END CERTIFICATE-----" }
+            .joined(separator: "\n")
+        XCTAssertEqual(TLSOptions.derCertificates(fromPEM: pem), blocks)
     }
 
     func testRootsCarryTheIssuerOfTheDeviceCA() throws {

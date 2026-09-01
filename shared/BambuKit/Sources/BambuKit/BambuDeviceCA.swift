@@ -40,7 +40,7 @@ public enum BambuDeviceCA {
             case .timedOut: return "Timed out fetching the printer's device CA"
             case .noIntermediates: return "Printer sent no intermediate CA certificate"
             case .untrustedChain:
-                return "Printer's certificate did not chain to a Bambu device CA"
+                return "Printer's certificate did not chain to Bambu's trusted roots"
             case .trustStoreUnavailable:
                 return "Could not build a trust store from the bundled Bambu roots"
             }
