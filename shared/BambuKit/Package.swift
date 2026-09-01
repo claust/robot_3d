@@ -21,9 +21,18 @@ let package = Package(
         .package(url: "https://github.com/apple/swift-nio-transport-services.git", from: "1.20.0"),
     ],
     targets: [
+        // Vendored RTSP client (MIT) with local RTSPS + digest-auth fixes; see
+        // Sources/IPCamKit/VENDORED.md. Not a product: the camera stream is
+        // exposed through BambuCameraSource, not this target's API.
+        .target(
+            name: "IPCamKit",
+            path: "Sources/IPCamKit",
+            exclude: ["LICENSE", "VENDORED.md"]
+        ),
         .target(
             name: "BambuKit",
             dependencies: [
+                "IPCamKit",
                 .product(name: "MQTTNIO", package: "mqtt-nio"),
                 .product(name: "NIOCore", package: "swift-nio"),
                 .product(name: "NIOPosix", package: "swift-nio"),
@@ -34,8 +43,15 @@ let package = Package(
         ),
         .testTarget(
             name: "BambuKitTests",
-            dependencies: ["BambuKit"],
+            dependencies: ["BambuKit", "IPCamKit"],
             swiftSettings: [.swiftLanguageMode(.v5)]
+        ),
+        // Upstream's own suite, kept so the vendored fork stays honest.
+        .testTarget(
+            name: "IPCamKitTests",
+            dependencies: ["IPCamKit"],
+            path: "Tests/IPCamKitTests",
+            resources: [.copy("TestData")]
         ),
     ]
 )

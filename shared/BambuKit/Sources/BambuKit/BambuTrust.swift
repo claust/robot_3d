@@ -1,3 +1,5 @@
+import Foundation
+import IPCamKit
 import NIOSSL
 
 /// Bambu Lab's public device-CA certificates, copied from Bambu Studio
@@ -8,6 +10,12 @@ import NIOSSL
 enum BambuTrust {
     static func trustRoots() throws -> [NIOSSLCertificate] {
         try NIOSSLCertificate.fromPEMBytes(Array(caBundlePEM.utf8))
+    }
+
+    /// The same roots as DER, for the Security-framework trust evaluation the
+    /// camera and ``BambuDeviceCA`` do (NIOSSL's own type is not usable there).
+    public static var rootCertificateDERs: [Data] {
+        TLSOptions.derCertificates(fromPEM: caBundlePEM)
     }
 
     private static let caBundlePEM = """

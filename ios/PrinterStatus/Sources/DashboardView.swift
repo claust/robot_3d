@@ -19,6 +19,7 @@ struct DashboardView: View {
                         alertsCard
                     }
                     ChamberView(snapshot: model.snapshot)
+                    CameraPaneView(model: model)
                     amsCard
                     footerCard
                 }

@@ -35,7 +35,9 @@ struct CameraPaneView: View {
     private var videoArea: some View {
         ZStack {
             if let frame = model.cameraFrame {
-                Image(nsImage: frame)
+                // CGImage, not NSImage: the source is shared with the iOS
+                // app, so it cannot hand back an AppKit type.
+                Image(decorative: frame, scale: 1)
                     .resizable()
                     .scaledToFit()
                     .clipShape(RoundedRectangle(cornerRadius: 6))

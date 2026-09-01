@@ -11,17 +11,10 @@ The protocol code itself lives in [BambuKit](../../shared/BambuKit), shared
 with the iOS app; this package is the Mac's UI, config and camera on top of
 it.
 
-The right half of the window is the live chamber camera. The X2D serves it
-as RTSPS on port 322, which AVFoundation can't play, so the app runs a small
-`ffmpeg` subprocess that transcodes the stream to 5 fps MJPEG on a pipe
-(`brew install ffmpeg` if missing — the pane says so). The stream
-reconnects automatically if it drops; the LIVE badge is shown only while
-frames are actually arriving.
-
-The camera URL embeds the printer access code, so it is never passed as an
-ffmpeg argument — `ps` would show it to anyone able to read this process's
-arguments. It goes in over ffmpeg's stdin as a one-line concat playlist
-instead, leaving the argument vector credential-free.
+The right half of the window is the live chamber camera, decoded in-process
+by `BambuCameraSource` in BambuKit — no ffmpeg, no subprocess, and the same
+code the iOS app runs. The stream reconnects automatically if it drops; the
+LIVE badge is shown only while frames are actually arriving.
 
 ## Run
 

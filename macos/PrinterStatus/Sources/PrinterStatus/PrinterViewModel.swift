@@ -1,4 +1,3 @@
-import AppKit
 import BambuKit
 import Foundation
 import SwiftUI
@@ -15,7 +14,7 @@ final class PrinterViewModel: ObservableObject {
     @Published var connectionText = "Starting…"
     @Published var isConnected = false
     @Published var lastUpdate: Date?
-    @Published var cameraFrame: NSImage?
+    @Published var cameraFrame: CGImage?
     @Published var cameraStatus = "Camera off"
     @Published var lastFrame: Date?
     @Published var printerName: String?
@@ -27,7 +26,7 @@ final class PrinterViewModel: ObservableObject {
     private let config: PrinterConfig?
     private var mqtt: BambuMQTTSource?
     private var sim: SimulatedSource?
-    private var camera: CameraSource?
+    private var camera: BambuCameraSource?
     private var nameSource: PrinterNameSource?
     private var merged: [String: Any] = [:]
 
@@ -81,7 +80,7 @@ final class PrinterViewModel: ObservableObject {
             source.start()
             mqtt = source
 
-            let cam = CameraSource(config: config)
+            let cam = BambuCameraSource(config: config)
             cam.onFrame = { [weak self] image in
                 Task { @MainActor in
                     self?.cameraFrame = image
