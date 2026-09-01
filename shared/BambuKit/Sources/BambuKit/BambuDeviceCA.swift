@@ -123,7 +123,15 @@ public enum BambuDeviceCA {
                                 throwing: HarvestError.handshakeFailed(error.localizedDescription))
                         }
                     case .cancelled:
-                        if settled.claim() { continuation.resume(throwing: HarvestError.timedOut) }
+                        // Our own timeout resumes the continuation before it
+                        // cancels, so a `.cancelled` that still finds the
+                        // continuation unsettled came from somewhere else and
+                        // must not borrow the timeout's explanation.
+                        if settled.claim() {
+                            continuation.resume(
+                                throwing: HarvestError.handshakeFailed(
+                                    "connection closed before the TLS handshake completed"))
+                        }
                     default:
                         break
                     }
