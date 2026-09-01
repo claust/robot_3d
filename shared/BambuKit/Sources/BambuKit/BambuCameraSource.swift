@@ -8,7 +8,7 @@ import VideoToolbox
 /// Live frames from the printer's chamber camera, decoded in-process.
 ///
 /// The X2D serves RTSPS on port 322 — RTSP over TLS, which AVFoundation cannot
-/// play on any Apple platform. The stream is read with the vendored RTSP client
+/// play on any Apple platform. The stream is read with our IPCamKit fork
 /// (RTP interleaved over the same TLS connection, so no UDP and no second
 /// socket), depacketized to H.264 and decoded by VideoToolbox. Read-only, like
 /// the MQTT source: the session only ever sends DESCRIBE/SETUP/PLAY/TEARDOWN.

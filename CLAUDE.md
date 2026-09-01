@@ -48,13 +48,15 @@ Bambu's TLS trust roots, SSDP discovery, the chamber camera, and the
 simulated source. UI-free and declared for macOS 14 + iOS 17, so a
 platform-only import fails to build here rather than in one app.
 `swift build --package-path shared/BambuKit`,
-`swift test --package-path shared/BambuKit` (SSDP parsing, subnet math, plus
-the vendored RTSP client's own suite).
+`swift test --package-path shared/BambuKit` (SSDP parsing, subnet math,
+camera trust plumbing).
 Anything protocol-shaped belongs here, not in an app target.
 
-`BambuCameraSource` decodes the RTSPS chamber stream in-process (vendored
-RTSP client in `Sources/IPCamKit`, see its `VENDORED.md`, then VideoToolbox)
-and emits `CGImage`, so neither app needs ffmpeg or a platform image type.
+`BambuCameraSource` decodes the RTSPS chamber stream in-process (RTSP via
+`claust/IPCamKit`, our fork of steelbrain/IPCamKit pinned by revision —
+upstream has no TLS and its Digest auth trips the printer, see that repo's
+`PATCHES.md` — then VideoToolbox) and emits `CGImage`, so neither app needs
+ffmpeg or a platform image type.
 The printer omits its intermediate CA on the camera port but sends it on the
 MQTT port, so `BambuDeviceCA` harvests it from a throwaway TLS handshake —
 details in `macos/RESEARCH.md`.

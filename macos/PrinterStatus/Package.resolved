@@ -1,6 +1,14 @@
 {
-  "originHash" : "7bc0ab2661638aba17b86fb71cf85efab6f2b59ace7d485ccd2672c5a8e4a973",
+  "originHash" : "4228622dd8a7725be4cd720371c71effac4e70aaab3e63b867e00aab1457e9bb",
   "pins" : [
+    {
+      "identity" : "ipcamkit",
+      "kind" : "remoteSourceControl",
+      "location" : "https://github.com/claust/IPCamKit.git",
+      "state" : {
+        "revision" : "e1945a693ec0e573e953338073180374ed509d7f"
+      }
+    },
     {
       "identity" : "mqtt-nio",
       "kind" : "remoteSourceControl",
