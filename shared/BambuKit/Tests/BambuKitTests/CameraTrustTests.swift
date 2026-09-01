@@ -41,12 +41,21 @@ final class CameraTrustTests: XCTestCase {
         // The camera port sends a leaf only, so verification depends on the
         // harvested "BBL Device CA", which is issued by "BBL CA2 RSA". If that
         // root ever drops out of the bundle, harvesting silently stops working.
-        let subjects = BambuTrust.rootCertificateDERs
+        //
+        // Read the common name, not `SecCertificateCopySubjectSummary`: the
+        // summary is a display string Apple may reformat between OS releases,
+        // whereas the CN is a field in the certificate itself.
+        let names = BambuTrust.rootCertificateDERs
             .compactMap { SecCertificateCreateWithData(nil, $0 as CFData) }
-            .compactMap { SecCertificateCopySubjectSummary($0) as String? }
+            .compactMap { certificate -> String? in
+                var commonName: CFString?
+                guard SecCertificateCopyCommonName(certificate, &commonName) == errSecSuccess
+                else { return nil }
+                return commonName as String?
+            }
         XCTAssertTrue(
-            subjects.contains("BBL CA2 RSA"),
-            "expected the device CA's issuer among the roots, got \(subjects)")
+            names.contains("BBL CA2 RSA"),
+            "expected the device CA's issuer among the roots, got \(names)")
     }
 
     func testPEMParserIgnoresSurroundingNoise() {
