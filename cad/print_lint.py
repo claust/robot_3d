@@ -52,7 +52,7 @@ from scipy.spatial import ConvexHull, QhullError, cKDTree
 
 FIRST_LAYER_H = 0.3  # mm -- below this, a downward face IS the bed contact
 SUPPORT_GAP_TOL = 0.6  # mm -- a hit closer than this below a facet counts as
-# "already supported" (demo_06's dummy motor deliberately leaves a 0.2 mm
+# "already supported" (robot_car's dummy motor deliberately leaves a 0.2 mm
 # breakaway gap between its shaft and its support fin; must not flag HIGH)
 BRIDGE_MAX_MM = 10.0  # codebase bridge rule of thumb (demo_05/README.md)
 OVERHANG_MIN_AREA = 30.0  # mm^2, second HIGH trigger for overhang clusters
@@ -119,7 +119,7 @@ def min_caliper_width(points_xy: np.ndarray) -> float:
 def min_mesh_distance(a: trimesh.Trimesh, b: trimesh.Trimesh) -> float:
     """Minimum distance between two meshes' surfaces, vertex-to-vertex via
     scipy cKDTree in both directions -- the same approximation
-    demo_06/assembly.py uses (a plain distance query is simpler than
+    robot_car/assembly.py uses (a plain distance query is simpler than
     trimesh's face-accurate ProximityQuery for this purpose and plenty
     tight given the STL tessellation)."""
     tree_b = cKDTree(b.vertices)

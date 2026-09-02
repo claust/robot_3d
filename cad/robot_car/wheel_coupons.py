@@ -1,4 +1,4 @@
-"""O-ring fit-test plate: three complete drive wheels (demo_06/wheel.py)
+"""O-ring fit-test plate: three complete drive wheels (robot_car/wheel.py)
 differing only in groove ROOT diameter, i.e. how much the 40 mm ID tire is
 stretched when installed:
 
@@ -22,7 +22,7 @@ seat, sit fully down in the V, and not walk off when rolled under load or
 twisted by hand. Too loose = spins/walks on the wheel; too tight = hard to
 install and bows the shoulders.
 
-Run with:  uv run demo_06/wheel_coupons.py [bore_clearance_mm]
+Run with:  uv run robot_car/wheel_coupons.py [bore_clearance_mm]
 Exports wheel_coupons.stl (all three, in a row, print-ready) into the cwd.
 """
 
@@ -46,6 +46,7 @@ class CouponDims(WheelDims):
     from oring_id x the module-level STRETCH constant."""
 
     groove_root: float = 41.6
+    spoke_count: int = 0  # solid web: the labels below sit on it
 
     @property
     def groove_root_diameter(self) -> float:  # type: ignore[override]

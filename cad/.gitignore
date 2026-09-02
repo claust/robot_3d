@@ -8,6 +8,9 @@ __pycache__/
 *.jpg
 *.gcode
 *.gcode.3mf
+*.usdz
+*.usda
+*.usdc
 profiles_resolved/
 printer_state_dump.json
 result.json
