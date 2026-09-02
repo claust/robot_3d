@@ -49,6 +49,7 @@ PLATE_GAP = 10.0
 @dataclass
 class CouponDims(WheelDims):
     groove_root: float = 42.4
+    spoke_count: int = 0  # solid web: the labels below sit on it
 
     @property
     def groove_root_diameter(self) -> float:  # type: ignore[override]

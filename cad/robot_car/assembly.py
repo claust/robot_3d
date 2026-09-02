@@ -13,13 +13,12 @@ re-derives a number chassis.py or wheel.py already owns.
 Wheel axial placement is the one non-trivial derivation: the gearbox's
 retention end-wall sits with its OUTER face flush with the plate edge and
 its INNER face (2 mm inboard) against the gearbox front. wheel.py's wheel
-mounts FLIPPED from its printed orientation: the flat web face (local
-Z=0) goes toward the motor, with the rim bowl (the extra material past
-the old hub-tip reference) extending outboard, away from the plate --
-this is what fixed the wheel-vs-plate overlap a prior version of this
-assembly found. The web face is positioned `WALL_CLEARANCE_MM` outboard
-of the wall's outer face, and the shaft enters through the web-side
-Ø4.5 boss relief. See `wheel_geometry()` for the worked numbers.
+mounts with its web (the spoked face, local Z=0) OUTBOARD and its long
+hub reaching inboard through the rim to the shaft; the hub tip and the
+rim's inboard edge are flush and sit `WALL_CLEARANCE_MM` outboard of the
+wall's outer face, so the whole wheel stays clear of the plate (the
+overlap an earlier web-inboard orientation had). See `wheel_geometry()`
+for the worked numbers.
 
 Run with:  uv run robot_car/assembly.py
 Exports robot_car/car_assembly.stl (gitignored) and prints a PASS/FAIL
@@ -97,35 +96,35 @@ def wheel_geometry(side: int, d: ChassisDims, wd: WheelDims) -> dict:
     """All the axial (Y) numbers for one wheel, worked from chassis.py's
     own cradle/wall constants -- see module docstring.
 
-    wheel.py now mounts flipped: local Z=0 (the flat web) faces the motor
-    and rises outboard from there (local +Z -> further outboard), the
-    opposite sense from the original hub-tip-inward orientation. The web
-    face is placed WALL_CLEARANCE_MM outboard of the wall's outer face,
-    and the shaft pokes through the web-side Ø4.5 relief (local Z 0 to
-    boss_relief_depth) into the D-bore proper."""
+    Local wheel Z=0 is the OUTSIDE (spoked web) face and local +Z runs
+    inboard, toward the motor; the hub tip / rim inboard edge (local
+    Z = hub_top = rim_width) is placed WALL_CLEARANCE_MM outboard of the
+    wall's outer face. Shaft depth is measured from the hub tip into the
+    blind bore."""
     plate_top = d.plate_thickness
     axis_z = plate_top + N20.gearbox_height / 2
     edge_y = side * (d.plate_width / 2)  # wall OUTER face == plate edge
     face_y = side * (d.plate_width / 2 - d.endwall_t)  # gearbox face == wall INNER face
     shaft_tip_y = face_y + side * N20.shaft_length
 
-    y_origin = side * (d.plate_width / 2 + WALL_CLEARANCE_MM)  # web face (local Z=0)
-    web_clearance = side * (y_origin - edge_y)
-    rim_outer_y = y_origin + side * wd.rim_width  # far (outboard) end of the rim tube
+    inboard_y = side * (d.plate_width / 2 + WALL_CLEARANCE_MM)  # hub tip & rim inboard edge
+    y_origin = inboard_y + side * wd.hub_top  # outside web face (local Z=0)
+    web_clearance = side * (inboard_y - edge_y)  # nearest wheel feature vs the wall
+    rim_outer_y = y_origin  # outermost point of the wheel
 
-    # local Z (measured from the web) that the shaft tip reaches
-    shaft_tip_local = side * (shaft_tip_y - y_origin)
-    grip_start = wd.boss_relief_depth  # D-bore starts past the web-side relief
-    grip_end = wd.hub_top - wd.boss_relief_depth  # ... and stops short of the far relief
-    engagement = max(0.0, min(shaft_tip_local, grip_end) - grip_start)
-    protrusion_margin = wd.rim_width - shaft_tip_local  # > 0: tip stays short of the outboard face
-    within_grip_zone = shaft_tip_local <= grip_end
+    # how far the shaft reaches into the blind bore, measured from the hub tip
+    shaft_reach = side * (shaft_tip_y - inboard_y)
+    grip_start = 0.0  # D-bore starts right at the hub tip
+    grip_end = wd.bore_depth  # ... and ends at the bore floor
+    engagement = max(0.0, min(shaft_reach, grip_end) - grip_start)
+    protrusion_margin = grip_end - shaft_reach  # > 0: tip stays short of the bore floor
+    within_grip_zone = shaft_reach <= grip_end
 
     return dict(
         axis_z=axis_z, edge_y=edge_y, face_y=face_y, shaft_tip_y=shaft_tip_y,
-        y_origin=y_origin, web_clearance=web_clearance, rim_outer_y=rim_outer_y,
-        shaft_tip_local=shaft_tip_local, grip_start=grip_start, grip_end=grip_end,
-        engagement=engagement, protrusion_margin=protrusion_margin,
+        y_origin=y_origin, inboard_y=inboard_y, web_clearance=web_clearance,
+        rim_outer_y=rim_outer_y, shaft_tip_local=shaft_reach, grip_start=grip_start,
+        grip_end=grip_end, engagement=engagement, protrusion_margin=protrusion_margin,
         within_grip_zone=within_grip_zone,
     )
 
@@ -133,10 +132,9 @@ def wheel_geometry(side: int, d: ChassisDims, wd: WheelDims) -> dict:
 def wheel_placement(side: int, d: ChassisDims, wd: WheelDims):
     g = wheel_geometry(side, d, wd)
     wheel = make_wheel(wd)
-    # Flipped from the pre-fix orientation (rotate(Axis.X, 90)): local +Z
-    # now needs to map to the OUTBOARD direction (+side*Y) instead of
-    # inward, so the rim bowl (past the web) grows away from the plate.
-    wheel = wheel.rotate(Axis.X, -90)
+    # Local +Z (web -> hub tip) must point INBOARD (-side*Y): rotate(X, 90)
+    # maps +Z to -Y for the +Y side; the Z-flip below mirrors it for -Y.
+    wheel = wheel.rotate(Axis.X, 90)
     if side < 0:
         wheel = wheel.rotate(Axis.Z, 180)
     wheel = Pos(d.cradle_x, g["y_origin"], g["axis_z"]) * wheel
@@ -245,10 +243,10 @@ def main():
     print("\n-- 2. wheel / retention-wall clearance --")
     for side, g in ((+1, wg_p), (-1, wg_m)):
         check(
-            f"web-face vs wall-outer-face clearance (Y{'+' if side>0 else '-'})",
+            f"hub-tip/rim-edge vs wall-outer-face clearance (Y{'+' if side>0 else '-'})",
             g["web_clearance"] >= 1.0 - 1e-9,
-            f"web face Y={g['y_origin']:.2f}, wall outer face Y={g['edge_y']:.2f} "
-            f"-> clearance {g['web_clearance']:.2f} mm (>= 1.0, by construction)",
+            f"hub tip & rim inboard edge Y={g['inboard_y']:.2f}, wall outer face "
+            f"Y={g['edge_y']:.2f} -> clearance {g['web_clearance']:.2f} mm (>= 1.0, by construction)",
         )
 
     chassis_mesh = to_trimesh(c.plate)
@@ -275,11 +273,9 @@ def main():
             f"(authoritative; FAIL if >= {OVERLAP_TOL:g})",
         )
     print(
-        f"    wheel span is now entirely outboard of the wall: web face at "
-        f"Y={wg_p['y_origin']:.2f} (wall outer face Y={wg_p['edge_y']:.2f}) out to the "
-        f"rim's outboard end at Y={wg_p['rim_outer_y']:.2f} -- the flipped mount "
-        f"(wheel.py) resolved the previous ~181.6 mm^3/side overlap found before "
-        f"this fix."
+        f"    wheel span is entirely outboard of the wall: hub tip / rim edge at "
+        f"Y={wg_p['inboard_y']:.2f} (wall outer face Y={wg_p['edge_y']:.2f}) out to the "
+        f"spoked web face at Y={wg_p['y_origin']:.2f}."
     )
 
     # -----------------------------------------------------------------
@@ -296,22 +292,21 @@ def main():
         check(
             f"D-bore engagement (Y{'+' if side>0 else '-'})",
             g["engagement"] >= 6.0,
-            f"{g['engagement']:.2f} mm (>= 6.0); shaft tip reaches web-local "
-            f"Z={g['shaft_tip_local']:.2f} mm, grip zone is Z "
-            f"{g['grip_start']:.2f}-{g['grip_end']:.2f} (between the two Ø4.5 reliefs) "
-            f"-- i.e. {g['shaft_tip_local']:.1f} mm of shaft past the wall minus the "
-            f"{g['grip_start']:.1f} mm web relief",
+            f"{g['engagement']:.2f} mm (>= 6.0); shaft reaches {g['shaft_tip_local']:.2f} mm "
+            f"into the blind bore from the hub tip, bore is {g['grip_end']:.2f} mm deep "
+            f"-- i.e. {N20.shaft_length:g} mm shaft - {d.endwall_t:g} mm end wall - "
+            f"{WALL_CLEARANCE_MM:g} mm wall clearance",
         )
         check(
             f"shaft tip stays within the D-bore grip zone (Y{'+' if side>0 else '-'})",
             g["within_grip_zone"],
-            f"tip Z={g['shaft_tip_local']:.2f} mm vs grip zone end Z={g['grip_end']:.2f} mm",
+            f"reach {g['shaft_tip_local']:.2f} mm vs bore depth {g['grip_end']:.2f} mm",
         )
         check(
-            f"shaft tip does not protrude past the outboard (rim) face (Y{'+' if side>0 else '-'})",
+            f"shaft tip does not bottom out in the blind bore (Y{'+' if side>0 else '-'})",
             g["protrusion_margin"] > 0,
-            f"tip is {g['protrusion_margin']:.2f} mm short of the wheel's outboard "
-            f"rim face (rim_width={wd.rim_width:.2f}) -- margin > 0",
+            f"tip is {g['protrusion_margin']:.2f} mm short of the bore floor "
+            f"(bore_depth={wd.bore_depth:g}) -- margin > 0",
         )
 
     # -----------------------------------------------------------------
@@ -420,8 +415,7 @@ def main():
     # -----------------------------------------------------------------
     print("\n-- 7. overall dimensions --")
     bbox = assembly.bounding_box()
-    # outer tire face to outer tire face -- now the rim's OUTBOARD end
-    # (flipped mount), not the web face
+    # outer web (spoked) face to outer web face
     track_width = wg_p["rim_outer_y"] - wg_m["rim_outer_y"]
     wheelbase = abs(d.skid_front_x - d.cradle_x)
     print(

@@ -46,6 +46,7 @@ class CouponDims(WheelDims):
     from oring_id x the module-level STRETCH constant."""
 
     groove_root: float = 41.6
+    spoke_count: int = 0  # solid web: the labels below sit on it
 
     @property
     def groove_root_diameter(self) -> float:  # type: ignore[override]
