@@ -26,7 +26,7 @@ groove depth), so the chassis skid height is unaffected by the choice.
 Like round 1, these are complete wheels: same hub, same D-bore (0.05 mm
 clearance), so the winner is a production wheel.
 
-Run with:  uv run demo_06/wheel_coupons2.py [bore_clearance_mm]
+Run with:  uv run robot_car/wheel_coupons2.py [bore_clearance_mm]
 Exports wheel_coupons2.stl into the cwd.
 """
 

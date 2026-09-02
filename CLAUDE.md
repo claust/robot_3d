@@ -6,7 +6,8 @@ everything with `uv run` from inside `cad/`.
 
 ## Modeling
 
-Parametric part scripts live in `cad/demo_NN/` folders and export STL + STEP
+Parametric part scripts live in `cad/demo_NN/` folders (experiments) or a
+named folder like `cad/robot_car/` (an ongoing build), and export STL + STEP
 next to themselves. Always render a model and check it visually before
 slicing, and run a design's own PASS/FAIL check script, where it has one,
 before any print. Running clearances are calibrated at 0.2 mm radial — use
@@ -76,5 +77,9 @@ ASC_ISSUER_ID, ASC_KEY_P8, DEVELOPMENT_TEAM).
 
 ## Conventions
 
-- Generated outputs (STL, STEP, PNG, gcode) are gitignored; commit only source.
+- Generated outputs (STL, STEP, PNG, gcode, USD) are gitignored; commit only source.
 - New experiments go in `cad/demo_NN/` folders sharing the root uv environment.
+- An experiment that turns into an ongoing build graduates to a named folder
+  (`cad/robot_car/` was demo_06). Rename rather than copy — git keeps the
+  history, and a copy just gives you two sources to fix. Scripts resolve
+  paths from `__file__`, so a rename only costs the doc references.

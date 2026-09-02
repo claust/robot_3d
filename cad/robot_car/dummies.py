@@ -1,8 +1,9 @@
 """Printable stand-in dummies for the components not yet in hand: two N20
 gearmotors (M2) and the two small PCBs (D2 DRV8833, P1 MP1584). Printed in
 white from the aux nozzle so real parts and stand-ins can't be confused, they
-let the first chassis print be dress-rehearsed — cradle snap fit, tray clip
-fit, wheel press-fit on the dummy shaft — before the real hardware arrives.
+let the first chassis print be dress-rehearsed — cradle snap fit, tray
+snap-hook fit, wheel press-fit on the dummy shaft — before the real hardware
+arrives.
 The Pi Zero 2 W and B2 LiPo are real and mount as themselves; no dummies.
 
 These take their dimensions from the reference models in cad/parts/ but are
@@ -20,14 +21,14 @@ print-adapted, not miniatures:
   but not side-loads.
 - DRV8833 dummy: bare 18.5 x 16 x 1.6 board with the IC bump. Header pins
   and holes omitted (a 1 mm hole / 0.64 mm pin doesn't print); the tray
-  clips grip the bare board edge exactly as they would the real PCB.
+  snap hooks grip the bare board edge exactly as they would the real PCB.
 - MP1584 dummy: 22 x 17 x 1.6 board with inductor and trimpot bumps, whose
   heights matter for anything routed above the tray.
 
 Each dummy carries a raised label (M2 / D2 / P1) so the white parts stay
 identifiable once scattered on the bench.
 
-Run with:  uv run demo_06/dummies.py
+Run with:  uv run robot_car/dummies.py
 Exports dummies.stl (one plate: 2 motors + both boards) plus the individual
 dummy_*.stl files (gitignored), in the cwd.
 """

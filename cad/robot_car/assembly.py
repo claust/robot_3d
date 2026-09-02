@@ -1,4 +1,4 @@
-"""demo_06/assembly.py: full-car verification assembly (visualization + checks
+"""robot_car/assembly.py: full-car verification assembly (visualization + checks
 only -- not meant to print). Places the chassis plate, two N20 motors in
 their snap cradles, two drive wheels on the motor shafts, the front skid,
 and the four electronics modules (Pi Zero 2 W, DRV8833, MP1584EN, LiPo
@@ -21,10 +21,10 @@ assembly found. The web face is positioned `WALL_CLEARANCE_MM` outboard
 of the wall's outer face, and the shaft enters through the web-side
 Ø4.5 boss relief. See `wheel_geometry()` for the worked numbers.
 
-Run with:  uv run demo_06/assembly.py
-Exports demo_06/car_assembly.stl (gitignored) and prints a PASS/FAIL
+Run with:  uv run robot_car/assembly.py
+Exports robot_car/car_assembly.stl (gitignored) and prints a PASS/FAIL
 design-check table. Then render for a visual check:
-    uv run demo_01/render.py demo_06/car_assembly.stl
+    uv run demo_01/render.py robot_car/car_assembly.stl
 """
 
 import sys
@@ -39,7 +39,10 @@ import trimesh
 from build123d import Axis, Part, Pos, export_stl
 from scipy.spatial import cKDTree
 
-from chassis import ChassisDims, N20, build, motor_placement, plate as chassis_plate, pcb_tray
+from chassis import (
+    ChassisDims, N20, build, latch_geometry, motor_placement,
+    plate as chassis_plate, pcb_tray,
+)
 from wheel import WheelDims, make_wheel
 from pi_zero_2w import PiZero2WDims, make_pi_zero_2w
 from d2_drv8833 import Drv8833Dims, make_drv8833
@@ -158,7 +161,7 @@ def tray_placement(
     cx: float, cy: float, board_thickness: float, part: Part, d: ChassisDims,
     standoff: float | None = None,
 ):
-    """Generic clip-tray seating: board bottom on the standoff ledge.
+    """Generic snap-hook tray seating: board bottom on the standoff ledge.
     `standoff` defaults to the generic (MP1584) tray_standoff; pass
     d.drv_tray_standoff for the DRV8833, which needs a taller ledge so its
     with_headers=True solder-tail pins (3 mm below the board) clear the
@@ -317,15 +320,17 @@ def main():
     print("\n-- 4. electronics vs. chassis interference (tolerance a few mm^3) --")
     TOL = 10.0
 
-    # DRV8833's snap-lip retention overlap with the board is BY DESIGN (the
-    # same category as the tray's chamfered corner lips on every clip
-    # tray), so isolate it from the bare-plate/header-pin signal: build the
-    # bare plate slab and the DRV tray in isolation (same functions
-    # chassis.build() itself calls) and intersect each against the board
-    # separately, rather than judging the combined c.plate number.
+    # Split the DRV8833 signal in two: the bare plate slab (does anything
+    # hanging below the board reach it?) and its own tray (do the retention
+    # features foul the board or its headers?). Both are built from the same
+    # functions chassis.build() calls. The tilt-and-slide tray clears the
+    # board top by tray_clearance rather than biting into it, so unlike the
+    # old snap-barb tray this number is a real signal, not an accepted
+    # overlap -- it should be zero.
     drv_tray_only = pcb_tray(
         d.drv_x, d.drv_y, d.drv_board_x, d.drv_board_y, d,
-        standoff=d.drv_tray_standoff, post_h=d.drv_tray_post_h,
+        standoff=d.drv_tray_standoff, axis="y", lead=-1,
+        hook_span=d.drv_hook_span,
     )
     v_drv_plate = ivol(drv_placed, chassis_plate(d))
     v_drv_tray = ivol(drv_placed, drv_tray_only)
@@ -333,14 +338,33 @@ def main():
     check(
         "DRV8833 vs bare plate (header solder-tails)",
         v_drv_plate < TOL,
-        f"intersection {v_drv_plate:.3f} mm^3 (< {TOL:g}) -- drv_tray_standoff=3.5 mm "
-        f"now clears the 3.0 mm solder tails by 0.5 mm",
+        f"intersection {v_drv_plate:.3f} mm^3 (< {TOL:g}) -- standoff "
+        f"{d.drv_tray_standoff:g} mm clears the {drv_dims.header_pin_down:g} mm solder "
+        f"tails by {d.drv_tray_standoff - drv_dims.header_pin_down:.1f} mm",
     )
-    print(
-        f"    (known/accepted, excluded from PASS/FAIL: DRV8833 vs its own tray "
-        f"(snap-lip retention, by design) = {v_drv_tray:.3f} mm^3; combined "
-        f"DRV8833-vs-full-chassis total = {v_drv_total:.3f} mm^3)"
+    check(
+        "DRV8833 vs its own tray (hooks/latch vs board + headers)",
+        v_drv_tray < 1.0,
+        f"intersection {v_drv_tray:.3f} mm^3 (< 1) -- tongues sit "
+        f"{d.tray_clearance:g} mm above the board top and hook_span="
+        f"{d.drv_hook_span:g} mm keeps them clear of the header bases",
     )
+    print(f"    (combined DRV8833-vs-full-chassis total = {v_drv_total:.3f} mm^3)")
+
+    # -----------------------------------------------------------------
+    # check 4b: can the one flexing feature per tray actually flex?
+    # -----------------------------------------------------------------
+    print("\n-- 4b. tray latch snap-fit strain --")
+    for tag, standoff in (("MP1584EN", d.tray_standoff),
+                          ("DRV8833", d.drv_tray_standoff)):
+        g = latch_geometry(d, standoff)
+        check(
+            f"{tag} latch strain at full deflection",
+            g["strain"] <= 0.01,
+            f"{g['deflection']:.2f} mm barb on a {g['free_length']:.2f} mm arm "
+            f"-> {g['strain'] * 100:.2f}% strain (<= 1.00%), "
+            f"{g['force']:.1f} N ({g['force'] / 9.81:.2f} kgf) to press past",
+        )
 
     for name, part in (
         ("Pi Zero 2 W vs chassis", pi_board),
