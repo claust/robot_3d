@@ -105,6 +105,34 @@ no series resistors are needed. Every unconnected input pulls itself low
 (150 kΩ internal, 500 kΩ on nSLEEP), so anything you leave floating reads as
 "off".
 
+#### Finding those pins on the board
+
+From the top-face photo (`parts/photos/c1-pi-zero-2w-top.jpg`): the 40-pin
+header is **already populated** — ten 4-way plastic blocks in one strip,
+2 × 20 on 2.54 mm pitch — so unlike D2, the Pi end needs no soldering. What
+the photo can't tell you is whether those are female sockets or male pins
+soldered pointing down; from straight above both look like black wells with a
+recessed contact. Look at the board edge-on before ordering jumper wires:
+male-ended leads go into sockets, female-ended leads onto pins.
+
+Orientation, then, with the header along the far edge and the connector edge
+(mini-HDMI, `USB`, `PWR IN`) toward you:
+
+- Header **pin 1 is at the microSD end** — the left end in that view. Pins
+  32–36 are at the other end, beside the CSI camera connector and roughly
+  above the `PWR IN` jack.
+- The 5 V and GND pins that feed the Pi (2, 4, 6) are at the *pin-1* end, i.e.
+  the opposite end of the header from the driver ribbon. Buck feed in at one
+  end, signals out at the other; plan the cable runs that way rather than
+  bundling them.
+- Confirm the numbering with a meter before the first wire, because which of
+  the two rows carries the odd numbers is easy to get backwards. Continuity
+  from a header pin to a micro-USB shell finds the grounds — pins 6, 9, 14,
+  20, 25, 30, 34, 39. At the far end from the SD card, the last pair is 39
+  (GND) and 40 (GPIO21): the one that beeps is 39, and that fixes both rows.
+  Pin 34, the ground for our ribbon, is then three pairs back along the even
+  row (40, 38, 36, 34) — and it should beep too.
+
 ### D2 → M2 motors (4 wires)
 
 | D2 pin | Motor |
@@ -245,7 +273,8 @@ In this order. Steps 1–4 need no battery.
    should run. Swap to `IN2`: it should run the other way. Both inputs high:
    it should brake. Repeat on `IN3`/`IN4` with `OUT3`/`OUT4`. This is the
    step that confirms the `en` jumper really does leave the chip awake.
-5. **Pi first, motors on the bench supply.** Pi on its normal USB power, D2
+5. **Pi first, motors on the bench supply.** Pi on its normal USB power (the
+   jack silkscreened `PWR IN`, not the `USB` one next to it), D2
    on the bench supply, grounds tied together, `IN1`–`IN4` on the four GPIOs.
    Run the snippet above. Check both wheels for direction and creep
    threshold before either buck is in the picture.
