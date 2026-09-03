@@ -29,14 +29,33 @@
           <li>Protections per the datasheet/listing: overcurrent, short-circuit, undervoltage
               lockout, and overheat, all "YES" — good, since these will likely get driven from
               a bench supply before anything else.</li>
-          <li><code>ULT</code> pin: mode/sleep select — low level puts the chip in low-power
-              sleep (outputs off); pull high for normal operation.</li>
-          <li><code>EEP</code> pin: labelled "output protection" in the listing; default is
-              not connected. Function not independently confirmed.</li>
-          <li>A two-pad solder-jumper silkscreened <code>J1</code> sits between the
-              <code>en</code>/<code>sleep</code> labels near <code>EEP</code>/<code>OUT1</code> —
-              looks like a default-state selector for enable/sleep; trace it before relying on
-              the board's out-of-the-box behavior.</li>
+          <li>Logic inputs take the Pi's 3.3&nbsp;V directly: V<sub>IH</sub> 2&nbsp;V on the
+              <code>IN</code> pins (2.5&nbsp;V on the sleep pin), rated to 5.75&nbsp;V
+              recommended / 7&nbsp;V absolute max. Every input has an internal pulldown
+              (150&nbsp;k&Omega;; 500&nbsp;k&Omega; on sleep), so a floating input reads as off.</li>
+          <li><code>ULT</code> and <code>EEP</code> read like clipped silkscreen —
+              (FA)<code>ULT</code> = nFAULT, (SL)<code>EEP</code> = nSLEEP — which is the
+              opposite of the seller's listing (<code>ULT</code> = sleep select,
+              <code>EEP</code> = "output protection"). Two things favour the clipped reading:
+              the <code>en</code>/<code>sleep</code> jumpers sit against <code>EEP</code>, and
+              the front side carries a <code>473</code> (47&nbsp;k&Omega;) resistor, exactly the
+              20&ndash;75&nbsp;k&Omega; nSLEEP pullup TI asks for (datasheet §7.3.4). Unresolved
+              until metered; it doesn't block a first build, since neither pin needs a wire.</li>
+          <li>The <code>en</code> solder jumper is <strong>bridged</strong> from the factory and
+              <code>sleep</code> is open (back-side photo below), which is what leaves the chip
+              awake with nothing connected to <code>EEP</code>/<code>ULT</code>. <code>J1</code>,
+              a 2-pad SMD footprint next to <code>EEP</code>, is unpopulated.</li>
+          <li>Because the sleep pin is tied to the rail by that bridged jumper, keep
+              <code>VCC</code> at or below 6.5&nbsp;V until the tie is traced: the pin clamps
+              internally at 6.5&nbsp;V and more than 250&nbsp;µA into that clamp damages it. A
+              47&nbsp;k&Omega; pullup would be safe to the full 10.8&nbsp;V; a hard 0&nbsp;&Omega;
+              tie would not.</li>
+          <li>No current-sense resistors on the board, so xISEN is grounded and the chip's PWM
+              current chopping is unused — the only limit is overcurrent protection at
+              2&ndash;3.3&nbsp;A, which the M2 motors (0.2&nbsp;A stall) never reach.</li>
+          <li>Pin labels are silkscreened on the face <em>opposite</em> the IC, so the pinout is
+              hidden once the board is mounted component-side up. Note the orientation before
+              soldering the headers.</li>
           <li>Full 12-pin layout, as silkscreened (two 6-pin rows, top to bottom):
               <br><code>IN4</code>/<code>EEP</code>, <code>IN3</code>/<code>OUT1</code>,
               <code>GND</code>/<code>OUT2</code>, <code>VCC</code>/<code>OUT3</code>,
@@ -45,12 +64,23 @@
               rating and the 3–10 V supply window). Not a fit for the M1 Canon motors — 22 V
               is well over this board's 10 V max; the MD22 stays the driver for those.</li>
         </ul>
+        <p>Wiring plan for the robot-car prototype &mdash; pin-by-pin to the C1 Pi Zero 2 W
+        and the M2 motors, power tree, control logic, bring-up order &mdash; is in
+        <code>cad/robot_car/WIRING.md</code>.</p>
         <p>To verify:</p>
         <ul class="checklist">
           <li>Solder the header strips</li>
           <li>Confirm VCC range and that it really does double as the motor supply before wiring a battery</li>
-          <li>Confirm ULT behavior (high = run, low = sleep) with a bench supply, no motor attached</li>
-          <li>Trace the J1 jumper's default state</li>
+          <li>Settle <code>EEP</code> vs <code>ULT</code>: unpowered, measure each to
+              <code>VCC</code>. The sleep pin reads ~47&nbsp;k&Omega; (good) or ~0&nbsp;&Omega;
+              (hard tie, cap VCC at 6.5&nbsp;V); nFAULT reads open</li>
+          <li>Measure <code>IN1</code>&ndash;<code>IN4</code> to <code>GND</code> unpowered &mdash;
+              expect ~150&nbsp;k&Omega; internal pulldown on each</li>
+          <li>Confirm the bridged <code>en</code> jumper really does leave the chip awake: 6&nbsp;V
+              on VCC, one motor on <code>OUT1</code>/<code>OUT2</code>, jumper <code>IN1</code>
+              high &mdash; it should run with nothing on <code>EEP</code>/<code>ULT</code></li>
+          <li>Check whether the green front-side part is a power LED (it should light when VCC
+              comes up)</li>
           <li>Bench-test each H-bridge independently against an M2 motor before trusting both channels at once</li>
         </ul>
       </div>
@@ -65,6 +95,11 @@
       <figure>
         <a href="photos/d2-drv8833-chip.jpg"><img src="photos/d2-drv8833-chip.jpg" alt="Close-up of the DRV8833 chip and surrounding passives"></a>
         <figcaption>The driver IC and surrounding passives, close up.</figcaption>
+      </figure>
+      <figure>
+        <a href="photos/d2-drv8833-back.jpg"><img src="photos/d2-drv8833-back.jpg" alt="Back side of one of our DRV8833 boards: silkscreened pinout, the bridged en jumper, the open sleep jumper, and the unpopulated J1 pads"></a>
+        <figcaption>One of ours, label side: headers still unsoldered, the <code>en</code>
+        jumper bridged, <code>sleep</code> open, <code>J1</code> unpopulated.</figcaption>
       </figure>
     </div>
   </section>

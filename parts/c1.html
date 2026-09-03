@@ -29,9 +29,19 @@
               power. microSD slot on the short edge, CSI-2 camera connector on the other
               short edge. Keep the SD and USB edges reachable in the chassis layout.</li>
           <li>40-pin GPIO header along the other long edge. 3.3 V logic — drives the
-              DRV8833 inputs directly even with the driver's VCC at battery voltage.
-              Software PWM (e.g. <code>pigpio</code>) is smooth enough for brushed
-              gearmotors; no hardware PWM channel shortage.</li>
+              DRV8833 inputs directly whatever the driver's VCC is, since the DRV8833's
+              logic thresholds aren't referenced to its motor rail (V<sub>IH</sub> 2 V).
+              Software PWM (e.g. <code>pigpio</code>, DMA-timed) is smooth enough for
+              brushed gearmotors, which is just as well: the two hardware PWM channels
+              are shared across pins (PWM0 = GPIO12/18, PWM1 = GPIO13/19), so four
+              driver inputs can't each have their own.</li>
+          <li>Prototype GPIO map, four inputs to the D2 driver plus ground:
+              GPIO12/13/19/16 on header pins 32/33/35/36, ground on 34 — one 5-wire
+              ribbon at the end of the header. All four are in the GPIO9-and-up group
+              that idles pulled <em>down</em> at boot; GPIO0&ndash;8 idle pulled high,
+              which against the DRV8833's 150 k&Omega; input pulldowns would sit above
+              its 2 V V<sub>IH</sub> and twitch a motor before Linux is up. Full plan in
+              <code>cad/robot_car/WIRING.md</code>.</li>
           <li>Power: 5 V. Budget ~1 A worst case with WiFi busy (idle is far less).
               Plan: P1 MP1584EN buck set to 5.1 V from the B2 2S pack, feeding the
               5 V/GND GPIO pins directly (bypasses the micro-USB connector; the Pi has
