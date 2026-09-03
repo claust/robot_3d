@@ -56,6 +56,10 @@ Board features worth knowing, from the back-side photo
                 B2 2S LiPo 7.4 V  (XT60)
                   +                      -
                   |                      |
+             [2 A fuse]                  |
+                  |                      |
+              [switch]                   |
+                  |                      |
         +---------+----------+           |
         |                    |           |
    +----+-----+        +-----+----+      |
@@ -161,7 +165,7 @@ sources and the Pi's WiFi and microSD are both nearby.
 
 | From | To | Value |
 | --- | --- | --- |
-| B2 XT60 (+) | both P1 `IN+` | 7.4 V nominal, 8.4 V full |
+| B2 XT60 (+) | fuse → switch → both P1 `IN+` | 7.4 V nominal, 8.4 V full |
 | B2 XT60 (−) | both P1 `IN−` | star point for all grounds |
 | P1 #1 `OUT+` | Pi header pin 2 (or 4) | set to 5.1 V |
 | P1 #1 `OUT−` | Pi header pin 6 | |
@@ -173,6 +177,62 @@ down, and the thing on the other end of a shared rail would be the Pi's SD
 card. We have five P1s; separating the rails is cheaper than a corrupted card.
 (One buck plus a fat bulk cap does work — it's just the variant to fall back
 to, not the one to start with.)
+
+#### From the pack to the bucks
+
+The pack ends in an XT60 and the P1s have bare solder pads, so something has
+to bridge them. What goes between:
+
+```
+B2 pack ──XT60── pigtail ── 2 A fuse ── switch ──┬── P1 #1 (5.1 V) → Pi
+                                                 └── P1 #2 (6.0 V) → D2
+                         (both P1 `IN−` and every other ground: pack minus)
+```
+
+- **XT60 pigtail.** Gender goes by the metal, not the plastic shell — prongs
+  are male, sockets female, and the housings look backwards from that, which
+  is where the confusion comes from. The pack should carry sockets (the RC
+  convention: a live pack shouldn't present bare prongs), so the harness end
+  is normally the male. Buy a male + female pair with silicone tails already
+  attached and there is nothing to solder on the connector itself, and a spare
+  if the pack turns out to be the other way round.
+- **A 2 A fuse** in the positive lead, as close to the pack as it will go.
+  Worst-case draw is ~1.1 A (below); the pack is a 2200 mAh 2S that will feed
+  a short with tens of amps, and its own leads are 12 AWG for a reason. The
+  fuse is what keeps a slipped probe from becoming a fire.
+- **A switch** rated 5 A or more, so the XT60 isn't the on/off control. They
+  are stiff to mate and rated for a few hundred cycles.
+- **The fan-out to two bucks** wants a junction, not two wires stuffed into
+  one pad: a lever connector (WAGO 221) or a screw terminal. The only
+  soldering in this chain is the buck `IN+`/`IN−` pads.
+
+**The P1 has no reverse-polarity protection** (`parts/p1.html`), so a swapped
+input kills the module and can pass 7.4 V downstream into the Pi. That is the
+argument for keeping the XT60 as the pack interface everywhere: it is keyed
+and cannot mate backwards. Red is +, black is −, and check with a meter at
+the pigtail before the first connection.
+
+Current, for sizing: the Pi at its 1 A worst case draws ~0.75 A from the pack
+through the buck, and two motors at their 0.2 A stall another ~0.36 A —
+so ~1.1 A worst case, and more like 0.4 A actually driving. That is a few
+hours of bench time from a 2200 mAh pack.
+
+#### Wire
+
+Signal wires can be ordinary jumper leads; the battery side cannot. What sets
+the gauge there is not the ~1 A running current but the fault current if
+something shorts ahead of the fuse.
+
+| Run | Wire |
+| --- | --- |
+| Pack → fuse → switch → bucks | 20 AWG silicone, or the pigtail's own 14 AWG |
+| Buck → D2 `VCC`/`GND` | 20–22 AWG |
+| Buck → Pi header pins 2/6 | 22 AWG; a jumper lead works electrically (1 A over 15 cm of 24 AWG drops ~15 mV) but the crimp is what fails |
+| D2 → motors | 22–24 AWG, twisted pair, 100 nF across the tabs |
+| Pi → D2 `IN1`–`IN4` | ordinary jumper leads — microamps |
+
+Silicone-insulated stranded, not PVC hookup wire: it stays flexible in a
+chassis and doesn't shrink back from the soldering iron.
 
 Why 6.0 V on the driver, and why not the raw pack:
 
@@ -308,9 +368,12 @@ In this order. Steps 1–4 need no battery.
 6. **Set the bucks.** Both P1s fed from the pack, outputs unloaded, meter
    on the output pads: #1 to 5.1 V, #2 to 6.0 V. Leave them a minute and
    re-check — the trimpots are multi-turn and easy to nudge.
-7. **Battery power.** Buck #2 to the driver first, motors running from it,
-   then buck #1 to the Pi. Watch the pack voltage under a stall; the 2S pack
-   must not go below 6.4 V.
+7. **Battery power.** Build the harness above first — pigtail, fuse, switch,
+   junction — and meter it end to end with the pack unplugged: continuity
+   through the fuse with the switch on, open with it off, and no continuity
+   between + and −. Then buck #2 to the driver first, motors running from it,
+   then buck #1 to the Pi. Connect the XT60 last, every time. Watch the pack
+   voltage under a stall; the 2S pack must not go below 6.4 V.
 
 Only after step 7 does D2 move from `untested` to `ok` in
 `parts/index.html`.
