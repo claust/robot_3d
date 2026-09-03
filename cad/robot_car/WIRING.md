@@ -108,12 +108,16 @@ no series resistors are needed. Every unconnected input pulls itself low
 #### Finding those pins on the board
 
 From the top-face photo (`parts/photos/c1-pi-zero-2w-top.jpg`): the 40-pin
-header is **already populated** — ten 4-way plastic blocks in one strip,
-2 × 20 on 2.54 mm pitch — so unlike D2, the Pi end needs no soldering. What
-the photo can't tell you is whether those are female sockets or male pins
-soldered pointing down; from straight above both look like black wells with a
-recessed contact. Look at the board edge-on before ordering jumper wires:
-male-ended leads go into sockets, female-ended leads onto pins.
+header is **already populated with male pins** — ten 4-way plastic blocks in
+one strip, 2 × 20 on 2.54 mm pitch — so unlike D2, the Pi end needs no
+soldering. (Straight down, those pins read as recessed contacts in black
+wells; edge-on they are plainly pins.)
+
+D2 gets male pins too, so **the five wires between the boards are
+female–female jumper leads** — a Dupont socket on each end, pushed onto a pin
+at each board. A 20 cm 40-way rainbow ribbon is the thing to buy: peel off a
+5-wide strip and it stays in pin order by itself, which is most of the defence
+against miscounting. Nothing needs crimping or soldering to make this link.
 
 Orientation, then, with the header along the far edge and the connector edge
 (mini-HDMI, `USB`, `PWR IN`) toward you:
@@ -260,9 +264,32 @@ output on every reversal. DMA-timed software PWM avoids the whole problem.
 
 In this order. Steps 1–4 need no battery.
 
-1. **Solder D2's headers.** Two 6-pin strips. Check for bridges under
-   magnification — the pitch is 2.54 mm but the pads are close to the
-   silkscreen.
+1. **Solder D2's headers.** The board ships with one loose 12-way male strip:
+   snap it in half (flush cutters through the plastic between two pins, or
+   bend it against a table edge until it breaks at a divider) to get the two
+   6-pin pieces. There are exactly 12 pins, so practise on scrap, not on
+   these.
+
+   Orientation: long pins **down**, away from the chip, plastic block flat
+   against the board's underside, short tails poking up through the holes on
+   the chip side — that is the side you solder. The module then plugs into the
+   C2 breadboard, which is also the jig for soldering it: press both strips
+   into the breadboard first, drop D2 over the tails, and everything is held
+   square and level while you work.
+
+   Then: tack **one** pin on each strip, check the board sits flat and the
+   strips are square (reheat that one joint and nudge if not), and only then
+   do the remaining ten. Per joint, touch the iron to the pad *and* the pin
+   together, feed solder into the joint rather than onto the tip, and pull the
+   solder away first, then the iron — about two seconds, ending in a shiny
+   cone around the pin, not a ball sitting on top. If a joint needs more than
+   about five seconds the tip is too cold, too dirty, or too small.
+
+   Check afterwards under good light for bridges — the 2.54 mm pitch is
+   forgiving, but the pads sit close to the silkscreen — and meter continuity
+   between neighbouring pins, which should read open. Note the pin order
+   before you start: the labels are on the underside, so once the strips are
+   on, that face is against the breadboard.
 2. **Meter the unpowered board** (see [Open questions](#open-questions)):
    `EEP`→`VCC`, `ULT`→`VCC`, and each of `IN1`–`IN4`→`GND`. The IN pins
    should read around 150 kΩ. Write the numbers into `parts/d2.html`.

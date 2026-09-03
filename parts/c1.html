@@ -33,14 +33,13 @@
               the outer one nearest the CSI connector. <code>PWR IN</code> is the jack to
               power the board from; the OTG jack also feeds the 5 V rail, which is what
               makes single-cable USB-gadget setup work.</li>
-          <li>40-pin GPIO header along the other long edge, <strong>populated</strong>
-              (see photo) — 2 × 20 on 2.54 mm pitch, ten 4-way plastic blocks in one
-              row, so the driver ribbon plugs straight on and nothing needs soldering on
-              this end. What the photo can't settle is whether it's a female socket strip
-              or a male strip soldered pins-down: from directly above both read as black
-              wells with a recessed contact in each. A side view decides it, and it
-              decides which end the jumper wires need — male-ended into sockets,
-              female-ended onto pins.</li>
+          <li>40-pin GPIO header along the other long edge, <strong>populated with male
+              pins</strong> — 2 × 20 on 2.54 mm pitch, ten 4-way plastic blocks in one
+              row, so nothing needs soldering on this end. (Straight down on the photo the
+              pins read as recessed contacts in black wells, which is why this was left
+              open at first; confirmed male by looking at the board edge-on.) D2 gets male
+              pins too, so the link between the two boards is <strong>female–female</strong>
+              jumper leads.</li>
           <li>3.3 V logic — drives the
               DRV8833 inputs directly whatever the driver's VCC is, since the DRV8833's
               logic thresholds aren't referenced to its motor rail (V<sub>IH</sub> 2 V).
@@ -63,8 +62,6 @@
         </ul>
         <p>To verify:</p>
         <ul class="checklist">
-          <li>Header type from a side view: female sockets, or male pins soldered
-              downward (decides male- vs female-ended jumper wires)</li>
           <li>Header numbering, before any wire goes on: pin 1 is the end nearest the
               microSD slot, and continuity from a pin to a micro-USB shell picks out the
               ground pins. At the far end from the SD card the last pair is pin 39 (GND)

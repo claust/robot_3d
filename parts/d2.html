@@ -19,7 +19,15 @@
         enough to sit right next to a gearmotor rather than on a central driver board like the
         MD22 (D1).</p>
         <ul>
-          <li>Board 18.5 × 16 mm; ships with two loose 6-pin header strips — solder before use.</li>
+          <li>Board 18.5 × 16 mm; both 6-pin rows are unpopulated. What ships loose with it is
+              a <em>single 12-way</em> male strip, snapped in half to make the two 6-pin pieces —
+              exactly the count needed, so there is no spare pin to practise on.</li>
+          <li>Row spacing works out at 12.7 mm (0.5 in): 6 holes span 12.7 mm along the 18.5 mm
+              edge, and 0.5 in is the only 2.54 mm multiple that fits across 16 mm with sane
+              edge margins. If that holds, the module soldered pins-down straddles a
+              breadboard's centre channel with rows in <code>e</code> and <code>h</code> —
+              which is how it should be soldered, so the C2 breadboard can hold it square as a
+              jig and then carry it through bench bring-up.</li>
           <li>VCC 3–10 V. Unlike the MD22 there's no separate logic supply: VCC powers both the
               logic and the motor outputs (the DRV8833 doesn't need a separate low-voltage rail).</li>
           <li>Two independent H-bridges, 1.5 A per channel: <code>OUT1</code>/<code>OUT2</code>
@@ -69,6 +77,9 @@
         <code>cad/robot_car/WIRING.md</code>.</p>
         <p>To verify:</p>
         <ul class="checklist">
+          <li>Row spacing with calipers before soldering: 12.7 mm means the module drops
+              into the breadboard across the channel, anything else means jumper leads
+              straight onto the pins instead</li>
           <li>Solder the header strips</li>
           <li>Confirm VCC range and that it really does double as the motor supply before wiring a battery</li>
           <li>Settle <code>EEP</code> vs <code>ULT</code>: unpowered, measure each to
