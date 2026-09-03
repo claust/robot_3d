@@ -27,11 +27,33 @@
               caliper work needed for the CAD model).</li>
           <li>Connectors all on one long edge: mini-HDMI, micro-USB OTG (data), micro-USB
               power. microSD slot on the short edge, CSI-2 camera connector on the other
-              short edge. Keep the SD and USB edges reachable in the chassis layout.</li>
-          <li>40-pin GPIO header along the other long edge. 3.3 V logic — drives the
-              DRV8833 inputs directly even with the driver's VCC at battery voltage.
-              Software PWM (e.g. <code>pigpio</code>) is smooth enough for brushed
-              gearmotors; no hardware PWM channel shortage.</li>
+              short edge. Keep the SD and USB edges reachable in the chassis layout.
+              The two micro-USB jacks look identical and sit ~8 mm apart, so go by the
+              silkscreen: <code>USB</code> is the inner one (OTG data), <code>PWR IN</code>
+              the outer one nearest the CSI connector. <code>PWR IN</code> is the jack to
+              power the board from; the OTG jack also feeds the 5 V rail, which is what
+              makes single-cable USB-gadget setup work.</li>
+          <li>40-pin GPIO header along the other long edge, <strong>populated with male
+              pins</strong> — 2 × 20 on 2.54 mm pitch, ten 4-way plastic blocks in one
+              row, so nothing needs soldering on this end. (Straight down on the photo the
+              pins read as recessed contacts in black wells, which is why this was left
+              open at first; confirmed male by looking at the board edge-on.) D2 gets male
+              pins too, so the link between the two boards is <strong>female–female</strong>
+              jumper leads.</li>
+          <li>3.3 V logic — drives the
+              DRV8833 inputs directly whatever the driver's VCC is, since the DRV8833's
+              logic thresholds aren't referenced to its motor rail (V<sub>IH</sub> 2 V).
+              Software PWM (e.g. <code>pigpio</code>, DMA-timed) is smooth enough for
+              brushed gearmotors, which is just as well: the two hardware PWM channels
+              are shared across pins (PWM0 = GPIO12/18, PWM1 = GPIO13/19), so four
+              driver inputs can't each have their own.</li>
+          <li>Prototype GPIO map, four inputs to the D2 driver plus ground:
+              GPIO12/13/19/16 on header pins 32/33/35/36, ground on 34 — one 5-wire
+              ribbon at the end of the header. All four are in the GPIO9-and-up group
+              that idles pulled <em>down</em> at boot; GPIO0&ndash;8 idle pulled high,
+              which against the DRV8833's 150 k&Omega; input pulldowns would sit above
+              its 2 V V<sub>IH</sub> and twitch a motor before Linux is up. Full plan in
+              <code>cad/robot_car/WIRING.md</code>.</li>
           <li>Power: 5 V. Budget ~1 A worst case with WiFi busy (idle is far less).
               Plan: P1 MP1584EN buck set to 5.1 V from the B2 2S pack, feeding the
               5 V/GND GPIO pins directly (bypasses the micro-USB connector; the Pi has
@@ -40,8 +62,13 @@
         </ul>
         <p>To verify:</p>
         <ul class="checklist">
-          <li>Whether the 40-pin GPIO header is populated or needs soldering</li>
-          <li>Boots current Raspberry Pi OS from microSD; WiFi joins the LAN</li>
+          <li>Header numbering, before any wire goes on: pin 1 is the end nearest the
+              microSD slot, and continuity from a pin to a micro-USB shell picks out the
+              ground pins. At the far end from the SD card the last pair is pin 39 (GND)
+              and pin 40 (GPIO21) — the one that beeps is 39, which fixes which row
+              carries the odd numbers</li>
+          <li>What is on the fitted microSD (a 128 GB Samsung card is in the slot), and
+              whether it boots current Raspberry Pi OS; WiFi joins the LAN</li>
           <li>Idle and WiFi-active current draw at 5 V (sets the real buck budget)</li>
           <li>Powering via GPIO 5 V pins from the P1 buck: set and measure 5.1 V under
               no load before first connection</li>
@@ -50,8 +77,11 @@
         </ul>
       </div>
       <figure>
-        <figcaption>No photo yet — add one (top face, so the header population is
-        visible) next time the board is out.</figcaption>
+        <a href="photos/c1-pi-zero-2w-top.jpg"><img src="photos/c1-pi-zero-2w-top.jpg" alt="Raspberry Pi Zero 2 W, top face: populated 40-pin GPIO header along the top edge, RP3A0-AU SoC, microSD card fitted, mini-HDMI and two micro-USB jacks along the bottom edge"></a>
+        <figcaption>The board in hand, top face. Confirms the <code>RP3A0-AU</code> SoC
+        (so the 2 W, not the original Zero), the populated 40-pin header, the fitted
+        microSD card, and the <code>USB</code> / <code>PWR IN</code> silkscreen on the two
+        micro-USB jacks. Wiring plan in <code>cad/robot_car/WIRING.md</code>.</figcaption>
       </figure>
     </div>
   </section>
