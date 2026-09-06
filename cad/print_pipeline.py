@@ -5,10 +5,12 @@ Usage:
   uv run print_pipeline.py upload <file.gcode.3mf>
   uv run print_pipeline.py print <file.gcode.3mf> [--ams-slot N]
   uv run print_pipeline.py status
+  uv run print_pipeline.py light <on|off>
 
 `slice` produces <name>.gcode.3mf next to the STL, `upload` puts it on the
 printer's SD card over FTPS, `print` starts a previously uploaded file (asks
-for confirmation), `status` shows what the printer is doing.
+for confirmation), `status` shows what the printer is doing, `light` switches
+the chamber light so the camera can see the plate.
 
 Printer credentials come from .env (BAMBU_PRINTER_IP/SERIAL/ACCESS_CODE).
 """
@@ -454,6 +456,27 @@ def start_print(filename: str, trays: list[str], wait: float = 90.0) -> None:
         print("No state updates received — check the printer screen")
 
 
+def set_light(on: bool) -> None:
+    """Switch the chamber light. The camera returns a black frame with it off,
+    so a plate check has to turn it on first (and put it back afterwards)."""
+    cmd = {
+        "system": {
+            "sequence_id": "0",
+            "command": "ledctrl",
+            "led_node": "chamber_light",
+            "led_mode": "on" if on else "off",
+            "led_on_time": 500,
+            "led_off_time": 500,
+            "loop_times": 0,
+            "interval_time": 0,
+        }
+    }
+    c = mqtt_client()
+    c.publish(f"device/{SERIAL}/request", json.dumps(cmd)).wait_for_publish(timeout=10)
+    c.disconnect()
+    print(f"Chamber light {'on' if on else 'off'}")
+
+
 # ---------- CLI ----------
 
 if __name__ == "__main__":
@@ -488,6 +511,9 @@ if __name__ == "__main__":
 
     sub.add_parser("status")
 
+    p_light = sub.add_parser("light")
+    p_light.add_argument("state", choices=["on", "off"])
+
     args = ap.parse_args()
 
     if args.cmd == "slice":
@@ -497,6 +523,8 @@ if __name__ == "__main__":
         sys.exit(0 if verify(args.file) else 1)
     elif args.cmd == "upload":
         upload(args.file)
+    elif args.cmd == "light":
+        set_light(args.state == "on")
     elif args.cmd == "status":
         s = get_status()
         for k in ("gcode_state", "mc_percent", "mc_remaining_time",

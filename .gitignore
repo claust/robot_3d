@@ -216,3 +216,10 @@ __marimo__/
 
 # Streamlit
 .streamlit/secrets.toml
+
+# 3D model / print artifacts anywhere in the repo (generated or downloaded);
+# source lives in the Python scripts under cad/
+*.stl
+*.step
+*.3mf
+*.gcode

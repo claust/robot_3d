@@ -26,6 +26,10 @@ everything with `uv run` from inside `cad/`.
   `demo_05/nozzle_test.py` is the quick dual-nozzle coupon. Read
   `demo_05/README.md` before any dual-nozzle/support job — it documents the
   workflow and the failure modes (prime tower, filament_map, tray mapping).
+- `extract_3mf.py <model.3mf> [out.stl]` — not a model of ours: flattens a
+  downloaded .3mf project (MakerWorld/Printables) into an STL the slice
+  pipeline accepts. Bakes scene transforms and drops the result on z=0; the
+  project's own print settings are ignored in favour of ours.
 
 ## Printing (print_pipeline.py)
 
@@ -37,6 +41,7 @@ uv run print_pipeline.py upload <file.gcode.3mf>  # FTPS to printer USB stick
 uv run print_pipeline.py print <file.gcode.3mf> --ams-slot N  # MQTT start
 uv run print_pipeline.py print <file.gcode.3mf> --trays 2,ext  # dual-filament start
 uv run print_pipeline.py status
+uv run print_pipeline.py light <on|off>           # chamber light, for camera checks
 ```
 
 - Credentials come from `cad/.env` (gitignored; see `.env.example`). Never commit it.

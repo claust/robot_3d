@@ -5,8 +5,14 @@ __pycache__/
 *.stl
 *.step
 *.png
+*.jpg
 *.gcode
 *.gcode.3mf
 profiles_resolved/
 printer_state_dump.json
 result.json
+
+# downloaded model projects and anything unzipped out of them — third-party
+# assets, not our source
+*.3mf
+extracted/

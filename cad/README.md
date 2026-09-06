@@ -23,6 +23,9 @@ over the LAN. Python environment is managed with [uv](https://docs.astral.sh/uv/
   printer. Slicing runs Bambu Studio's CLI headlessly with the official X2D
   profiles (inheritance resolved locally — the CLI doesn't do it and silently
   drops the AMS filament-load start gcode, causing "air prints").
+- `extract_3mf.py` — flattens a downloaded `.3mf` project into an STL the
+  slice pipeline accepts, for printing models from MakerWorld/Printables
+  rather than ones modeled here.
 - `printer_status.py` — quick MQTT status check.
 
 ## Printer connection
@@ -35,6 +38,7 @@ enabled for third-party print starts, and a USB stick for file storage.
 
 ```bash
 uv run demo_01/washer.py 16              # generate STL
+# or, for a downloaded model:  uv run extract_3mf.py Downloaded.3mf
 uv run print_pipeline.py slice demo_01/washer.stl
 uv run print_pipeline.py verify demo_01/washer.gcode.3mf   # pre-flight checks + toolpath plot
 uv run print_pipeline.py upload demo_01/washer.gcode.3mf
