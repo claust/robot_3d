@@ -145,6 +145,18 @@ def main():
         f"t={t:.2f} y={y:.2f} L={L:.1f} -> {strain:.2f}% (< 1.5%)",
     )
 
+    check(
+        "slit root fully rounded",
+        abs(d["slit_root_r"] - gearbox.SLIT_W / 2) < 1e-9,
+        f"r={d['slit_root_r']:.2f} = SLIT_W/2 (semicircle, no square notch)",
+    )
+    root_h = d["slit_root_z"] - gearbox.ARM_H
+    check(
+        "slit root clear of the post base",
+        root_h >= 2.0,
+        f"deepest point {root_h:.2f} mm above the frame post base (>= 2.0)",
+    )
+
     print("\n-- sliceability --")
     two_layers = 2 * gearbox.LAYER_HEIGHT
     for name, t in [

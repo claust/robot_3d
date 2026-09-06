@@ -69,7 +69,11 @@ LIP_PROTRUDE = 0.35  # radial beyond post surface -> lip r 2.85
 LIP_LAND = 0.4  # cylindrical land, 2 layers
 LIP_TOP_R = 2.2  # radius at post tip after 45 deg lead-in chamfer
 SLIT_W = 1.5  # slot through post top so the halves can flex
-SLIT_DEPTH = 6.5
+# Rounded, shallower root: the square-bottomed notch is where demo_07's
+# identical post broke twice in service. SLIT_DEPTH is post_top -> deepest
+# point; the halves flex over SLIT_DEPTH - SLIT_ROOT_R.
+SLIT_DEPTH = 6.2
+SLIT_ROOT_R = SLIT_W / 2  # semicircular root, no square corner to crack from
 
 
 @dataclass
@@ -191,10 +195,17 @@ def build(module=MODULE, teeth=TEETH, face_width=FACE_WIDTH) -> Gearbox:
                 radius=POST_D / 2, height=face_width, align=bottom
             ).translate((cx, cy, GEAR_Z0))
         )
+    slit_len = POST_D + 2 * LIP_PROTRUDE + 1
+    root_z = post_top - SLIT_DEPTH + SLIT_ROOT_R  # root arc center
     for cx, cy in centers:  # slit after all posts are fused
         frame -= Box(
-            POST_D + 2 * LIP_PROTRUDE + 1, SLIT_W, SLIT_DEPTH + 0.2, align=bottom
-        ).translate((cx, cy, post_top - SLIT_DEPTH))
+            slit_len, SLIT_W, post_top + 0.2 - root_z, align=bottom
+        ).translate((cx, cy, root_z))
+        frame -= (
+            Cylinder(radius=SLIT_ROOT_R, height=slit_len)
+            .rotate(Axis.Y, 90)
+            .translate((cx, cy, root_z))
+        )
     gb.frame = frame
     gb.rail_probe = rails
 
@@ -212,8 +223,10 @@ def build(module=MODULE, teeth=TEETH, face_width=FACE_WIDTH) -> Gearbox:
         arm_under_gear=GEAR_Z0 - ARM_H,  # vertical gap arms to gear faces
         # snap metadata for assembly_check
         lip_interference=lip_r - BORE_D / 2,  # radial, per side
-        lip_deflection_len=SLIT_DEPTH,
+        lip_deflection_len=SLIT_DEPTH - SLIT_ROOT_R,
         lip_flex_t=(POST_D - SLIT_W) / 2,
+        slit_root_z=post_top - SLIT_DEPTH,
+        slit_root_r=SLIT_ROOT_R,
     )
     return gb
 
