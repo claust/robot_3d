@@ -71,7 +71,14 @@ LIP_PROTRUDE = 0.35
 LIP_LAND = 0.4
 LIP_TOP_R = 2.2
 SLIT_W = 1.5
-SLIT_DEPTH = 6.5
+# The slit root is where the frame post snapped twice in service (once at
+# stock 2 walls/15 %, once at 4 walls/50 %). Two changes: the root is now a
+# full semicircle instead of a square-bottomed notch (Kt ~3 -> ~1.6), and the
+# slit is shallower, so the remaining notch sits further from the post base
+# where the crank load's bending moment is largest. SLIT_DEPTH is measured
+# post_top -> deepest point; the halves flex over SLIT_DEPTH - SLIT_ROOT_R.
+SLIT_DEPTH = 6.2
+SLIT_ROOT_R = SLIT_W / 2  # semicircular root, no square corner to crack from
 
 # ---- carriage / slide geometry ---------------------------------------------
 TRAVEL = 4.0  # engaged -> disengaged slide distance
@@ -200,9 +207,16 @@ def post_with_lip(cx, cy, base_z, dims):
             (cx, cy, dims["lip_land_z1"])
         )
     )
+    slit_len = POST_D + 2 * LIP_PROTRUDE + 1
+    root_z = dims["post_top"] - SLIT_DEPTH + SLIT_ROOT_R  # root arc center
     slit = Box(
-        POST_D + 2 * LIP_PROTRUDE + 1, SLIT_W, SLIT_DEPTH + 0.2, align=bottom
-    ).translate((cx, cy, dims["post_top"] - SLIT_DEPTH))
+        slit_len, SLIT_W, dims["post_top"] + 0.2 - root_z, align=bottom
+    ).translate((cx, cy, root_z))
+    slit += (
+        Cylinder(radius=SLIT_ROOT_R, height=slit_len)
+        .rotate(Axis.Y, 90)
+        .translate((cx, cy, root_z))
+    )
     return post + lip, slit
 
 
@@ -326,8 +340,10 @@ def build(module=MODULE, teeth=TEETH, face_width=FACE_WIDTH) -> FidgetGearbox:
         bore_r=BORE_D / 2,
         post_r=POST_D / 2,
         lip_interference=lip_r - BORE_D / 2,
-        lip_deflection_len=SLIT_DEPTH,
+        lip_deflection_len=SLIT_DEPTH - SLIT_ROOT_R,
         lip_flex_t=(POST_D - SLIT_W) / 2,
+        slit_root_z=post_top - SLIT_DEPTH,
+        slit_root_r=SLIT_ROOT_R,
     )
 
     # ---- frame: deck ladder for z20/z30 + open two-rail fork for the slide -
