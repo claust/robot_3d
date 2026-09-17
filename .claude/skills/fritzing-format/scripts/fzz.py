@@ -24,12 +24,13 @@ WIRE_STYLE = {  # view -> (layer, wireFlags, color, mils)
 # ---------- container ----------
 
 def read_fzz(path):
-    """Return (root_element, extras) where extras maps other member names (fzp/svg/ino) to bytes."""
+    """Return (root_element, extras) where extras maps the non-.fz members (fzp/svg/ino) to bytes."""
     with zipfile.ZipFile(path) as z:
         names = z.namelist()
         fz = sorted(n for n in names if n.endswith(".fz"))[0]  # Fritzing loads the first *.fz
         root = ET.fromstring(z.read(fz))
-        extras = {n: z.read(n) for n in names if n != fz}
+        # Drop every .fz: a leftover one that sorts before the rewritten member would be loaded instead.
+        extras = {n: z.read(n) for n in names if not n.endswith(".fz")}
     return root, extras
 
 
@@ -41,7 +42,8 @@ def write_fzz(path, root, extras=None):
     with zipfile.ZipFile(tmp, "w", zipfile.ZIP_DEFLATED) as z:
         z.writestr(path.stem + ".fz", data)
         for n, d in (extras or {}).items():
-            z.writestr(n, d)
+            if not n.endswith(".fz"):
+                z.writestr(n, d)
     tmp.replace(path)
 
 
@@ -186,7 +188,10 @@ def add_part(root, module_id, title, positions, props=None, index=None, z=2.5):
     z orders items within a view: breadboards ~1.5, parts ~2.5, wires ~3.5 (Fritzing's own values).
     """
     info = part_info(module_id)
-    idx = index or next_model_index(root)
+    if info["fzp"] is None:
+        raise ValueError(f"{module_id} is compiled into Fritzing (no .fzp on disk); "
+                         "use add_wire() for wires, or copy a Fritzing-saved instance for notes/logos")
+    idx = next_model_index(root) if index is None else index
     inst = ET.SubElement(root.find("instances"), "instance", moduleIdRef=module_id,
                          modelIndex=str(idx), path=info["fzp"].name)
     for k, v in (props or {}).items():

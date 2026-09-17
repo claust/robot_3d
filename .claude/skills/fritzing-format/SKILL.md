@@ -23,7 +23,7 @@ source only; **[unverified]** = not tested.
 | Electrical connection | `<connects>` entries on BOTH connectors. Geometry never creates or checks connections **[verified]** |
 | Coordinates | Scene px at 90 dpi (0.1 in = 9.0), y down, per view **[verified]** |
 | Find parts | `sqlite3 …/fritzing-parts/parts.db` (tables `parts`, `connectors`, `properties`), `.fzp` under `fritzing-parts/core/` |
-| Helper lib | `scripts/fzz.py` (stdlib only): `read_fzz`, `write_fzz`, `new_sketch`, `add_part`, `connect`, `add_wire`, `connector_pos`, `part_info`, `search_parts` |
+| Helper lib | `scripts/fzz.py` (stdlib only): `read_fzz`, `write_fzz`, `new_sketch`, `add_part`, `connect`, `add_wire`, `connector_pos`, `part_info`, `search_parts`. `add_part` only handles library parts with a `.fzp` on disk (not wires/notes/logos) |
 
 ```bash
 FRITZING=/Applications/Fritzing.app/Contents/MacOS/Fritzing
