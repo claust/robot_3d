@@ -31,5 +31,8 @@ void app_main(void)
     gpio_reset_pin(LED_GPIO);
     gpio_set_direction(LED_GPIO, GPIO_MODE_OUTPUT);
 
-    xTaskCreate(flash_led, "flash_led", 2048, NULL, 5, NULL);
+    // ESP-IDF stack sizes are in bytes, not words as in vanilla FreeRTOS.
+    if (xTaskCreate(flash_led, "flash_led", 2048, NULL, 5, NULL) != pdPASS) {
+        printf("failed to create flash_led task\n");
+    }
 }
