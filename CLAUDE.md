@@ -41,12 +41,16 @@ project folder: `source ~/.espressif/tools/activate_idf_v6.1.sh`, then
 `idf.py build` and `idf.py -p /dev/cu.usbmodem* flash`.
 
 - `sdkconfig.defaults` is the source of truth; `sdkconfig` and `build/` are generated.
+- Shared code is ESP-IDF components in `esp32-c5/components/` (e.g. `pwm_led`);
+  a project adds `set(EXTRA_COMPONENT_DIRS ../components)` and `PRIV_REQUIRES <name>`.
 - XIAO pad labels (D0…) aren't GPIO numbers — check the pin map. Onboard user LED is GPIO 27, active-low.
 - The serial port is exclusive: if a VS Code/Arduino monitor holds it, don't
   read it from a shell. Never toggle DTR/RTS — it resets the chip into download mode.
-- VS Code: open `robot_3d.code-workspace` (ESP-IDF builds the first folder).
-  Keep IntelliSense mode `linux-gcc-x86`, and keep `idf.port` /
-  `idf.currentSetup` out of tracked settings files.
+- VS Code: open `robot_3d.code-workspace`; the ESP-IDF extension acts on its active
+  folder (first by default). Each project's settings pin `IDF_TARGET=esp32c5` —
+  without it the extension configures the plain ESP32.
+  Keep IntelliSense mode `linux-gcc-x86`, and keep `idf.port`, `idf.currentSetup`,
+  OpenOCD and clangd paths out of tracked settings files.
 
 ## Conventions
 
