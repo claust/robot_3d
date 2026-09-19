@@ -1,9 +1,7 @@
 {
-  "idf.port": "/dev/cu.usbmodem21101",
   "idf.flashType": "UART",
   // ESP-IDF drives CMake itself; keep the CMake Tools extension out of the way.
   "cmake.configureOnOpen": false,
   "cmake.configureOnEdit": false,
-  "cmake.automaticReconfigure": false,
-  "idf.currentSetup": "/Users/claus/.espressif/v6.1/esp-idf"
+  "cmake.automaticReconfigure": false
 }

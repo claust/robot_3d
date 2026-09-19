@@ -4,6 +4,5 @@
   "cmake.configureOnOpen": false,
   "cmake.configureOnEdit": false,
   "cmake.automaticReconfigure": false,
-  "cmake.ignoreCMakeListsMissing": true,
-  "idf.currentSetup": "/Users/claus/.espressif/v6.1/esp-idf"
+  "cmake.ignoreCMakeListsMissing": true
 }

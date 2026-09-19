@@ -104,6 +104,9 @@ active project, so firmware folders are listed before the repo root.
 IntelliSense reads `build/compile_commands.json`, so build once first. Its
 mode must stay `linux-gcc-x86` — a macOS mode defines `__APPLE__` and
 `esp_attr.h` then includes a Mach-O header that does not exist for the chip.
+Keep `idf.port` and `idf.currentSetup` out of the tracked settings files —
+they are per-machine; the port auto-detects and the extension may write
+`idf.currentSetup` back, which should not be committed.
 
 ## Conventions
 
