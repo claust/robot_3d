@@ -31,6 +31,24 @@ source only; **[unverified]** = not tested.
 FRITZING=/Applications/Fritzing.app/Contents/MacOS/Fritzing
 ```
 
+## Workflow: the .fzz is the source
+
+A sketch is a document that people also edit by hand in Fritzing, not a build output:
+
+- **Commit the `.fzz`.** It is the schematic. Don't commit a script that regenerates it:
+  the next run would wipe out any edits made in Fritzing.
+- **To change a sketch, edit the file in place.** Call `read_fzz` on the existing `.fzz`,
+  change what's needed (`set_property`, `add_part`, `add_wire`, move a geometry…), then
+  `write_fzz` to the same path. `read_fzz` registers the parts bundled in the sketch, so
+  `connector_pos` and friends work on them. Leave everything you didn't touch as it is.
+- **Put one-off build or edit scripts in the session scratchpad,** not the repo.
+- **Before writing, make sure the file isn't open in Fritzing with unsaved changes.**
+  Fritzing doesn't reload files (Section 4), so its next save would overwrite yours.
+- **Check every edit by rendering it** with `Fritzing -svg`, then look at the PNG
+  (`rsvg-convert -w 1400 -b white x_schematic.svg -o x_schematic.png`).
+- **Keep downloaded parts (`.fzpz`) in one shared folder,** to start new sketches from.
+  Existing sketches carry their own copy of each part, so they don't need the folder.
+
 ## 1. Container
 
 - A `.fzz` is a ZIP. A core-parts-only sketch holds one `<name>.fz` (UTF-8 XML).
