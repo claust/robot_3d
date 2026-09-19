@@ -1,0 +1,122 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>C3 — Seeed Studio XIAO ESP32-C5 — Parts Library</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<main>
+  <a class="back-link" href="index.html">&larr; Parts Library</a>
+
+  <section class="part" id="c3">
+    <div class="part-head"><span class="part-id">C3</span><h2>Seeed Studio XIAO ESP32-C5</h2><span class="badge ok">ok</span><span class="note">×2</span></div>
+    <div class="part-body">
+      <div class="part-text">
+        <p>Thumbnail-sized <strong>ESP32-C5</strong> board on the XIAO form factor, USB-C, with
+        dual-band Wi-Fi&nbsp;6 (2.4 <em>and</em> 5&nbsp;GHz), Bluetooth&nbsp;5 LE and
+        IEEE&nbsp;802.15.4 (Thread/Zigbee/Matter) on one chip. Two in hand. One of them is
+        already flashed and running <code>esp32-c5/blink</code>; the second has not been
+        powered up yet.</p>
+        <p>The interesting role is as the robot's <em>motor-side</em> MCU: it has real hardware
+        PWM, which the Pi Zero 2 W (<a href="c1.html">C1</a>) does not &mdash; the Pi has two
+        PWM channels shared across pins, so the four DRV8833 inputs run on DMA-timed software
+        PWM. A C5 can own the driver and the timing loop while the Pi keeps the WiFi UI, or
+        replace it outright on a smaller build.</p>
+        <ul>
+          <li>32-bit single-core RISC-V up to 240&nbsp;MHz, 384&nbsp;KB SRAM, 320&nbsp;KB ROM.
+              <strong>8&nbsp;MB flash</strong> &mdash; confirmed on our board with
+              <code>esptool flash-id</code>, and set in
+              <code>esp32-c5/blink/sdkconfig.defaults</code> because the IDF default is 2&nbsp;MB.
+              Seeed also list 8&nbsp;MB PSRAM; not confirmed here yet.</li>
+          <li>Radio goes out through a <strong>U.FL connector</strong> to the supplied FPC
+              antenna &mdash; there is no PCB antenna to fall back on, so a board with nothing
+              plugged in will look like a dead radio rather than a weak one. The 5&nbsp;GHz band
+              is the reason to prefer this over the C6/C3 XIAOs: the 2.4&nbsp;GHz band around
+              the bench is crowded, and the Pi (<a href="c1.html">C1</a>) is 2.4&nbsp;GHz only.</li>
+          <li><strong>3.3&nbsp;V logic</strong>, same as the Pi: drives the DRV8833 inputs
+              (<a href="d2.html">D2</a>/<a href="d3.html">D3</a>) directly, since the DRV8833's
+              V<sub>IH</sub> is 2&nbsp;V regardless of its motor rail. It will <em>not</em> talk
+              to the 5&nbsp;V I²C of the SRF08 (<a href="s1.html">S1</a>) or the MD22
+              (<a href="d1.html">D1</a>) without a level shifter &mdash; that is still the
+              Uno's (<a href="c2.html">C2</a>) job.</li>
+          <li>14 pads along the two long edges, 2.54&nbsp;mm pitch: <code>D0</code>&ndash;<code>D10</code>
+              (11&nbsp;GPIO, all PWM-capable) plus <code>5V</code>, <code>GND</code>,
+              <code>3V3</code>. Castellated <em>and</em> drilled, so the board can take headers
+              or be reflowed flat onto a carrier.</li>
+          <li>Pin map, <em>from third-party pinout references and not yet checked against our
+              boards</em>: <code>D0</code>=GPIO1, <code>D1</code>=GPIO0, <code>D2</code>=GPIO25,
+              <code>D3</code>=GPIO7, <code>D4</code>=GPIO23&nbsp;(SDA),
+              <code>D5</code>=GPIO24&nbsp;(SCL), <code>D6</code>=GPIO11&nbsp;(TX),
+              <code>D7</code>=GPIO12&nbsp;(RX), <code>D8</code>=GPIO8, <code>D9</code>=GPIO9,
+              <code>D10</code> unconfirmed. I²C on D4/D5, UART on D6/D7, SPI on D8/D9/D10.
+              Blink each pad before trusting any of it.</li>
+          <li>User LED on <strong>GPIO&nbsp;27, active-low</strong> &mdash; driving the pin low
+              lights it. That one <em>is</em> confirmed on our board; see
+              <code>esp32-c5/blink/main/blink_main.c</code>.</li>
+          <li><strong>Underside pads</strong> (bare SMD, no header footprint): <code>B+</code>
+              and <code>B-</code> for a 3.7&nbsp;V LiPo, the JTAG bonding pads, and four extra
+              ADC inputs <code>A1</code>&ndash;<code>A4</code>. Battery charging is an onboard
+              SGM40567 at ~100&nbsp;mA whenever USB is in, with a TPS22916 gating the
+              battery-voltage sense.</li>
+          <li>Power in: USB-C, the <code>5V</code> pad, or a cell on <code>B+</code>/<code>B-</code>.
+              <code>B+</code> is a <em>battery</em> node, not a supply input &mdash; feed the
+              board from the MP1584 buck (<a href="p1.html">P1</a>) on the <code>5V</code> pad,
+              not onto the charger. Deep sleep is quoted at ~15&nbsp;µA, which is the one
+              number that would make a sleep-and-wake sensor node on this platform worthwhile.</li>
+          <li>USB-C is the chip's own USB Serial/JTAG, not a CP2102-style bridge: console,
+              flashing and debugging all go down the one cable, and the port is exclusive
+              &mdash; close the Arduino or VS Code monitor before reading it from a shell.</li>
+        </ul>
+        <p>Soldering to the underside pads &mdash; the only way to reach the battery, JTAG or
+        A1&ndash;A4 &mdash; wants a bit of care, because the pad is the weak link and it lifts
+        long before the wire breaks:</p>
+        <ul>
+          <li>Flux the pad, tin pad and wire separately, then reflow the two together. Two
+              seconds per joint, iron on pad <em>and</em> wire, same rule as the D2 headers in
+              <code>cad/robot_car/WIRING.md</code>.</li>
+          <li>30&nbsp;AWG silicone-jacketed stranded, or enamelled magnet wire. Anything heavier
+              levers the pad off the laminate.</li>
+          <li>Strain-relieve at the joint (hot-glue or UV-resin fillet), or route the wire
+              through a hole in the printed mount so nothing pulls on copper.</li>
+          <li>Continuity-check <code>B+</code> against <code>B-</code> with a meter
+              <em>before</em> a cell goes anywhere near it: a solder bridge there is a LiPo
+              short, not a blown fuse.</li>
+          <li>Prefer removable where possible &mdash; a short JST-PH pigtail glued down for the
+              battery, pogo pins in a printed jig for JTAG. And with the console already on
+              USB Serial/JTAG, the JTAG pads may never be needed at all.</li>
+        </ul>
+        <p>Toolchain is ESP-IDF v6.1 installed through EIM under <code>~/.espressif</code>;
+        from <code>esp32-c5/blink</code>: <code>source ~/.espressif/tools/activate_idf_v6.1.sh</code>,
+        then <code>idf.py build</code> and <code>idf.py -p /dev/cu.usbmodem* flash</code>. In
+        VS Code open <code>robot_3d.code-workspace</code>, not the bare repo.</p>
+        <p>To verify:</p>
+        <ul class="checklist">
+          <li>Second board: enumerate over USB-C and flash <code>blink</code> &mdash; clears the
+              board, the cable and the USB Serial/JTAG path in one go</li>
+          <li>Confirm the <code>D0</code>&ndash;<code>D10</code> → GPIO map by blinking each pad
+              in turn, and pin down what <code>D10</code> is</li>
+          <li>Whether PSRAM is actually present and how much (<code>idf.py size</code> /
+              an <code>esp_psram</code> probe at boot)</li>
+          <li>Caliper the outline, thickness, pad pitch and row spacing, plus U.FL connector
+              height with the antenna plugged in &mdash; all needed before a CAD mount</li>
+          <li>Check an antenna is fitted, then compare 2.4 vs 5&nbsp;GHz association and range
+              from the far end of the flat</li>
+          <li>Current draw at 3.3&nbsp;V: idle, Wi-Fi associated, 5&nbsp;GHz TX burst, and deep
+              sleep &mdash; the quoted 15&nbsp;µA is the claim to test</li>
+          <li>LEDC hardware PWM on four pins into a DRV8833 (<a href="d2.html">D2</a>), scoped
+              or LED-checked, before any motor is connected</li>
+          <li>Battery path: pigtail onto <code>B+</code>/<code>B-</code>, confirm the ~100&nbsp;mA
+              charge current and whether cell voltage can be read back in firmware</li>
+          <li>Decide the split with the Pi (<a href="c1.html">C1</a>) &mdash; C5 as a motor/timing
+              co-processor over UART, or as the whole brain on a smaller robot</li>
+        </ul>
+        <p class="note">No photo in the library yet &mdash; worth one of the top face and one of
+        the underside pads, since the underside is where all the interesting connections are.</p>
+      </div>
+    </div>
+  </section>
+</main>
+</body>
+</html>
