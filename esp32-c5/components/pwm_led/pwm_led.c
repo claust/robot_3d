@@ -35,6 +35,10 @@ struct pwm_led {
 
 static struct pwm_led s_leds[SOC_LEDC_CHANNEL_NUM];
 static int s_led_count;
+// Separate from s_led_count: a first LED whose channel setup fails must not
+// leave the fade service installed with a count of 0, or every retry would
+// try to install it again and fail.
+static bool s_shared_ready;
 
 // Guards s_leds/s_led_count and the shared setup, so pwm_led_new can be
 // called from several tasks. Created on first use; the spinlock only
@@ -90,7 +94,8 @@ static uint32_t duty_to_level(const struct pwm_led *led, uint32_t duty)
     return (uint32_t)lroundf(powf((float)duty / DUTY_MAX, 1.0f / GAMMA) * DUTY_MAX);
 }
 
-// The shared timer and the fade service are set up with the first LED.
+// The shared timer and the fade service are set up once, with the first LED
+// that gets this far.
 static esp_err_t init_shared(void)
 {
     ledc_timer_config_t timer = {
@@ -112,11 +117,12 @@ static esp_err_t new_locked(const pwm_led_config_t *config, pwm_led_handle_t *re
     if (s_led_count == SOC_LEDC_CHANNEL_NUM) {
         return ESP_ERR_NO_MEM;
     }
-    if (s_led_count == 0) {
+    if (!s_shared_ready) {
         esp_err_t err = init_shared();
         if (err != ESP_OK) {
             return err;
         }
+        s_shared_ready = true;
     }
 
     struct pwm_led *led = &s_leds[s_led_count];
