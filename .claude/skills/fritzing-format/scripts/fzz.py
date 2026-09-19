@@ -195,7 +195,12 @@ def _shape_point(el, is_leg, what):
 def connector_pos(inst, view, connector_id):
     g = inst.find(f"views/{view}/geometry")
     if inst.get("moduleIdRef") == WIRE_MODULE:  # wire ends come from its own line, not an SVG
-        end_x, end_y = ("x1", "y1") if connector_id == "connector0" else ("x2", "y2")
+        if connector_id == "connector0":
+            end_x, end_y = "x1", "y1"
+        elif connector_id == "connector1":
+            end_x, end_y = "x2", "y2"
+        else:
+            raise KeyError(connector_id)
         return float(g.get("x")) + float(g.get(end_x)), float(g.get("y")) + float(g.get(end_y))
     dx, dy = connector_offset(inst.get("moduleIdRef"), view, connector_id)
     return float(g.get("x")) + dx, float(g.get("y")) + dy
