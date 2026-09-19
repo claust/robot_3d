@@ -3,6 +3,7 @@
     // ESP-IDF treats the first folder as its active project, so firmware goes first.
     { "name": "esp32-c5/blink (ESP-IDF)", "path": "esp32-c5/blink" },
     { "name": "esp32-c5/led_flash (ESP-IDF)", "path": "esp32-c5/led_flash" },
+    { "name": "esp32-c5/led_fade (ESP-IDF)", "path": "esp32-c5/led_fade" },
     { "name": "robot_3d", "path": "." }
   ]
 }
