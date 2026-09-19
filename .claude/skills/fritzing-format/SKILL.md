@@ -380,7 +380,8 @@ fzz.write_fzz("resistor_on_breadboard.fzz", root)
 ```python
 root, extras = fzz.read_fzz("in.fzz")          # extras = bundled fzp/svg/ino; pass them back
 fzz.set_property(fzz.find_instance(root, title="R1"), "resistance", "10k")
-fzz.find_instance(root, title="Wire1").find("views/breadboardView/wireExtras").set("color", "#cc1f1a")
+wire = fzz.find_instance(root, module_id=fzz.WIRE_MODULE)   # first wire; find_instance(root, title=...) for a specific one
+wire.find("views/breadboardView/wireExtras").set("color", "#cc1f1a")
 fzz.write_fzz("out.fzz", root, extras)
 ```
 
