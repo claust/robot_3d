@@ -6,7 +6,8 @@ description: Generating or editing Fritzing .fzz/.fz circuit sketch files progra
 # Fritzing sketch format (.fzz / .fz)
 
 Verified against the locally built Fritzing 1.0.8 at `/Applications/Fritzing.app`
-(source: `/Users/claus/Repos/fritzing-app`, branch `develop`) on 2026-09-17.
+(source: `/Users/claus/Repos/fritzing-app`, branch `develop`) on 2026-09-17; connector
+geometry, `.fzpz` parts, labels, notes and net labels re-verified on 2026-09-19.
 Tags: **[verified]** = tested against the running app; **[source]** = read from
 source only; **[unverified]** = not tested.
 
@@ -23,7 +24,8 @@ source only; **[unverified]** = not tested.
 | Electrical connection | `<connects>` entries on BOTH connectors. Geometry never creates or checks connections **[verified]** |
 | Coordinates | Scene px at 90 dpi (0.1 in = 9.0), y down, per view **[verified]** |
 | Find parts | `sqlite3 …/fritzing-parts/parts.db` (tables `parts`, `connectors`, `properties`), `.fzp` under `fritzing-parts/core/` |
-| Helper lib | `scripts/fzz.py` (stdlib only): `read_fzz`, `write_fzz`, `new_sketch`, `add_part`, `connect`, `add_wire`, `connector_pos`, `part_info`, `search_parts`. `add_part` only handles library parts with a `.fzp` on disk (not wires/notes/logos) |
+| Part not in the library | Get the vendor's `.fzpz` (Section 3a), then `fzz.load_fzpz(path)`. It works like a library part, and `write_fzz` bundles it into the sketch **[verified]** |
+| Helper lib | `scripts/fzz.py` (stdlib only): `read_fzz`, `write_fzz`, `new_sketch`, `load_fzpz`, `add_part`, `place_at`, `set_label`, `connect`, `end`, `add_wire` (with bend points), `add_net_label`, `add_note`, `connector_pos`, `connector_id`, `part_info`, `search_parts` |
 
 ```bash
 FRITZING=/Applications/Fritzing.app/Contents/MacOS/Fritzing
@@ -35,6 +37,11 @@ FRITZING=/Applications/Fritzing.app/Contents/MacOS/Fritzing
   Sketches with Arduino code also hold `.ino` files. Sketches with non-library
   parts bundle `part.<file>.fzp_<hash>_N.fzp` and `svg.<view>.<file>…svg` members.
   Sample of 125 bundled sketches: 125 `.fz`, 58 `.ino`, 7 `.fzp`, 28 `.svg`.
+  Example with bundled parts: `sketches/core/obsolete/Synthesizer.fzz`.
+- The fzp names its SVGs as `image="breadboard/X.svg"`. The bundled member is
+  `svg.breadboard.X.svg`: prefix `svg.`, and the first `/` becomes `.`. A `.fzpz` part
+  file uses the same member names, so its members can be copied into a `.fzz` unchanged.
+  A sketch built that way opens and exports with no import step. **[verified]**
 - Loading unzips into `~/Library/Application Support/Fritzing/Fritzing/fzz/<random>/`
   and takes the first `*.fz` that `QDir::entryInfoList` returns. **[source]**
   With two `.fz` members, the alphabetically first one loaded. **[verified]**
@@ -111,7 +118,7 @@ a survey of the 125 bundled sketches plus `simple.fzz`.
 | `geometry/transform@m11…m33` | Rotation/flip QTransform. m31/m32 = translation. Absent = identity **[source]**; rotation not tested | `m11="0" m12="1" m21="-1" m22="0"` | B S P |
 | `wireExtras@color,mils,opacity,banded` | Wire colour, width in mils, opacity, striped look | `#418dd9`, `22.2222` | wires |
 | `wireExtras/bezier/cp0,cp1@x,y` | Curvy wire control points | | wires |
-| `titleGeometry@visible,x,y,z,xOffset,yOffset,textColor,fontSize` + `displayKey@key` | Part label position/visibility; `displayKey` = which properties show in the label | `displayKey key="resistance"` | S P (B rare) |
+| `titleGeometry@visible,x,y,z,xOffset,yOffset,textColor,fontSize` + `displayKey@key` | Part label position/visibility. One line per `displayKey`: `key=""` is the title, others are property names. Listing only `key="resistance"` drops the title. `fzz.set_label` always keeps the title line **[verified]** | `displayKey key=""` + `displayKey key="resistance"` → `R1` / `330Ω` | S P (B rare) |
 | `titleGeometry/transform` | Rotated label | | S P |
 | `layerHidden@layer` | A part layer hidden by the user | `silkscreen` | P |
 | `connectors/connector@connectorId,layer` | Connector of this item that has connections | `pin41Z` | B S P |
@@ -129,8 +136,12 @@ Layers seen in `<view layer>` / `connect@layer`: breadboard: `breadboard`,
 Special moduleIds (fzp compiled into the app, path `:/resources/parts/core/…`):
 `WireModuleID` (wire.fzp), `NoteModuleID` (note.fzp), plus logo/ruler/via/hole/
 ground/net-label parts (`LogoTextModuleID`, `ViaModuleID`, `HoleModuleID`,
-`NetLabelModuleID`, `PowerLabelModuleID`, `GroundModuleID`). No groups: the
-format has no group element, and none of the 125 samples contain one.
+`NetLabelModuleID`, `LeftNetLabelModuleID`, `PowerLabelModuleID`, `GroundModuleID`).
+`add_part` can't place these because there is no fzp to read layers from. Use
+`add_wire`, `add_note` and `add_net_label`, or copy an instance from a Fritzing-saved
+sketch: a note from `sketches/core/555TouchSwitch.fzz`, a net label from
+`sketches/core/obsolete/H-Bridge.fzz`. No groups: the format has no group element,
+and none of the 125 samples contain one.
 
 ### Per-view presence (important)
 
@@ -142,6 +153,9 @@ format has no group element, and none of the 125 samples contain one.
   derived from the connections. **[verified]**
   Files Fritzing saves itself copy each wire into all three views with the same flags.
 - An instance whose `<views>` is empty or absent is skipped on load. **[source]**
+- Schematic-only parts work. A resistor and LED with only a `<schematicView>` (to draw
+  circuitry that sits on a module's own board) export fine and leave the other views
+  alone. **[verified]**
 
 ### modelIndex, ids, titles
 
@@ -191,22 +205,77 @@ format has no group element, and none of the 125 samples contain one.
   cols 1–63, rows A–J plus rail rows W/X/Y/Z; A–E = lower block, F–J = upper block,
   `Z` = a top rail row and `X` = a bottom rail row per `simple.fzz`),
   half breadboard `0152b316-ca6e-11ee-a6fa-8be78db221f8BreadboardModuleID`,
-  resistor `ResistorModuleID`, battery `Electromechanical-BATTERY-2-AAA`.
+  resistor `ResistorModuleID`, battery `Electromechanical-BATTERY-2-AAA`,
+  5 mm LED `LED-genedb611bf8177f41ac9c325217070f0c62ColorLEDModuleID` (connectors
+  `connector1` = anode, `connector0` = cathode).
+- LED colour is a property, not a separate part. The core library has one 5 mm LED
+  ("Red LED - 5mm"). Set `color` to a value from the menu in
+  `fritzing-app/resources/properties.xml`, e.g. `Yellow (595nm)` or `Green (570nm)`, and
+  `items/led.cpp` recolours the SVG. Other values fall back to the default. **[verified]**
+- Connector names or ids: `fzz.connector_id(module_id, "anode")` → `connector1`. `end()`
+  and `place_at()` take either form.
+
+### 3a. Parts not in the library
+
+The core library is thin on newer boards. It has no Seeed XIAO parts, for example.
+Check vendor repositories before drawing a part yourself:
+
+- Seeed: `github.com/Seeed-Studio/fritzing_parts` (`XIAO Boards/`, `XIAO Accessories/`,
+  and Grove modules).
+- Adafruit: `github.com/adafruit/Fritzing-Library` (`parts/*.fzpz`).
+- SparkFun: `github.com/sparkfun/Fritzing_Parts`.
+- forum.fritzing.org (search "<board> fzpz"). Check that it is the same board: an
+  "ESP32-C5" part there is the DevKitC-1, not the XIAO.
+
+Download the `.fzpz` (ask first; it is a file download), keep it next to the script,
+and call `mid = fzz.load_fzpz(path)`. After that, `add_part`, `end`, `connector_pos`
+and `place_at` treat `mid` like a library part. `write_fzz` bundles the part's members
+into every sketch that uses it. `read_fzz` registers parts bundled in a sketch it
+reads. **[verified]** with Seeed's XIAO ESP32C5 part.
+
+Third-party parts can be broken in ways Fritzing does not report:
+
+- **Invisible in one view:** Fritzing draws only the SVG group whose `id` is the fzp
+  `layerId`. Seeed's XIAO ESP32C5 breadboard SVG had no `<g id="breadboard">`, so
+  the board exported as nothing, with no warning. `load_fzpz(repair=True)`, the default,
+  wraps such a single-layer SVG in the missing group. **[verified]**
+- **Pads off the 0.1 in grid:** the XIAO's breadboard pads are about 0.62 in apart
+  across the board, and their x positions drift by up to 1 px. The part cannot seat on
+  breadboard holes, so wire straight to the pads instead.
 
 ### Connector coordinates
 
-To land a wire end or leg on a connector: `part geometry (x,y)` + `SVG element
-centre × scale`, where scale = scene px per SVG unit
-= (SVG width in inches × 90) / viewBox width. A `px`/unitless width counts as
-72 dpi for Adobe Illustrator SVGs (detected by the "Generator: Adobe Illustrator"
-comment), otherwise 90 dpi (`TextUtils::convertToInches`). **[source]**
-Bendable legs use the `legId` line's `x1,y1`.
-`fzz.connector_offset()` implements this for rect/circle/ellipse/line/polygon
-connectors (a `<path>` connector raises `ValueError`). It ignores rotation and SVG
-group transforms. For an existing wire, `connector_pos`/`end` read the wire's own
-`x+x1,y+y1` / `x+x2,y+y2` ends, so `add_wire` can start from a wire end. Checks: breadboard2 hole `pin41I` plus the resistor leg offset gives
-(372.337, 49.4595) relative to the breadboard, the same value Fritzing saved in
-`simple.fzz`. Example (c)'s wire ends render exactly on its holes. **[verified]**
+`fzz.connector_offset(module_id, view, connector_id)` returns where a wire attaches,
+relative to the part's `<geometry x y>`, following Fritzing's own rules:
+
+1. **Bendable leg** (`legId`): the leg line's free end, i.e. the endpoint *farther from
+   the viewBox centre*. `FSvgRenderer::calcLeg` treats the nearer end as the body end.
+   That is `x1,y1` for the resistor but `x2,y2` for the 5 mm LED. **[source+verified]**
+2. **Else `terminalId`**: the centre of the terminal element. That is the outer end of a
+   schematic pin, where Fritzing attaches wires.
+3. **Else `svgId`**: the centre of the pin element (the midpoint of a pin line).
+
+Scale = scene px per SVG unit = (SVG width in inches × 90) / viewBox width. A
+`px`/unitless width counts as 72 dpi for Adobe Illustrator SVGs (detected by the
+"Generator: Adobe Illustrator" comment), otherwise 90 dpi
+(`TextUtils::convertToInches`). **[source]** Transforms on the element and its ancestors
+(matrix/translate/rotate/scale/skew) are applied. Groups use the union of their shapes.
+`<path>` uses the box of its end and control points. The part's own rotation
+(`geometry/transform`) is *not* applied.
+
+`fzz.place_at(module_id, view, connector, x, y)` gives the part position that puts
+`connector` on (x, y). Use it to snap a part onto a grid point or a hole. For an
+existing wire, `connector_pos`/`end` read the wire's own `x+x1,y+y1` / `x+x2,y+y2`
+ends, so `add_wire` can start from a wire end. A net label with `direction=left`
+connects at its left tip, `(x, y + 4.5)`.
+
+Checks **[verified]**:
+- Breadboard2 hole `pin41I` plus the resistor leg offset gives (372.339, 49.4595)
+  relative to the breadboard. Fritzing saved (372.337, 49.4595) in `simple.fzz`.
+- Wire ends in the 44 sketches under `sketches/core/`, for unrotated parts with
+  unbent legs: 94.7% of 1,492 ends lie within 0.5 px of `connector_pos` (the
+  pre-2026-09-19 version managed 41.4%). The rest are two parts without `terminalId`
+  (`7segment13an`, one other) whose saved wires sit ~5 px off the pin centre.
 
 ## 4. Getting Fritzing to show an edit
 
@@ -261,8 +330,9 @@ Answers to the core questions, all **[verified]** unless tagged:
 ## 5. Worked examples (stdlib only)
 
 The scripts live in `scripts/examples/` and use `scripts/fzz.py`. Run them with
-`python3` (no uv environment needed). All three were run, exported with
-`-svg` and inspected, and (c) was also opened in the GUI.
+`python3` (no uv environment needed). All were run, exported with `-svg` and
+inspected, and (c) was also opened in the GUI. Example (b) edits the first wire it
+finds, so it runs on (c)'s output.
 
 ### a. New sketch: resistor plugged into a breadboard
 
@@ -332,8 +402,39 @@ fzz.write_fzz("with_wire.fzz", root, extras)
 and `wireExtras` for the view, and links both ends in both directions. For a
 schematic wire use `"schematicView"` (layer `schematicTrace`, flags 128). For a
 PCB trace use `"pcbView"` (layer `copper1trace`, flags 4; untested).
+`via=[(x, y), …]` adds bend points: one wire per segment, chained end to end, as
+Fritzing does for a dragged bendpoint. It returns the list of wires. **[verified]**
 
 Render to check: `mkdir out && cp *.fzz out/ && $FRITZING -svg out`.
+
+### d. Schematic with a downloaded part, labels, a net label and a note
+
+```python
+xiao = fzz.load_fzpz("parts/Seeed Studio XIAO ESP32C5.fzpz")   # registered; bundled on write
+LED = "LED-genedb611bf8177f41ac9c325217070f0c62ColorLEDModuleID"
+S = "schematicView"
+
+root = fzz.new_sketch()
+u1 = fzz.add_part(root, xiao, "U1", {"breadboardView": (0, 0), S: (0, 0), "pcbView": (0, 0)})
+fzz.set_label(u1, S, 27, -12)
+r1 = fzz.add_part(root, "ResistorModuleID", "R1",
+                  {S: fzz.place_at("ResistorModuleID", S, "connector0", 117, 27)},   # pin end on the grid
+                  props={"resistance": "1.5k"})
+fzz.set_label(r1, S, 117, 36, keys=("resistance",))                    # "R1" + "1.5kΩ"
+d1 = fzz.add_part(root, LED, "D1", {S: fzz.place_at(LED, S, "anode", 180, 45)},
+                  props={"color": "Yellow (595nm)"})
+
+fzz.add_wire(root, S, fzz.end(u1, S, "3V3"), fzz.end(r1, S, "connector0"))
+fzz.add_wire(root, S, fzz.end(r1, S, "connector1"), fzz.end(d1, S, "anode"), via=[(180, 27)])
+cx, cy = fzz.connector_pos(d1, S, "connector0")                        # cathode
+net = fzz.add_net_label(root, "GPIO27", cx + 18, cy + 27)              # left tip at that point
+fzz.add_wire(root, S, fzz.end(d1, S, "cathode"), fzz.end(net, S, "connector0"), via=[(cx, cy + 27)])
+fzz.add_note(root, S, 315, -9, 180, 90, "<b>Title</b>", "One paragraph per argument.")
+fzz.write_fzz("blink.fzz", root)
+```
+
+Run as written, then exported with `-svg`: the wires land on the pin ends and the
+GPIO27 label's tip. D1 shows no label because it has no `set_label`. **[verified]**
 
 ## 6. Gotchas and troubleshooting
 
@@ -353,7 +454,18 @@ All **[verified]**:
   being connected, and nothing warns you.
 - A part without a `<schematicView>`/`<pcbView>` element is simply absent from that tab.
 - Hand-made parts without `<titleGeometry>` exported with no visible label in
-  schematic SVG (example a). Add one or place labels in the GUI. **[verified, cause unconfirmed]**
+  schematic SVG (example a). Use `fzz.set_label(inst, view, x, y, keys=…)`. **[verified, cause unconfirmed]**
+- A part missing from one view's export, while wires still end on its pads, means its SVG
+  lacks the `<g id="<layerId>">` group (Section 3a). `load_fzpz` repairs this.
+- Notes: the `-svg` export draws note text at about 9 pt whatever `font-size` the HTML
+  sets, and drops `<b>`. Text that overflows spills outside the box. Size the box to fit:
+  about 30 characters per 180 px of width, 14 px per line, plus 8 px per paragraph.
+  **[verified]**
+- Net labels: `NetLabelModuleID` (the default, `direction` right) connects at its *right*
+  tip, and its width follows the text. Use `add_net_label`, which writes
+  `LeftNetLabelModuleID` with `direction=left`: its connector sits at the left tip,
+  4.5 px below `geometry y` (labels are 9 px tall, `NetLabel::makeSvg`). Labels with the
+  same text are connected. **[source+verified]**
 - Duplicate `modelIndex` loads fine. Connections to it are ambiguous.
 - Empty `property value=""` is ignored rather than clearing the value **[source]**.
 - `ET.tostring` escapes `& < >` in text and attributes automatically. Never build
@@ -368,6 +480,9 @@ All **[verified]**:
   re-saves every sketch bundled inside `/Applications/Fritzing.app` **[source]**.
 - `-svg`, `-gerber`, `-all DIR` (gerber + BOM csv + IPC + SVGs) are batch
   services that exit when done. Only `-svg` is **[verified]**.
+- `-svg` segfaulted once (SIGSEGV, exit -11) on a sketch that then exported fine three
+  times in a row. A GUI instance was running at the time. Retry before debugging the
+  sketch. **[verified, cause unknown]**
 - Log noise: `module id … not found in database` lines at startup come from
   parts bins, not your sketch. `"finish up sketch loading"` marks the end of load.
 - More than one Fritzing process (including one another agent session started)
