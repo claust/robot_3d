@@ -1,0 +1,5 @@
+# Fritzing renders: only <project>_schematic.png is committed, next to its .fzz.
+*_breadboard.svg
+*_breadboard.png
+*_schematic.svg
+*_pcb.svg

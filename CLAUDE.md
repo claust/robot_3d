@@ -43,6 +43,10 @@ project folder: `source ~/.espressif/tools/activate_idf_v6.1.sh`, then
 - `sdkconfig.defaults` is the source of truth; `sdkconfig` and `build/` are generated.
 - Shared code is ESP-IDF components in `esp32-c5/components/` (e.g. `pwm_led`);
   a project adds `set(EXTRA_COMPONENT_DIRS ../components)` and `PRIV_REQUIRES <name>`.
+- Circuit diagrams: each project's `<project>.fzz` is the schematic's source. Edit it with
+  the fritzing-format skill or Fritzing, then re-render and commit `<project>_schematic.png`
+  (the only render kept). Third-party parts are downloaded (not committed) into
+  `esp32-c5/fritzing-parts/`; its README has sources and fixes.
 - XIAO pad labels (D0…) aren't GPIO numbers — check the pin map. Onboard user LED is GPIO 27, active-low.
 - The serial port is exclusive: if a VS Code/Arduino monitor holds it, don't
   read it from a shell. Never toggle DTR/RTS — it resets the chip into download mode.
@@ -55,3 +59,4 @@ project folder: `source ~/.espressif/tools/activate_idf_v6.1.sh`, then
 ## Conventions
 
 - Generated outputs (STL, STEP, PNG, gcode, USD, build/) are gitignored; commit only source.
+  Exception: Fritzing schematic PNGs next to their `.fzz`.
