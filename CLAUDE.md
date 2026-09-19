@@ -86,6 +86,25 @@ sheet or `SIMCTL_CHILD_BAMBU_*` env vars. TestFlight releases: `Scripts/testflig
 manual `testflight-ios.yml` GitHub workflow (secrets: ASC_KEY_ID,
 ASC_ISSUER_ID, ASC_KEY_P8, DEVELOPMENT_TEAM).
 
+## ESP32-C5 firmware (esp32-c5/)
+
+ESP-IDF projects for the Seeed XIAO ESP32-C5, one folder per project
+(`esp32-c5/blink` so far). ESP-IDF v6.1 is installed through EIM under
+`~/.espressif`; from a project folder:
+`source ~/.espressif/tools/activate_idf_v6.1.sh`, then `idf.py build`,
+`idf.py -p /dev/cu.usbmodem* flash`. `sdkconfig.defaults` is the source of
+truth (target, USB Serial/JTAG console, 8 MB flash); `sdkconfig` and `build/`
+are generated and ignored. The user LED is GPIO 27, active-low. The serial
+port is exclusive — close the Arduino or VS Code monitor before reading it
+from a shell.
+
+In VS Code open `robot_3d.code-workspace`, not the bare repo: the ESP-IDF
+extension only builds a workspace folder, and treats the first one as its
+active project, so firmware folders are listed before the repo root.
+IntelliSense reads `build/compile_commands.json`, so build once first. Its
+mode must stay `linux-gcc-x86` — a macOS mode defines `__APPLE__` and
+`esp_attr.h` then includes a Mach-O header that does not exist for the chip.
+
 ## Conventions
 
 - Generated outputs (STL, STEP, PNG, gcode, USD) are gitignored; commit only source.
