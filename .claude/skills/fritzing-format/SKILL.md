@@ -201,8 +201,10 @@ centre × scale`, where scale = scene px per SVG unit
 72 dpi for Adobe Illustrator SVGs (detected by the "Generator: Adobe Illustrator"
 comment), otherwise 90 dpi (`TextUtils::convertToInches`). **[source]**
 Bendable legs use the `legId` line's `x1,y1`.
-`fzz.connector_offset()` implements this. It ignores rotation and SVG group
-transforms. Checks: breadboard2 hole `pin41I` plus the resistor leg offset gives
+`fzz.connector_offset()` implements this for rect/circle/ellipse/line/polygon
+connectors (a `<path>` connector raises `ValueError`). It ignores rotation and SVG
+group transforms. For an existing wire, `connector_pos`/`end` read the wire's own
+`x+x1,y+y1` / `x+x2,y+y2` ends, so `add_wire` can start from a wire end. Checks: breadboard2 hole `pin41I` plus the resistor leg offset gives
 (372.337, 49.4595) relative to the breadboard, the same value Fritzing saved in
 `simple.fzz`. Example (c)'s wire ends render exactly on its holes. **[verified]**
 
@@ -300,7 +302,8 @@ No helper needed, plain stdlib:
 import zipfile, xml.etree.ElementTree as ET
 with zipfile.ZipFile("in.fzz") as z:
     name = sorted(n for n in z.namelist() if n.endswith(".fz"))[0]
-    root = ET.fromstring(z.read(name)); others = {n: z.read(n) for n in z.namelist() if n != name}
+    root = ET.fromstring(z.read(name))
+    others = {n: z.read(n) for n in z.namelist() if not n.endswith(".fz")}  # drop stale extra .fz too
 for inst in root.iter("instance"):
     if inst.findtext("title") == "R1":
         for p in inst.findall("property"):

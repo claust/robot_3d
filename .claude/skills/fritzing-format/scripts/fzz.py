@@ -14,6 +14,7 @@ PARTS = APP / "fritzing-parts"
 SCENE_DPI = 90.0  # sketch coordinates are pixels at 90 dpi: 0.1 in == 9.0
 
 VIEW_TAGS = ("breadboardView", "schematicView", "pcbView")
+WIRE_MODULE = "WireModuleID"
 WIRE_STYLE = {  # view -> (layer, wireFlags, color, mils)
     "breadboardView": ("breadboardWire", "64", "#418dd9", "22.2222"),
     "schematicView": ("schematicTrace", "128", "#404040", "9.7222"),
@@ -144,7 +145,9 @@ def _svg_scale(svg_root, raw_text):
 def connector_offset(module_id, view, connector_id):
     """Connector position relative to the part's <geometry x y> in scene px (unrotated parts only).
 
-    Uses the leg end for bendable-leg parts, else the centre of the svgId element.
+    Uses the leg end for bendable-leg parts, else the centre of the svgId element
+    (rect/circle/ellipse/line/polygon/polyline, or the first such shape inside a <g>).
+    Connectors drawn as <path> raise ValueError; place those by hand from the SVG.
     Ignores SVG group transforms — check the SVG if a part's numbers look off.
     """
     fzp = _fzp(module_id)
@@ -159,23 +162,41 @@ def connector_offset(module_id, view, connector_id):
     p = next(c for c in fzp.find("connectors").findall("connector") if c.get("id") == connector_id).find(f"views/{view}/p")
     target = p.get("legId") or p.get("svgId")
     el = next(e for e in svg.iter() if e.get("id") == target)
-    tag = el.tag.split("}")[-1]
-    if tag == "line":  # leg: x1,y1 is the free end
-        x, y = float(el.get("x1")), float(el.get("y1"))
-    else:
-        if tag == "g":
-            el = next(e for e in el.iter() if e.tag.split("}")[-1] in ("circle", "rect", "ellipse"))
-            tag = el.tag.split("}")[-1]
-        if tag in ("circle", "ellipse"):
-            x, y = float(el.get("cx")), float(el.get("cy"))
-        else:
-            x = float(el.get("x", 0)) + float(el.get("width")) / 2
-            y = float(el.get("y", 0)) + float(el.get("height")) / 2
+    x, y = _shape_point(el, is_leg=target == p.get("legId"), what=f"{module_id} {view} {connector_id} ({target})")
     return x * scale, y * scale
+
+
+_SHAPES = ("rect", "circle", "ellipse", "line", "polygon", "polyline")
+
+
+def _shape_point(el, is_leg, what):
+    tag = el.tag.split("}")[-1]
+    if tag == "g":
+        el = next((e for e in el.iter() if e.tag.split("}")[-1] in _SHAPES), None)
+        if el is None:
+            raise ValueError(f"connector {what}: group has no rect/circle/ellipse/line/polygon to measure")
+        tag = el.tag.split("}")[-1]
+    if tag == "line":
+        if is_leg:  # leg: x1,y1 is the free end
+            return float(el.get("x1")), float(el.get("y1"))
+        return (float(el.get("x1")) + float(el.get("x2"))) / 2, (float(el.get("y1")) + float(el.get("y2"))) / 2
+    if tag in ("circle", "ellipse"):
+        return float(el.get("cx", 0)), float(el.get("cy", 0))
+    if tag == "rect":
+        return (float(el.get("x", 0)) + float(el.get("width", 0)) / 2,
+                float(el.get("y", 0)) + float(el.get("height", 0)) / 2)
+    if tag in ("polygon", "polyline"):
+        nums = [float(n) for n in re.findall(r"-?[\d.]+(?:e-?\d+)?", el.get("points", ""))]
+        xs, ys = nums[0::2], nums[1::2]
+        return (min(xs) + max(xs)) / 2, (min(ys) + max(ys)) / 2
+    raise ValueError(f"connector {what}: unsupported SVG element <{tag}>; read its position from the SVG by hand")
 
 
 def connector_pos(inst, view, connector_id):
     g = inst.find(f"views/{view}/geometry")
+    if inst.get("moduleIdRef") == WIRE_MODULE:  # wire ends come from its own line, not an SVG
+        end_x, end_y = ("x1", "y1") if connector_id == "connector0" else ("x2", "y2")
+        return float(g.get("x")) + float(g.get(end_x)), float(g.get("y")) + float(g.get(end_y))
     dx, dy = connector_offset(inst.get("moduleIdRef"), view, connector_id)
     return float(g.get("x")) + dx, float(g.get("y")) + dy
 
@@ -226,7 +247,15 @@ def connect(view, a, b):
 
 
 def end(inst, view, connector_id):
-    """(instance, connectorId, layer) triple for connect()/add_wire()."""
+    """(instance, connectorId, layer) triple for connect()/add_wire(). Works for parts and existing wires."""
+    if inst.get("moduleIdRef") == WIRE_MODULE:
+        v = inst.find(f"views/{view}")
+        if v is None:
+            raise ValueError(f"wire {inst.findtext('title')} has no {view}")
+        return inst, connector_id, v.get("layer")  # a wire's connectors sit on the wire's own layer
+    info = part_info(inst.get("moduleIdRef"))
+    if info["fzp"] is None:
+        raise ValueError(f"{info['moduleId']} is compiled into Fritzing; its connector layers aren't on disk")
     return inst, connector_id, connector_layer(inst.get("moduleIdRef"), view, connector_id)
 
 
@@ -236,7 +265,7 @@ def add_wire(root, view, a, b, color=None, title=None):
     x1, y1 = connector_pos(a[0], view, a[1])
     x2, y2 = connector_pos(b[0], view, b[1])
     idx = next_model_index(root)
-    w = ET.SubElement(root.find("instances"), "instance", moduleIdRef="WireModuleID",
+    w = ET.SubElement(root.find("instances"), "instance", moduleIdRef=WIRE_MODULE,
                       modelIndex=str(idx), path="wire.fzp")
     ET.SubElement(w, "title").text = title or f"Wire{idx}"
     v = ET.SubElement(ET.SubElement(w, "views"), view, layer=layer)
