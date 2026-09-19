@@ -6,6 +6,9 @@
 //
 // All LEDs share one 5 kHz, 13-bit LEDC timer; each takes one LEDC channel
 // (6 on the ESP32-C5).
+//
+// Every call is safe from any task, including several tasks at once. Calls on
+// the same LED are serialized, so one waits while another's fade is running.
 
 #pragma once
 

@@ -4,6 +4,7 @@
 
 #include "driver/ledc.h"
 #include "freertos/FreeRTOS.h"
+#include "freertos/semphr.h"
 #include "freertos/task.h"
 
 #define SPEED_MODE LEDC_LOW_SPEED_MODE
@@ -25,6 +26,8 @@ struct pwm_led {
     ledc_channel_t channel;
     bool gamma;
     uint32_t level;  // brightness on the 0..DUTY_MAX scale, before gamma
+    SemaphoreHandle_t lock;     // serializes the public calls on this LED
+    StaticSemaphore_t lock_buf;
     TaskHandle_t breathe_task;  // NULL unless breathing
     TaskHandle_t stopper;       // task waiting for the breathing task to exit
     uint32_t breathe_ms;
@@ -32,6 +35,33 @@ struct pwm_led {
 
 static struct pwm_led s_leds[SOC_LEDC_CHANNEL_NUM];
 static int s_led_count;
+
+// Guards s_leds/s_led_count and the shared setup, so pwm_led_new can be
+// called from several tasks. Created on first use; the spinlock only
+// settles which task's mutex wins if two get here at once.
+static SemaphoreHandle_t s_new_lock;
+static portMUX_TYPE s_new_lock_init = portMUX_INITIALIZER_UNLOCKED;
+
+static bool take_new_lock(void)
+{
+    if (s_new_lock == NULL) {
+        SemaphoreHandle_t lock = xSemaphoreCreateMutex();
+        if (lock == NULL) {
+            return false;
+        }
+        taskENTER_CRITICAL(&s_new_lock_init);
+        if (s_new_lock == NULL) {
+            s_new_lock = lock;
+            lock = NULL;
+        }
+        taskEXIT_CRITICAL(&s_new_lock_init);
+        if (lock != NULL) {
+            vSemaphoreDelete(lock);
+        }
+    }
+    xSemaphoreTake(s_new_lock, portMAX_DELAY);
+    return true;
+}
 
 static uint32_t percent_to_level(uint8_t percent)
 {
@@ -77,11 +107,8 @@ static esp_err_t init_shared(void)
     return ledc_fade_func_install(0);
 }
 
-esp_err_t pwm_led_new(const pwm_led_config_t *config, pwm_led_handle_t *ret_led)
+static esp_err_t new_locked(const pwm_led_config_t *config, pwm_led_handle_t *ret_led)
 {
-    if (config == NULL || ret_led == NULL) {
-        return ESP_ERR_INVALID_ARG;
-    }
     if (s_led_count == SOC_LEDC_CHANNEL_NUM) {
         return ESP_ERR_NO_MEM;
     }
@@ -111,9 +138,23 @@ esp_err_t pwm_led_new(const pwm_led_config_t *config, pwm_led_handle_t *ret_led)
         return err;
     }
 
+    led->lock = xSemaphoreCreateMutexStatic(&led->lock_buf);
     s_led_count++;
     *ret_led = led;
     return ESP_OK;
+}
+
+esp_err_t pwm_led_new(const pwm_led_config_t *config, pwm_led_handle_t *ret_led)
+{
+    if (config == NULL || ret_led == NULL) {
+        return ESP_ERR_INVALID_ARG;
+    }
+    if (!take_new_lock()) {
+        return ESP_ERR_NO_MEM;
+    }
+    esp_err_t err = new_locked(config, ret_led);
+    xSemaphoreGive(s_new_lock);
+    return err;
 }
 
 static esp_err_t fade(struct pwm_led *led, uint32_t target, uint32_t ms, bool wait)
@@ -167,11 +208,11 @@ static void breathe_task(void *arg)
     vTaskDelete(NULL);
 }
 
-esp_err_t pwm_led_stop(pwm_led_handle_t led)
+// The public calls below take led->lock; the *_locked helpers assume it's
+// held. The breathing task never takes it, so stop can wait for the task
+// while holding it.
+static esp_err_t stop_locked(struct pwm_led *led)
 {
-    if (led == NULL) {
-        return ESP_ERR_INVALID_ARG;
-    }
     if (led->breathe_task == NULL) {
         return ESP_OK;
     }
@@ -188,12 +229,9 @@ esp_err_t pwm_led_stop(pwm_led_handle_t led)
     return err;
 }
 
-esp_err_t pwm_led_breathe(pwm_led_handle_t led, uint32_t fade_ms)
+static esp_err_t breathe_locked(struct pwm_led *led, uint32_t fade_ms)
 {
-    if (led == NULL || fade_ms == 0) {
-        return ESP_ERR_INVALID_ARG;
-    }
-    esp_err_t err = pwm_led_stop(led);
+    esp_err_t err = stop_locked(led);
     if (err != ESP_OK) {
         return err;
     }
@@ -207,9 +245,9 @@ esp_err_t pwm_led_breathe(pwm_led_handle_t led, uint32_t fade_ms)
     return ESP_OK;
 }
 
-esp_err_t pwm_led_set(pwm_led_handle_t led, uint8_t percent)
+static esp_err_t set_locked(struct pwm_led *led, uint8_t percent)
 {
-    esp_err_t err = pwm_led_stop(led);
+    esp_err_t err = stop_locked(led);
     if (err != ESP_OK) {
         return err;
     }
@@ -221,11 +259,55 @@ esp_err_t pwm_led_set(pwm_led_handle_t led, uint8_t percent)
     return err;
 }
 
-esp_err_t pwm_led_fade(pwm_led_handle_t led, uint8_t percent, uint32_t ms, bool wait)
+static esp_err_t fade_locked(struct pwm_led *led, uint8_t percent, uint32_t ms, bool wait)
 {
-    esp_err_t err = pwm_led_stop(led);
+    esp_err_t err = stop_locked(led);
     if (err != ESP_OK) {
         return err;
     }
     return fade(led, percent_to_level(percent), ms, wait);
+}
+
+esp_err_t pwm_led_stop(pwm_led_handle_t led)
+{
+    if (led == NULL) {
+        return ESP_ERR_INVALID_ARG;
+    }
+    xSemaphoreTake(led->lock, portMAX_DELAY);
+    esp_err_t err = stop_locked(led);
+    xSemaphoreGive(led->lock);
+    return err;
+}
+
+esp_err_t pwm_led_breathe(pwm_led_handle_t led, uint32_t fade_ms)
+{
+    if (led == NULL || fade_ms == 0) {
+        return ESP_ERR_INVALID_ARG;
+    }
+    xSemaphoreTake(led->lock, portMAX_DELAY);
+    esp_err_t err = breathe_locked(led, fade_ms);
+    xSemaphoreGive(led->lock);
+    return err;
+}
+
+esp_err_t pwm_led_set(pwm_led_handle_t led, uint8_t percent)
+{
+    if (led == NULL) {
+        return ESP_ERR_INVALID_ARG;
+    }
+    xSemaphoreTake(led->lock, portMAX_DELAY);
+    esp_err_t err = set_locked(led, percent);
+    xSemaphoreGive(led->lock);
+    return err;
+}
+
+esp_err_t pwm_led_fade(pwm_led_handle_t led, uint8_t percent, uint32_t ms, bool wait)
+{
+    if (led == NULL) {
+        return ESP_ERR_INVALID_ARG;
+    }
+    xSemaphoreTake(led->lock, portMAX_DELAY);
+    esp_err_t err = fade_locked(led, percent, ms, wait);
+    xSemaphoreGive(led->lock);
+    return err;
 }
