@@ -29,7 +29,10 @@ struct pwm_led {
     SemaphoreHandle_t lock;     // serializes the public calls on this LED
     StaticSemaphore_t lock_buf;
     TaskHandle_t breathe_task;  // NULL unless breathing
-    TaskHandle_t stopper;       // task waiting for the breathing task to exit
+    // Given by the breathing task as it exits. A private semaphore, not the
+    // stopper's task notification, which belongs to the caller's own code.
+    SemaphoreHandle_t exited;
+    StaticSemaphore_t exited_buf;
     uint32_t breathe_ms;
 };
 
@@ -145,6 +148,7 @@ static esp_err_t new_locked(const pwm_led_config_t *config, pwm_led_handle_t *re
     }
 
     led->lock = xSemaphoreCreateMutexStatic(&led->lock_buf);
+    led->exited = xSemaphoreCreateBinaryStatic(&led->exited_buf);
     s_led_count++;
     *ret_led = led;
     return ESP_OK;
@@ -210,7 +214,7 @@ static void breathe_task(void *arg)
     }
 
     led->breathe_task = NULL;
-    xTaskNotifyGive(led->stopper);
+    xSemaphoreGive(led->exited);
     vTaskDelete(NULL);
 }
 
@@ -223,9 +227,9 @@ static esp_err_t stop_locked(struct pwm_led *led)
         return ESP_OK;
     }
 
-    led->stopper = xTaskGetCurrentTaskHandle();
+    // The breathing task is ours, so its notification slot is free to use.
     xTaskNotifyGive(led->breathe_task);
-    ulTaskNotifyTake(pdTRUE, portMAX_DELAY);
+    xSemaphoreTake(led->exited, portMAX_DELAY);
 
     // Freeze the fade the task left running, and pick up where it got to.
     esp_err_t err = ledc_fade_stop(SPEED_MODE, led->channel);
