@@ -1,0 +1,8 @@
+{
+  // The only CMake project here is ESP-IDF firmware, which drives CMake itself;
+  // keep the CMake Tools extension from configuring it with a desktop compiler.
+  "cmake.configureOnOpen": false,
+  "cmake.configureOnEdit": false,
+  "cmake.automaticReconfigure": false,
+  "cmake.ignoreCMakeListsMissing": true
+}

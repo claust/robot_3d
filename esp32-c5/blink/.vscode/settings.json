@@ -1,0 +1,7 @@
+{
+  "idf.flashType": "UART",
+  // ESP-IDF drives CMake itself; keep the CMake Tools extension out of the way.
+  "cmake.configureOnOpen": false,
+  "cmake.configureOnEdit": false,
+  "cmake.automaticReconfigure": false
+}
