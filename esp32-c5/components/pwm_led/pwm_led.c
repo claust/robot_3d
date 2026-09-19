@@ -205,9 +205,16 @@ static void breathe_task(void *arg)
     struct pwm_led *led = arg;
     uint32_t target = DUTY_MAX;
 
+    // The tick is 10 ms by default, so a shorter fade would round down to a
+    // zero-tick wait and the loop would reverse as fast as the fades finish.
+    TickType_t wait = pdMS_TO_TICKS(led->breathe_ms);
+    if (wait == 0) {
+        wait = 1;
+    }
+
     while (true) {
         fade(led, target, led->breathe_ms, false);
-        if (ulTaskNotifyTake(pdTRUE, pdMS_TO_TICKS(led->breathe_ms)) > 0) {
+        if (ulTaskNotifyTake(pdTRUE, wait) > 0) {
             break;
         }
         target = (target == 0) ? DUTY_MAX : 0;
