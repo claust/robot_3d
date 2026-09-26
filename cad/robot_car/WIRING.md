@@ -4,14 +4,18 @@ How the prototype's electronics hang together: B2 LiPo → two P1 bucks → C1
 (Pi Zero 2 W) for logic and D2 (DRV8833) for power, driving two M2 N20
 gearmotors. Part IDs are the ones in `parts/index.html`.
 
-Status (2026-09-26): one link of the chain has run. One B2 pack → 10 A fuse
-→ one P1 buck at 6.0 V → bridge A of one D2 → one M2, with `IN1` pulled high
+Status (2026-09-26): one link of the chain has run. One B2 pack → a 10 A
+fuse → one P1 buck at 6.0 V → bridge A of one D2 → one M2, with `IN1` pulled high
 through 10 kΩ: the motor ran, and reversed with the resistor moved to `IN2`.
 That is bring-up step 4 for bridge A, powered from the pack instead of a bench
 supply, and it is why M2, D2, P1 and B2 read `ok` in the parts library. D2's
 bridge B, the Pi (C1, still `verify`) and steps 5–7 are not done yet, so the
 rest of this page is still the plan to bring up, in the order given under
 [Bring-up](#bring-up), not a tested circuit.
+
+The 10 A fuse was what was on the bench for that test. The car's harness
+takes the **2 A** fuse specified under [Power](#power); don't copy the test
+rating.
 
 ## What the D2 pins actually are
 
