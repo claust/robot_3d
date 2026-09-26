@@ -9,6 +9,7 @@
 //   XIAO D5  -> SRF08 pin 3 (SCL, blue),   4.7k to 3V3
 //   XIAO GND -> SRF08 pin 5 (0V, black)
 
+#include <stdbool.h>
 #include <stdio.h>
 
 #include "driver/i2c_master.h"
@@ -23,6 +24,8 @@
 #define I2C_SDA GPIO_NUM_23
 #define I2C_SCL GPIO_NUM_24
 
+// Whole cycle, not the delay after one: srf08_ping() already spends
+// SRF08_PING_MS waiting out the ranging window.
 #define PING_PERIOD_MS 250
 
 // (68 * 43 mm) + 43 mm = 2967 mm. Past the ~6 m the SRF08 can reach, echoes are
@@ -32,18 +35,27 @@
 
 static const char *TAG = "srf08_range";
 
-// The SRF08's address range (0x70-0x7F) runs into the I2C reserved block at
-// 0x78, so scan the whole space rather than the usual 0x08-0x77.
-static int scan_bus(i2c_master_bus_handle_t bus, uint8_t *found, int max_found)
+// Log every device on the bus and return the first one in the SRF08's address
+// range, or 0 if there is none. That range (0x70-0x7F) runs into the I2C
+// reserved block at 0x78, so scan the whole space rather than the usual
+// 0x08-0x77. Nothing here caps the scan: a bus full of other devices must not
+// stop us reaching a readdressed SRF08 at the top of the range.
+static uint8_t scan_bus(i2c_master_bus_handle_t bus, int *out_total)
 {
-    int count = 0;
-    for (uint8_t addr = 0x03; addr <= 0x7F && count < max_found; addr++) {
-        if (i2c_master_probe(bus, addr, 50) == ESP_OK) {
-            ESP_LOGI(TAG, "  found device at 0x%02X (8-bit write address 0x%02X)", addr, (uint8_t)(addr << 1));
-            found[count++] = addr;
+    uint8_t srf08_addr = 0;
+    int total = 0;
+    for (uint8_t addr = 0x03; addr <= 0x7F; addr++) {
+        if (i2c_master_probe(bus, addr, 50) != ESP_OK) {
+            continue;
+        }
+        total++;
+        ESP_LOGI(TAG, "  found device at 0x%02X (8-bit write address 0x%02X)", addr, (uint8_t)(addr << 1));
+        if (srf08_addr == 0 && addr >= SRF08_ADDR_MIN && addr <= SRF08_ADDR_MAX) {
+            srf08_addr = addr;
         }
     }
-    return count;
+    *out_total = total;
+    return srf08_addr;
 }
 
 void app_main(void)
@@ -64,19 +76,11 @@ void app_main(void)
     // S1 came off an old robot and may have been readdressed, so find it
     // rather than assuming the factory 0xE0.
     ESP_LOGI(TAG, "scanning I2C bus on SDA=GPIO%d SCL=GPIO%d...", I2C_SDA, I2C_SCL);
-    uint8_t found[8];
-    const int count = scan_bus(bus, found, sizeof(found));
-    if (count == 0) {
+    int total = 0;
+    const uint8_t addr = scan_bus(bus, &total);
+    if (total == 0) {
         ESP_LOGE(TAG, "no I2C devices at all - check wiring, pull-ups and the 5 V supply");
         return;
-    }
-
-    uint8_t addr = 0;
-    for (int i = 0; i < count; i++) {
-        if (found[i] >= SRF08_ADDR_MIN && found[i] <= SRF08_ADDR_MAX) {
-            addr = found[i];
-            break;
-        }
     }
     if (addr == 0) {
         ESP_LOGE(TAG, "no device in the SRF08 range 0x%02X-0x%02X", SRF08_ADDR_MIN, SRF08_ADDR_MAX);
@@ -95,6 +99,7 @@ void app_main(void)
     ESP_ERROR_CHECK(srf08_set_range(srf08, RANGE_REGISTER));
     ESP_LOGI(TAG, "ranging to %d mm, gain %d", (RANGE_REGISTER * 43) + 43, GAIN_REGISTER);
 
+    TickType_t next_ping = xTaskGetTickCount();
     while (true) {
         srf08_result_t result;
         const esp_err_t err = srf08_ping(srf08, &result);
@@ -110,6 +115,6 @@ void app_main(void)
             }
             printf("\n");
         }
-        vTaskDelay(pdMS_TO_TICKS(PING_PERIOD_MS));
+        xTaskDelayUntil(&next_ping, pdMS_TO_TICKS(PING_PERIOD_MS));
     }
 }
