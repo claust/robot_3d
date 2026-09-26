@@ -1,0 +1,9 @@
+{
+  "idf.flashType": "UART",
+  // ESP-IDF drives CMake itself; keep the CMake Tools extension out of the way.
+  "cmake.configureOnOpen": false,
+  "cmake.configureOnEdit": false,
+  "cmake.automaticReconfigure": false,
+  // Without this the extension builds for the plain ESP32, overriding sdkconfig.defaults.
+  "idf.customExtraVars": { "IDF_TARGET": "esp32c5" }
+}

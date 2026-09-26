@@ -4,6 +4,7 @@
     { "name": "esp32-c5/blink (ESP-IDF)", "path": "esp32-c5/blink" },
     { "name": "esp32-c5/led_flash (ESP-IDF)", "path": "esp32-c5/led_flash" },
     { "name": "esp32-c5/led_fade (ESP-IDF)", "path": "esp32-c5/led_fade" },
+    { "name": "esp32-c5/srf08_range (ESP-IDF)", "path": "esp32-c5/srf08_range" },
     { "name": "robot_3d", "path": "." }
   ]
 }

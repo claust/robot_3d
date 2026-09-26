@@ -5,6 +5,13 @@ Download parts that are missing from Fritzing's own library into this folder
 import a part into Fritzing: every `.fzz` in the repo carries its own copy of the
 parts it uses.
 
+## Devantech SRF08
+
+Fritzing has no SRF08, so `esp32-c5/srf08_range/srf08_range.fzz` carries a hand-made
+one (moduleId `robot3d_srf08_ModuleID`): the 5-way connector with its pins named, and
+a **schematic view only** — it has no breadboard or PCB view. To use it in a new
+sketch, `fzz.read_fzz()` that sketch first, which registers every part bundled in it.
+
 ## Seeed Studio XIAO ESP32C5
 
 Download `XIAO Boards/Seeed Studio XIAO ESP32C5.fzpz` from
