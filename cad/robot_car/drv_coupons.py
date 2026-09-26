@@ -1,7 +1,10 @@
-"""DRV8833 tray fit coupons (parts library D2).
+"""DRV8833 tray coupons (parts library D2).
 
-Six copies of chassis.py's drv_tray, each on its own small base, varying the
-two numbers a caliper can't settle for the 18.5 x 15.6 x 1.6 mm board:
+Copies of chassis.py's drv_tray, each on its own small base, for the
+18.5 x 15.6 x 1.6 mm board. Two plates:
+
+FIT (uv run robot_car/drv_coupons.py fit) varies the two numbers a caliper
+can't settle:
 
     A  end fit 0.05  preload 0.10       D  end fit 0.15  preload 0.10
     B  end fit 0.05  preload 0.20       E  end fit 0.15  preload 0.20
@@ -15,11 +18,18 @@ two numbers a caliper can't settle for the 18.5 x 15.6 x 1.6 mm board:
   across the short axis and vertically. Board thickness adds straight onto
   it: a 1.4 mm board gets 0.2 less preload than the 1.6 it is drawn for.
 
-RESULT (black PLA Basic, X2D, 1.6 mm board): C fits best -- no wiggle, and
-a fingernail on the latch still pops the board out. C's 0.05 end fit and
-0.30 preload are ChassisDims' defaults. C is the tight corner of the grid,
-so if the board ever loosens (PLA creep), the next step is more preload.
-Reprint only if the printer, filament or board changes.
+RESULT (black PLA Basic, X2D): C fits best -- no wiggle, and a fingernail
+on the latch still pops the board out. C's 0.05 end fit and 0.30 preload
+are ChassisDims' defaults. C is the tight corner of the grid, so if the
+board ever loosens (PLA creep), the next step is more preload. On that
+print the latch arm (then 1.0 x 4 mm, square root) snapped off at the
+plate on two of the six coupons, which is what the current arm fixes.
+
+LATCH (uv run robot_car/drv_coupons.py, the default) is three identical
+copies, H I J, of the tray at ChassisDims defaults: C's fit with the 0.8 x
+7 mm latch arm and its 1 mm root radii, checking that the arm survives
+repeated fitting and removal and that the fit still feels like C. RESULT
+(green PLA Basic, X2D): all three fit nicely, and the arm is the car's.
 
 Everything else is drv_tray at ChassisDims defaults -- the same 7 mm
 standoff (so the latch arm has its on-car length), tongues, corners and
@@ -31,10 +41,12 @@ tongues, rotate it down until the latch clicks over. Judge per coupon: does
 it go in by hand, does it rattle when shaken, can you push it along either
 axis, can you still pop it out with a fingernail on the latch.
 
-Run with:  uv run robot_car/drv_coupons.py
-Exports drv_coupons.stl and drv_coupons.step into the cwd.
+Run with:  uv run robot_car/drv_coupons.py [latch|fit]
+Exports drv_latch_coupons.stl/.step (latch) or drv_coupons.stl/.step (fit)
+into the cwd.
 """
 
+import sys
 from dataclasses import replace
 
 from build123d import (
@@ -76,32 +88,44 @@ def coupon(d: ChassisDims, letter: str) -> Part:
     return part
 
 
-def make_coupons() -> tuple[Part, list]:
+def fit_plate() -> list[tuple[str, ChassisDims]]:
+    """The FIT grid: rows are end fit, columns preload."""
+    letters = iter("ABCDEF")
+    return [
+        (next(letters), replace(ChassisDims(), drv_end_fit=e, drv_latch_preload=p))
+        for e in END_FITS for p in PRELOADS
+    ]
+
+
+def latch_plate() -> list[tuple[str, ChassisDims]]:
+    """Three copies of the tray as the car has it."""
+    return [(letter, ChassisDims()) for letter in "HIJ"]
+
+
+def make_coupons(entries, cols=3) -> Part:
     pitch_x = BASE_X[1] - BASE_X[0] + GAP
     pitch_y = BASE_Y + GAP
+    rows = (len(entries) + cols - 1) // cols
     plate = Part()
-    table = []
-    letters = iter("ABCDEF")
-    for row, end_fit in enumerate(END_FITS):
-        for col, preload in enumerate(PRELOADS):
-            d = replace(ChassisDims(), drv_end_fit=end_fit,
-                        drv_latch_preload=preload)
-            letter = next(letters)
-            x = (col - (len(PRELOADS) - 1) / 2) * pitch_x
-            y = ((len(END_FITS) - 1) / 2 - row) * pitch_y
-            plate += Pos(x, y, 0) * coupon(d, letter)
-            table.append((letter, d))
-    return plate, table
+    for i, (letter, d) in enumerate(entries):
+        row, col = divmod(i, cols)
+        x = (col - (cols - 1) / 2) * pitch_x
+        y = ((rows - 1) / 2 - row) * pitch_y
+        plate += Pos(x, y, 0) * coupon(d, letter)
+    return plate
 
 
 if __name__ == "__main__":
-    plate, table = make_coupons()
-    print("DRV8833 tray fit coupons")
+    which = sys.argv[1] if len(sys.argv) > 1 else "latch"
+    table = {"fit": fit_plate, "latch": latch_plate}[which]()
+    plate = make_coupons(table)
+    print(f"DRV8833 tray coupons, {which} plate")
     for letter, d in table:
         g = drv_latch_geometry(d)
         print(
             f"  {letter}: end fit {d.drv_end_fit:.2f}, preload "
-            f"{d.drv_latch_preload:.2f} -> insertion {g['deflection']:.2f} mm "
+            f"{d.drv_latch_preload:.2f}, arm {d.drv_latch_t:g} x {d.drv_latch_w:g} "
+            f"r{d.drv_latch_root_r:g} -> insertion {g['deflection']:.2f} mm "
             f"({g['strain'] * 100:.2f}% strain), barb reaches {g['reach']:.2f} "
             f"over the board, holds it at {g['rest_force']:.1f} N"
         )
@@ -110,6 +134,7 @@ if __name__ == "__main__":
     bbox = plate.bounding_box()
     print(f"Bounding box (mm): {bbox.size.X:.2f} x {bbox.size.Y:.2f} x {bbox.size.Z:.2f}")
     print(f"Volume: {plate.volume / 1000:.2f} cm^3")
-    export_stl(plate, "drv_coupons.stl")
-    export_step(plate, "drv_coupons.step")
-    print("Exported drv_coupons.stl and drv_coupons.step")
+    name = "drv_coupons" if which == "fit" else "drv_latch_coupons"
+    export_stl(plate, f"{name}.stl")
+    export_step(plate, f"{name}.step")
+    print(f"Exported {name}.stl and {name}.step")

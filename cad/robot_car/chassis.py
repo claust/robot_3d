@@ -101,6 +101,12 @@ drv_tray differs from pcb_tray in three ways:
   that clears the header solder pads. End fit 0.05 mm per end.
 - The tongues' 45 deg undersides start right at the seated board's edge,
   0.10 mm above it.
+- The latch arm is 0.8 x 7 mm with a 1 mm radius on both sides of its
+  root. It bends across the print layers and stays bent under the preload,
+  so it is kept thin (strain scales with thickness for a given bend: 0.83%
+  peak on insertion) and made wide to keep the clamping force (1.4 N).
+  The radius removes the sharp corner at the plate where a square-rooted
+  arm snaps off.
 End fit and preload are coupon C of drv_coupons.py: no wiggle, and the
 board still pops out by hand.
 
@@ -114,6 +120,7 @@ import sys
 from dataclasses import dataclass, field
 from pathlib import Path
 
+import numpy as np
 from build123d import (
     Align,
     Axis,
@@ -220,8 +227,14 @@ class ChassisDims:
     drv_latch_fit: float = 0.10  # latch face to board edge, board seated
     drv_latch_preload: float = 0.30
     drv_latch_barb: float = 0.9
-    drv_latch_t: float = 1.0
-    drv_latch_w: float = 4.0
+    # The arm bends across the print layers, PLA's weak direction, and stays
+    # bent by the preload whenever a board is in. Thin keeps the strain
+    # down (it scales with thickness for a given bend), wide gives back the
+    # clamping force, and the root radius on both sides removes the sharp
+    # corner at the plate where a break starts.
+    drv_latch_t: float = 0.8
+    drv_latch_w: float = 7.0
+    drv_latch_root_r: float = 1.0
     drv_tongue_clearance: float = 0.10
     # Corner shelf under the board: the header solder pads (Ø~1.7) sit
     # 1.45 mm in from both edges, so 0.6 mm is what clears them.
@@ -454,16 +467,26 @@ def latch_geometry(d: ChassisDims, standoff=None) -> dict:
     )
 
 
-def cantilever(L, t, b, y) -> dict:
+def cantilever(L, t, b, y, root_r=0.0) -> dict:
     """The snap-fit relations in latch_geometry's docstring, for an arm of
-    free length L, thickness t and width b deflected by y."""
+    free length L, thickness t and width b deflected by y. With root_r the
+    arm has a concave radius that size on both sides where it meets the
+    plate; the beam is then integrated numerically, and `strain` is the
+    peak along the arm (just above the radius, not at the plate)."""
     E_PLA = 3000.0  # MPa, printed
     EPS_PERM = 0.01  # 1% strain
-    y_perm = EPS_PERM * L ** 2 / (1.5 * t)
+    x = np.linspace(0.0, L, 4001)
+    fillet = np.where(
+        x < root_r, root_r - np.sqrt(np.clip(root_r ** 2 - (root_r - x) ** 2, 0, None)), 0.0
+    )
+    tx = t + 2 * fillet
+    I = b * tx ** 3 / 12
+    compliance = np.trapezoid((L - x) ** 2 / (E_PLA * I), x)  # tip mm per N
+    force = y / compliance
+    strain = (force * (L - x) * (tx / 2) / (E_PLA * I)).max()
     return dict(
-        free_length=L, deflection=y, permissible=y_perm,
-        strain=EPS_PERM * y / y_perm,
-        force=b * t ** 3 * E_PLA * y / (4 * L ** 3),
+        free_length=L, deflection=y, permissible=y * EPS_PERM / strain,
+        strain=strain, force=force,
     )
 
 
@@ -482,12 +505,12 @@ def drv_latch_geometry(d: ChassisDims) -> dict:
     barb, pre = d.drv_latch_barb, d.drv_latch_preload
     barb_z = board_top + barb - gap - pre
     L = barb_z - d.plate_thickness
-    t, b = d.drv_latch_t, d.drv_latch_w
-    rest = cantilever(L, t, b, pre)
+    t, b, r = d.drv_latch_t, d.drv_latch_w, d.drv_latch_root_r
+    rest = cantilever(L, t, b, pre, r)
     return dict(
         board_top=board_top, barb_z=barb_z, gap=gap, reach=barb - gap - pre,
         rest_strain=rest["strain"], rest_force=rest["force"],
-        **cantilever(L, t, b, barb - gap),
+        **cantilever(L, t, b, barb - gap, r),
     )
 
 
@@ -637,11 +660,19 @@ def drv_tray(d: ChassisDims, placed=True) -> Part:
         tray += chamfer(bottom.sort_by(Axis.X)[0], cap)
 
     g = drv_latch_geometry(d)
+    lw, r = d.drv_latch_w, d.drv_latch_root_r
     tray += rbox(
-        trail_face - d.drv_latch_t, trail_face,
-        -d.drv_latch_w / 2, d.drv_latch_w / 2,
+        trail_face - d.drv_latch_t, trail_face, -lw / 2, lw / 2,
         plate_top, g["barb_z"] + d.drv_latch_barb + 0.4,
     )
+    # concave root radius on both faces: a block beside the arm's foot with
+    # a Y-axis cylinder taken out of it
+    for x_face, out in ((trail_face, +1), (trail_face - d.drv_latch_t, -1)):
+        x0, x1 = sorted((x_face, x_face + out * r))
+        block = rbox(x0, x1, -lw / 2, lw / 2, plate_top, plate_top + r)
+        tray += block - Pos(x_face + out * r, 0, plate_top + r) * Cylinder(
+            radius=r, height=lw + 1, rotation=(90, 0, 0)
+        )
     tray += channel_barb(trail_face, +1, 0, g["barb_z"],
                          overhang=d.drv_latch_barb, length=d.drv_latch_w)
 
