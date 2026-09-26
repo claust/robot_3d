@@ -143,7 +143,7 @@ def write_movie(usdz: Path, out: Path) -> None:
         # placeholder form matters: "####" prints frame 10+ as "1e+01" and
         # the files overwrite each other; "####.###" gives plain 8-digit ints
         procs = [subprocess.Popen(["usdrecord", "--frames", f"0:{n_frames}", "--imageWidth", "800",
-                                   "--cam", name, str(usdz), str(Path(tmp) / f"{name}.####.###.png")],
+                                   "--cam", name, str(usdz), str(Path(tmp) / f"{name}.########.png")],
                                   stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
                  for name, _, _ in CAMERAS]
         for pr in procs:
