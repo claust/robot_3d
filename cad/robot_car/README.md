@@ -3,7 +3,7 @@
 A small two-wheel robot car: two N20 gearmotors drive O-ring-tyred wheels at
 the rear corners, a skid carries the front, and a Raspberry Pi Zero 2 W
 drives the motors through a DRV8833, all on one 3D-printed plate powered by
-a 2S LiPo. The current design is **PROTO-03**, the text engraved on the
+a 2S LiPo. The current design is **PROTO-04**, the text engraved on the
 plate's underside.
 
 This page is the map. It says what the car is made of, which script owns
@@ -23,6 +23,7 @@ IDs and status come from the parts library, [parts/index.html](../../parts/index
 | C1 | Raspberry Pi Zero 2 W | one, front | verify |
 | P1 | MP1584EN buck converter | two: 5.1 V for the Pi, 6.0 V for the motor driver | ok |
 | B2 | 2S LiPo 7.4 V 2200 mAh, XT60 | one, centre | ok |
+| — | KCD1-style mini rocker switch, 3 bent terminals ([kcd1_rocker.py](../parts/kcd1_rocker.py)) | one, left, between the motor and the motor buck | not yet in the parts library |
 
 Two O-rings, OD 60 / ID 40 with a 10 mm cord, serve as tyres. They came off
 an old wooden toy wheel, and the printed wheel copies that wheel's groove.
@@ -52,10 +53,15 @@ anything on the plate.
 - **Wheels** press onto the motors' D-shaft. The O-ring sits in a round
   groove, seated relaxed, and needs only a short stretch over the shoulder
   to install.
-- **Boards** (DRV8833 and both bucks) stand 7 mm off the plate on
-  tilt-and-slide trays: tuck one edge under two fixed tongues, rotate down,
-  and a flexing latch clicks over. The DRV8833 has its own tray with a
-  preloaded latch so the board cannot rattle.
+- **Boards** (DRV8833 and both bucks) stand 7 mm off the plate on one
+  tray design: tuck a long edge under two fixed tongues, rotate down, and
+  a preloaded latch on the other long edge clicks over, so the board cannot
+  rattle. Nothing reaches over the short ends, where every board carries
+  its headers. The bucks ride components down.
+- **Switch** snaps into a raised panel on two end walls
+  ([switch_well.py](switch_well.py)). Its terminals come bent over, so it
+  goes in held toward the motor, slides forward once the bent legs are
+  under the panel, and presses down until the clips catch.
 - **Pi** screws onto four bosses with self-tapping M2.5 screws.
 - **Battery** sits between four corner guides and is held by one
   hook-and-loop strap through a pair of slots.
@@ -80,6 +86,8 @@ changes.
 | Lid pad on the motor | 0.30 mm preload | `ChassisDims.lid_pad_preload` | [lid_coupons.py](lid_coupons.py), round 2 (lid E) | holds the motor; 0.40 and 0.50 would not slide on |
 | Wheel bore on the N20 shaft | 0.10 mm radial | `WheelDims.bore_clearance` | [bore_coupons.py](bore_coupons.py), station B3 | firm push-on, no play; 0.15 and 0.20 dropped on loose |
 | DRV8833 in its tray | 0.05 mm end fit, 0.30 mm latch preload | `ChassisDims.drv_end_fit`, `drv_latch_preload` | [drv_coupons.py](drv_coupons.py), coupon C | no wiggle, still pops out by hand |
+| MP1584 in its tray | 0.15 mm end fit (latch as the DRV8833's) | `ChassisDims.buck_end_fit` | [buck_coupons.py](buck_coupons.py), coupon N | sits flat, holds well; 0.05 was tight |
+| Switch in its well | 3.0 mm panel under the flange | `WellDims.panel_t` | [switch_well.py](switch_well.py), coupon C | best of 2.0 / 2.5 / 3.0 |
 | O-ring groove | copy of the ring's wooden wheel: root Ø39, shoulder Ø46 | root: `WheelDims.oring_id` x `STRETCH` (wheel.py); shoulder: root + 2 x `WheelDims.groove_depth_factor` x cord | printed wheels P7 and P8 | rings mount by hand and stay seated; the coupon rounds before it were too tight to mount |
 | Running fit, general | 0.2 mm radial | project-wide | `demo_04` fit test | moves freely; use for anything that turns |
 
@@ -109,6 +117,14 @@ Checks the lid on its own: it clears the cradle all along the slide,
 touches the motor only through its pad, and its detent rides only on the
 rails.
 
+```bash
+uv run robot_car/switch_well.py
+```
+
+Checks the switch in its well and searches for a way to put it in past the
+panel, the cradle and the motor buck, with room left to solder the
+terminals.
+
 Then look at the result before slicing. [render_assembly.py](render_assembly.py)
 draws a colour-coded plan and elevations, and [twin.py](twin.py) writes a
 USDZ of the whole car that macOS Quick Look opens.
@@ -126,6 +142,10 @@ USDZ of the whole car that macOS Quick Look opens.
   motors 4 mm forward so the lids clear the driver tray. It gave the
   DRV8833 its own preloaded tray, and added a second buck so the Pi and the
   motors have separate supplies.
+- **PROTO-04** added the power switch well. The bucks' old tray had a
+  fragile latch and corner posts that fought the headers soldered onto
+  every corner, so all three boards now share the DRV8833's tray, and the
+  bucks moved forward to make room for the switch.
 
 The commit messages for each step carry the measurements behind them.
 

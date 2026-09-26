@@ -7,6 +7,7 @@ programmatic PASS/FAIL checks against the assembled geometry.
 
 Every placement is derived from chassis.py's own ChassisDims constants
 (cradle_x, endwall_t, tray_standoff, pi_x, drv_x/y, buck_x/y, motor_buck_y, battery_x,
+switch_x/y,
 skid_front_x, ...) and the parts library dataclasses -- nothing here
 re-derives a number chassis.py or wheel.py already owns.
 
@@ -38,7 +39,8 @@ from build123d import Axis, Part, Pos, export_stl
 from scipy.spatial import cKDTree
 
 from chassis import (
-    ChassisDims, N20, build, drv_latch_geometry, drv_tray, latch_geometry,
+    ChassisDims, N20, buck_board_pose, buck_tray, build, drv_tray, switch_placement,
+    tray_latch_geometry,
     motor_placement, plate as chassis_plate,
 )
 from wheel import WheelDims, make_wheel
@@ -158,14 +160,16 @@ def tray_placement(
     cx: float, cy: float, board_thickness: float, part: Part, d: ChassisDims,
     standoff: float | None = None,
 ):
-    """Generic snap-hook tray seating: board bottom on the standoff ledge.
-    `standoff` defaults to the generic (MP1584) tray_standoff; pass
-    d.drv_tray_standoff for the DRV8833, which needs a taller ledge so its
-    with_headers=True solder-tail pins (3 mm below the board) clear the
-    plate."""
+    """Tray seating: board bottom on the standoff ledge."""
     standoff = d.tray_standoff if standoff is None else standoff
     z_center = d.plate_thickness + standoff + board_thickness / 2
     return Pos(cx, cy, z_center) * part
+
+
+def buck_placement(d: ChassisDims, side: int, mp_dims: Mp1584Dims, board: Part) -> Part:
+    """An MP1584 seated in buck_tray(d, side)."""
+    x, y, rot = buck_board_pose(d, side)
+    return tray_placement(x, y, mp_dims.board_thickness, board.rotate(Axis.Z, rot), d)
 
 
 def battery_placement(d: ChassisDims):
@@ -201,14 +205,12 @@ def main():
     # seated against the tongues (-Y), where the preloaded latch pushes it
     drv_placed = tray_placement(
         d.drv_x, d.drv_y - d.drv_lead_slack, drv_dims.board_thickness, drv_board, d,
-        standoff=d.drv_tray_standoff,
     )
 
     mp_dims = Mp1584Dims()
-    mp_board = make_mp1584(mp_dims)
-    mp_placed = tray_placement(d.buck_x, d.buck_y, mp_dims.board_thickness, mp_board, d)
-    mp_motor_placed = tray_placement(d.buck_x, d.motor_buck_y, mp_dims.board_thickness,
-                                     mp_board, d)
+    mp_board = make_mp1584(mp_dims, with_headers=True, with_dupont=True, mounted=True)
+    mp_placed, mp_motor_placed = (buck_placement(d, side, mp_dims, mp_board) for side in (-1, +1))
+    switch = switch_placement(d)
 
     battery, ldims, batt_z = battery_placement(d)
 
@@ -220,7 +222,7 @@ def main():
     assembly += motor_p + motor_m
     assembly += wheel_p + wheel_m
     assembly += installed_skid
-    assembly += pi_board + drv_placed + mp_placed + mp_motor_placed + battery
+    assembly += pi_board + drv_placed + mp_placed + mp_motor_placed + battery + switch
 
     export_stl(assembly, HERE / "car_assembly.stl")
     print(f"Exported {HERE / 'car_assembly.stl'}")
@@ -335,8 +337,8 @@ def main():
         "DRV8833 vs bare plate (header solder-tails)",
         v_drv_plate < TOL,
         f"intersection {v_drv_plate:.3f} mm^3 (< {TOL:g}) -- standoff "
-        f"{d.drv_tray_standoff:g} mm clears the {drv_dims.header_pin_down:g} mm solder "
-        f"tails by {d.drv_tray_standoff - drv_dims.header_pin_down:.1f} mm",
+        f"{d.tray_standoff:g} mm clears the {drv_dims.header_pin_down:g} mm solder "
+        f"tails by {d.tray_standoff - drv_dims.header_pin_down:.1f} mm",
     )
     check(
         "DRV8833 vs its own tray (hooks/latch vs board + headers)",
@@ -347,12 +349,22 @@ def main():
     )
     print(f"    (combined DRV8833-vs-full-chassis total = {v_drv_total:.3f} mm^3)")
 
+    # the same split for the two bucks, headers and Dupont housings on
+    for tag, side, board in (("Pi", -1, mp_placed), ("motors", +1, mp_motor_placed)):
+        v_tray = ivol(board, buck_tray(d, side))
+        check(
+            f"MP1584 ({tag}) vs its own tray (tongues/latch vs board + headers)",
+            v_tray < 1.0,
+            f"intersection {v_tray:.3f} mm^3 (< 1) -- only the latch's "
+            f"{d.drv_latch_preload:g} mm preload bites; the tongue columns sit "
+            f"between the SS34 diode and the OUT pads underneath",
+        )
+
     # -----------------------------------------------------------------
     # check 4b: can the one flexing feature per tray actually flex?
     # -----------------------------------------------------------------
     print("\n-- 4b. tray latch snap-fit strain --")
-    for tag, g in (("MP1584EN", latch_geometry(d, d.tray_standoff)),
-                   ("DRV8833", drv_latch_geometry(d))):
+    for tag, g in (("tray", tray_latch_geometry(d)),):
         check(
             f"{tag} latch strain at full deflection",
             g["strain"] <= 0.01,
@@ -360,9 +372,9 @@ def main():
             f"-> {g['strain'] * 100:.2f}% strain (<= 1.00%), "
             f"{g['force']:.1f} N ({g['force'] / 9.81:.2f} kgf) to press past",
         )
-    g = drv_latch_geometry(d)
+    g = tray_latch_geometry(d)
     check(
-        "DRV8833 latch still reaches over the seated board",
+        "tray latch still reaches over the seated board",
         g["reach"] >= 0.1,
         f"barb tip {g['reach']:.2f} mm over the board edge (>= 0.10) with "
         f"{d.drv_latch_preload:g} mm preload held at {g['rest_force']:.1f} N",
@@ -373,6 +385,7 @@ def main():
         ("MP1584 (Pi) vs chassis", mp_placed),
         ("MP1584 (motors) vs chassis", mp_motor_placed),
         ("LiPo pack vs chassis", battery),
+        ("power switch vs chassis (clips flex, so left off)", switch),
     ):
         v = ivol(part, chassis_all)
         check(name, v < TOL, f"intersection {v:.3f} mm^3 (< {TOL:g})")

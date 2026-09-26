@@ -186,9 +186,17 @@ card. We have five P1s; separating the rails is cheaper than a corrupted card.
 (One buck plus a fat bulk cap does work — it's just the variant to fall back
 to, not the one to start with.)
 
-On the chassis the two bucks sit in mirror-image trays either side of the
-battery: P1 #1 (5.1 V, Pi) on the right, P1 #2 (6.0 V, D2) on the left, the
-same side as D2, so each rail's wiring stays on its own side of the car.
+On the chassis the two bucks sit in trays either side of the battery: P1 #1
+(5.1 V, Pi) on the right, P1 #2 (6.0 V, D2) on the left, the same side as
+D2, so each rail's wiring stays on its own side of the car. Both ride
+components down, and a board can't be mirrored, so they sit rotated 180°
+to each other: P1 #2 has `IN` at the rear, next to the switch, and `OUT`
+at the front; P1 #1 has `IN` at the front and `OUT` at the rear.
+
+The switch (a KCD1-style mini rocker, `cad/parts/kcd1_rocker.py`) snaps into
+a well on the left, between the motor cradle and P1 #2, its bent terminals
+pointing forward. Wires solder straight onto the middle and outer
+(outboard) terminal tips; the inner one is unused.
 
 #### From the pack to the bucks
 
