@@ -11,7 +11,7 @@
   <a class="back-link" href="index.html">&larr; Parts Library</a>
 
   <section class="part" id="b2">
-    <div class="part-head"><span class="part-id">B2</span><h2>Yowoo "Graphene" 2S LiPo, 7.4 V 2200 mAh</h2><span class="badge untested">untested</span><span class="note">×2</span></div>
+    <div class="part-head"><span class="part-id">B2</span><h2>Yowoo "Graphene" 2S LiPo, 7.4 V 2200 mAh</h2><span class="badge ok">ok</span><span class="note">×2</span></div>
     <div class="part-body">
       <div class="part-text">
         <p>Modern LiPo packs, XT60 main connector, JST-XH 3-pin balance lead, 12 AWG silicone
@@ -24,6 +24,9 @@
               <code>cad/parts/b2_lipo.py</code> (XT60 stub size still estimated).</li>
           <li>2S: 7.4 V nominal, 8.4 V full, don't discharge below ~6.4 V (3.2 V/cell) —
               the robot should have a low-voltage cutoff or alarm.</li>
+          <li>Measured 2026-09-26: 8.45 V across the XT60 on one pack &mdash; full charge
+              (8.4 V is full; the extra 0.05 V is within meter tolerance). The second pack hasn&rsquo;t been
+              measured.</li>
           <li>Charge only with a balance charger (via the JST-XH lead), 1C = 2.2 A max,
               supervised, on a non-flammable surface.</li>
           <li>Store at storage charge (~3.8 V/cell ≈ 7.6 V), not full — full packs sitting

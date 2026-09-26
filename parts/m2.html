@@ -11,7 +11,7 @@
   <a class="back-link" href="index.html">&larr; Parts Library</a>
 
   <section class="part" id="m2">
-    <div class="part-head"><span class="part-id">M2</span><h2>N20 micro metal gearmotor, 6 V, 1:100 (100 rpm no-load)</h2><span class="badge untested">untested</span><span class="note">×5</span></div>
+    <div class="part-head"><span class="part-id">M2</span><h2>N20 micro metal gearmotor, 6 V, 1:100 (100 rpm no-load)</h2><span class="badge ok">ok</span><span class="note">×5</span></div>
     <div class="part-body">
       <div class="part-text">
         <p>New-bought stock, model <code>N20</code> — the common small metal-gearbox motor used in
@@ -43,6 +43,11 @@
               as a reference for any other N20 variant we order later, but this entry only
               speaks for the 6 V/1:100 units actually on hand.</li>
         </ul>
+        <p><strong>First motor test, 2026-09-26:</strong> one B2 pack &rarr; 10&nbsp;A fuse &rarr;
+        one P1 buck (target 6.0&nbsp;V) &rarr; one D2, bridge A &rarr; one M2 on
+        <code>OUT1</code>/<code>OUT2</code>. <code>IN1</code> pulled high through 10&nbsp;k&Omega;
+        from <code>VCC</code>, the other input left floating. The motor ran, and reversed
+        with the resistor moved to <code>IN2</code>. The other four motors are untested.</p>
         <p>To verify:</p>
         <ul class="checklist">
           <li>No-load current and speed at 6 V against the spec above</li>

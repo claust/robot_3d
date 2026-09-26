@@ -11,7 +11,7 @@
   <a class="back-link" href="index.html">&larr; Parts Library</a>
 
   <section class="part" id="p1">
-    <div class="part-head"><span class="part-id">P1</span><h2>MP1584EN adjustable buck (step-down) converter module</h2><span class="badge untested">untested</span><span class="note">×5</span></div>
+    <div class="part-head"><span class="part-id">P1</span><h2>MP1584EN adjustable buck (step-down) converter module</h2><span class="badge ok">ok</span><span class="note">×5</span></div>
     <div class="part-body">
       <div class="part-text">
         <p>New-bought stock, a tiny adjustable switching regulator board — a common
@@ -43,6 +43,13 @@
               M1 motors' 22 V rail) down to a clean logic rail (5 V, 3.3 V) for boards like the
               D2 DRV8833 or a microcontroller, rather than driving motors directly.</li>
         </ul>
+        <p><strong>First motor test, 2026-09-26:</strong> one B2 pack &rarr; 10&nbsp;A fuse &rarr;
+        one P1 buck (target 6.0&nbsp;V) &rarr; one D2, bridge A &rarr; one M2 on
+        <code>OUT1</code>/<code>OUT2</code>. <code>IN1</code> pulled high through 10&nbsp;k&Omega;
+        from <code>VCC</code>, the other input left floating. The motor ran, and reversed
+        with the resistor moved to <code>IN2</code>. Straight from the bag, with no load, this board&rsquo;s
+        trimpot gave ~5.5&nbsp;V out of the 2S pack: a working buck, set at an arbitrary
+        factory position, as expected. The other four are untested.</p>
         <p>To verify:</p>
         <ul class="checklist">
           <li>Set the output voltage with a multimeter under no load before connecting anything
