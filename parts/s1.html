@@ -11,7 +11,7 @@
   <a class="back-link" href="index.html">&larr; Parts Library</a>
 
   <section class="part" id="s1">
-    <div class="part-head"><span class="part-id">S1</span><h2>Devantech SRF08 ultrasonic rangefinder</h2><span class="badge verify">verify</span><span class="note">×1</span></div>
+    <div class="part-head"><span class="part-id">S1</span><h2>Devantech SRF08 ultrasonic rangefinder</h2><span class="badge retired">retired</span><span class="note">×1</span></div>
     <div class="part-body">
       <div class="part-text">
         <p>Yellow board silkscreened <code>SRF08</code> beside the left transducer &mdash; a
@@ -36,6 +36,13 @@
               <code>1</code> = max analogue gain (0&ndash;31), <code>2</code> = range.
               Read side: <code>0</code> = software revision, <code>1</code> = light level,
               <code>2</code>&ndash;<code>35</code> = echo results as high/low byte pairs.</li>
+          <li><strong>No I&sup2;C pull-ups are fitted on the board</strong> (measured
+              2026-09-20, module disconnected and unpowered: +5&nbsp;V to SDA about
+              1.5&ndash;2&nbsp;M&Omega;, +5&nbsp;V to SCL about 600&nbsp;k&Omega; &mdash; both
+              leakage through the PIC, not resistors). So the bus idles at whatever voltage
+              <em>our</em> pull-ups go to, and a 3.3&nbsp;V controller can be wired straight to
+              it without over-volting its pins. Whether the SRF08 then reads 3.3&nbsp;V as a
+              logic high is a separate question &mdash; its PIC wants 3.5&nbsp;V.</li>
           <li><strong>Up to 17 echoes</strong> per ping, not just the nearest &mdash; you can see
               past a near obstacle to what's behind it, which the cheap HC-SR04-class modules
               can't do.</li>
@@ -53,23 +60,45 @@
               blue&nbsp;=&nbsp;SCL, black&nbsp;=&nbsp;0V). Ring it out anyway before powering.
               The free end is a 4-way 0.1" DuPont housing.</li>
           <li>Back face: Microchip <code>PIC16F872</code> in SOIC-28 (lot code
-              <code>G4189SEP</code>) doing all the work, a 16-pin SOIC over by the transducer
-              drive that isn't identified, a can crystal marked <code>8000M</code>
+              <code>G4189SEP</code>) doing all the work, an ST <code>ST232C</code> (16-pin TSSOP, a
+              MAX232 equivalent) driving the transducer &mdash; its charge pump swings the
+              transmitter well past the 5&nbsp;V rail, and the PIC gates its supply so it only
+              draws current during a ranging, a can crystal marked <code>8000M</code>
               (8&nbsp;MHz), a red status LED by the header, and discrete SMD passives for the
               receive amplifier chain. Two mounting holes on the diagonal corners.</li>
         </ul>
-        <p>To verify:</p>
-        <ul class="checklist">
-          <li>Continuity-check the four wires against the documented pinout, and check the
-              hand-soldered pads for bridges, before applying 5&nbsp;V</li>
-          <li>Scan the I&sup2;C bus for its actual address &mdash; it may have been changed
-              away from <code>0xE0</code> on the old robot</li>
-          <li>First liveness test: read register <code>0</code> for the software revision</li>
-          <li>Check whether this board has I&sup2;C pull-ups fitted, or provide them on the bus</li>
-          <li>Level-shift SDA/SCL if the controller ends up being 3.3&nbsp;V</li>
-          <li>Beam pattern is a wide cone (~55°) &mdash; work out mounting height and tilt so
-              the floor isn't the first echo</li>
-          <li>Measure the board outline and hole spacing before designing a printed mount</li>
+        <p>Bench-tested 2026-09-20 against a XIAO ESP32-C5, using
+        <code>esp32-c5/srf08_range</code>. <strong>The ultrasonic ranging is dead; everything
+        else on the board works.</strong> Retired: don't design around it, but it is still a
+        perfectly good I&sup2;C target and ambient-light sensor for bench work.</p>
+        <ul>
+          <li><strong>Working:</strong> answers at the factory address <code>0xE0</code>
+              (never readdressed), reports software revision <code>6</code>, and the light
+              sensor tracks the room (38&ndash;183 across a session). Hundreds of I&sup2;C
+              transactions with no errors.</li>
+          <li><strong>Working at 3.3&nbsp;V logic</strong>, with 4.7&nbsp;k&Omega; pull-ups to
+              3.3&nbsp;V and no level shifter, despite its PIC wanting
+              <code>0.7&nbsp;&times;&nbsp;VDD</code> for a logic high. Marginal on paper,
+              solid in practice on this unit.</li>
+          <li><strong>Dead:</strong> every echo register reads zero on every ping &mdash; at
+              every gain <code>0</code>&ndash;<code>31</code>, every range setting including
+              the power-on defaults, against bare concrete at 1.5&nbsp;m, a flat target at
+              30&nbsp;cm, and keys jingled at close range (broadband 40&nbsp;kHz noise that a
+              working receiver picks up easily).</li>
+          <li><strong>Fault isolated to the receive amplifier chain</strong>, between the
+              receive transducer and the PIC. Everything upstream was eliminated: the
+              <code>ST232C</code>'s gated supply behaves correctly (0&nbsp;V idle, pulsing for
+              ~6&nbsp;ms per ranging, matching the configured listening window); its charge
+              pump reaches its rails (V&minus; averages &minus;5&nbsp;V while ranging, then
+              decays on its reservoir cap); the transmit transducer is wired to
+              <code>ST232C</code> pins 7 and 14 and audibly clicks on every ping; and the
+              receive transducer element itself measures healthy at 4.3&nbsp;nF with infinite
+              DC resistance.</li>
+          <li>Taking it further would need a scope on the analogue receive stages, and
+              Devantech never published a schematic. Not worth it for a 2004 board.</li>
+          <li>In-circuit measuring trap, for next time: the <em>transmit</em> transducer reads
+              ~220&nbsp;&Omega; and 0&nbsp;nF because the <code>ST232C</code>'s output stage
+              sits across it. That looks exactly like a shorted transducer and isn't one.</li>
         </ul>
       </div>
       <figure>
