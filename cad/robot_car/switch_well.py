@@ -194,9 +194,12 @@ def roll_in_check(w: WellDims, obstacles: list, step=0.5, dtheta=2.5):
     three terminal sections; the switch can be put in iff its seat is
     connected, through free poses, to a pose entirely above the panel.
 
-    The switch outline is shrunk 0.08 mm so resting contact isn't a
-    collision. Grid steps (0.5 mm, 2.5 deg: <= 0.9 mm at the tips) are
-    below the thinnest obstacle plus the 0.64 mm terminal strip, so nothing
+    The switch profile is shrunk 0.08 mm so resting contact isn't a
+    collision, and sampled on its outline every 0.1 mm and inside on a
+    0.4 mm grid, so an obstacle lying wholly inside the profile is caught
+    too (the smallest obstacle, a 0.6 mm tray ledge, always holds a grid
+    point). Grid steps (0.5 mm, 2.5 deg: <= 0.9 mm at the tips) are below
+    the thinnest obstacle plus the 0.64 mm terminal strip, so nothing
     tunnels between neighbouring poses. Returns (ok, poses from the free
     pose down to the seat)."""
     import shapely
@@ -206,7 +209,10 @@ def roll_in_check(w: WellDims, obstacles: list, step=0.5, dtheta=2.5):
     for ring in [prof.exterior, *prof.interiors]:
         n = max(int(ring.length / 0.1), 8)
         pts += [ring.interpolate(k / n, normalized=True).coords[0] for k in range(n)]
-    pts = np.array(pts)
+    x0, z0, x1, z1 = prof.bounds
+    gx, gz = np.meshgrid(np.arange(x0, x1, 0.4), np.arange(z0, z1, 0.4))
+    inner = shapely.contains_xy(prof, gx, gz)
+    pts = np.vstack([np.array(pts), np.column_stack([gx[inner], gz[inner]])])
 
     res = 0.05
     y_lo, y_hi, z_lo, z_hi = -40.0, 40.0, -w.height - 2, 20.0

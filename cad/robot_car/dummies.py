@@ -22,8 +22,8 @@ print-adapted, not miniatures:
 - DRV8833 dummy: bare 18.5 x 16 x 1.6 board with the IC bump. Header pins
   and holes omitted (a 1 mm hole / 0.64 mm pin doesn't print); the tray
   snap hooks grip the bare board edge exactly as they would the real PCB.
-- MP1584 dummy: 22 x 17 x 1.6 board with inductor and trimpot bumps, whose
-  heights matter for anything routed above the tray.
+- MP1584 dummy: 22.5 x 17 x 1.6 board with inductor and trimpot bumps, whose
+  heights matter for anything routed near the tray.
 
 Each dummy carries a raised label (M2 / D2 / P1) so the white parts stay
 identifiable once scattered on the bench.
@@ -145,12 +145,9 @@ def make_drv8833_dummy(d: Drv8833Dims | None = None) -> Part:
 def make_mp1584_dummy(d: Mp1584Dims | None = None) -> Part:
     d = d or Mp1584Dims()
     board = Box(d.board_length, d.board_width, d.board_thickness, align=ALIGN_BOTTOM)
-    inductor = Pos(d.inductor_x, d.inductor_y, d.board_thickness) * Box(
-        d.inductor_size, d.inductor_size, d.inductor_height, align=ALIGN_BOTTOM
-    )
-    trimpot = Pos(d.trimpot_x, d.trimpot_y, d.board_thickness) * Box(
-        d.trimpot_length, d.trimpot_width, d.trimpot_height, align=ALIGN_BOTTOM
-    )
+    bumps = [Pos(x, y, d.board_thickness) * Box(sx, sy, h, align=ALIGN_BOTTOM)
+             for x, y, sx, sy, h in (d.inductor, d.trimpot)]
+    inductor, trimpot = bumps
     label = Plane.XY.offset(d.board_thickness) * Pos(-d.board_length / 4 - 1, 3) * Text(
         "P1", font_size=4
     )
