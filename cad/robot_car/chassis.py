@@ -25,13 +25,16 @@ LAYOUT
   axis across the car, connector edge facing front.
 - Motor driver (D2 DRV8833), rear left: its own tilt-and-slide tray,
   drv_tray (see PCB TRAYS).
-- Buck converter (P1 MP1584EN), mid right: the generic tilt-and-slide tray,
-  pcb_tray. A Ø4 zip-tie hole past its +X short edge is the strain relief
-  for the power leads.
+- Buck converters (P1 MP1584EN, two), mid right and mid left, mirror
+  images on the generic tilt-and-slide tray, pcb_tray. The right one (5.1 V)
+  feeds the Pi; the left one (6.0 V) feeds the motor driver on the same
+  side, so a motor stall can't pull down the Pi's supply
+  (cad/robot_car/WIRING.md). A Ø4 zip-tie hole past each one's +X short
+  edge is the strain relief for its power leads.
 - Battery (B2 2S LiPo, 93 x 35.2 mm calipered), centre: four L-shaped guide
   nubs hug its corners at 0.5 mm clearance, and one pair of 25 x 3 mm slots
   takes the 21 mm hook-and-loop strap. The XT60 lead exits at +X, toward
-  the buck and the Pi.
+  the bucks and the Pi.
 - Skid: a Ø10 hole on the centreline at the front (X=55) and another at the
   rear (X=-58). The skid is a separate part that push-snaps up through
   either hole from underneath, on four slit prongs.
@@ -51,7 +54,7 @@ DESIGN RULES
   At 94 mm the can clears by 3.4 mm and the tabs by 0.9 mm.
 - The motor's gearbox face lands 2 mm inboard of the plate edge, against
   the inside of the end wall, so the wall stands fully on the plate.
-- The driver and buck sit off the centreline because the battery and the
+- The driver and bucks sit off the centreline because the battery and the
   cradles leave no room there; the Pi sits at X=48 so the 93 mm pack fits
   behind it.
 - Nothing may stick out past the plate edge: build() clips every added
@@ -70,7 +73,7 @@ DESIGN RULES
   textured PEI sheet, which grains the plate face and the letter floors
   alike, so legibility comes from stroke width and depth.
 - Strap slot: one 25 x 3 mm slot per side for the 21 mm strap, spanning X
-  -25..0 between the cradles and the buck tray, 1 mm off the pack's side.
+  -25..0 between the cradles and the buck trays, 1 mm off the pack's side.
   The cradles stand in line with the slots, 0.4 mm past their outer
   edge.
 
@@ -243,7 +246,8 @@ class ChassisDims:
     drv_corner_arm: float = 3.0
 
     buck_x: float = 13.0
-    buck_y: float = -27.8  # 0.2 mm clear of the battery envelope
+    buck_y: float = -27.8  # the Pi's buck; 0.2 mm clear of the battery envelope
+    motor_buck_y: float = 27.8  # the motor driver's buck, the mirror image
     buck_board_x: float = 22.0
     buck_board_y: float = 17.0  # the two 22 mm long edges stay open
 
@@ -268,7 +272,7 @@ class ChassisDims:
     # Mirrored text cut into the bottom face, centred between the two skid
     # sockets and inboard of the strap slots;
     # readable when the robot is flipped over.
-    label_lines: tuple = ("DELECTOSOFT", "© 2026  PROTO-02")
+    label_lines: tuple = ("DELECTOSOFT", "© 2026  PROTO-03")
     # It prints against the textured PEI sheet, which stipples the plate
     # face and the letter floors with the same grain, so legibility comes
     # from stroke width and depth: Arial Black's strokes are ~1.7 mm wide at
@@ -856,22 +860,26 @@ def build(d: ChassisDims) -> Chassis:
     # MP1584: its 22 mm long edges stay open, so it captures along X with
     # the latch forward, into clear plate.
     drv = drv_tray(d)
-    buck_tray = pcb_tray(d.buck_x, d.buck_y, d.buck_board_x, d.buck_board_y, d,
-                         axis="x", lead=-1)
+    buck_trays = [
+        pcb_tray(d.buck_x, y, d.buck_board_x, d.buck_board_y, d, axis="x", lead=-1)
+        for y in (d.buck_y, d.motor_buck_y)
+    ]
     nubs = battery_nubs(d)
-    # Both trays reach into a battery guide-nub arm.
+    # The trays reach into the battery guide-nub arms.
     # Trim whatever nub material actually collides with each tray's BUILT
     # envelope, rather than hand-deriving which arm and how much. The trays
     # win: they locate a board to 0.25 mm, the nubs only fence a soft pack.
     nubs -= drv
-    nubs -= buck_tray
+    for t in buck_trays:
+        nubs -= t
 
     body = plate(d)
     body += cradle_p
     body += cradle_m
     body += pi_mount(d)
     body += drv
-    body += buck_tray
+    for t in buck_trays:
+        body += t
     body += nubs
 
     # safety net: nothing added above may stick out past the plate's own
@@ -883,16 +891,17 @@ def build(d: ChassisDims) -> Chassis:
         body -= Pos(x, 0, -0.5) * Cylinder(
             radius=d.skid_hole_d / 2, height=d.plate_thickness + 1, align=ALIGN_BOTTOM
         )
-    # zip-tie hole past the MP1584 board's +X short edge, away from the
+    # zip-tie hole past each MP1584 board's +X short edge, away from the
     # battery bay, keeping >=4 mm of plate on every side (between the long
     # edge and the plate edge there is only 0.2 mm, which prints as an open
     # notch). The DRV8833 has none: its open edges face the cradle on one
     # side and the rear plate edge on the other.
     zip_x = d.buck_x + d.buck_board_x / 2 + 4.5
-    zip_y = -(d.plate_width / 2) + 4.5 + d.zip_tie_hole_d / 2  # 4.5 mm edge wall
-    body -= Pos(zip_x, zip_y, -0.5) * Cylinder(
-        radius=d.zip_tie_hole_d / 2, height=d.plate_thickness + 1, align=ALIGN_BOTTOM
-    )
+    zip_y = d.plate_width / 2 - 4.5 - d.zip_tie_hole_d / 2  # 4.5 mm edge wall
+    for sy in (-1, 1):
+        body -= Pos(zip_x, sy * zip_y, -0.5) * Cylinder(
+            radius=d.zip_tie_hole_d / 2, height=d.plate_thickness + 1, align=ALIGN_BOTTOM
+        )
 
     body -= label_engraving(d)
 
@@ -932,7 +941,8 @@ def build(d: ChassisDims) -> Chassis:
         "lid-Y": lids[1],
         "pi_board": pi_env,
         "drv8833": drv,
-        "mp1584": buck_tray,
+        "buck_pi": buck_trays[0],
+        "buck_motor": buck_trays[1],
         "battery": battery_env,
         # a cut, not a feature: nothing may stand over the strap's path
         "strap_slots": strap_slots(d),
@@ -1036,7 +1046,8 @@ if __name__ == "__main__":
     print(f"  motor cradles      : X={d.cradle_x:g}  Y=+-{d.plate_width/2:g} (edge)")
     print(f"  Pi Zero 2W mount   : X={d.pi_x:g}  Y=0")
     print(f"  DRV8833 tray       : X={d.drv_x:g}  Y={d.drv_y:g}")
-    print(f"  MP1584EN tray      : X={d.buck_x:g}  Y={d.buck_y:g}")
+    print(f"  MP1584EN tray, Pi  : X={d.buck_x:g}  Y={d.buck_y:g}")
+    print(f"  MP1584EN tray, mot.: X={d.buck_x:g}  Y={d.motor_buck_y:g}")
     print(f"  battery bay        : X={d.battery_x:g}  Y=0")
     print(f"  front skid hole    : X={d.skid_front_x:g}  Y=0")
     print(f"  rear skid hole     : X={d.skid_rear_x:g}  Y=0")

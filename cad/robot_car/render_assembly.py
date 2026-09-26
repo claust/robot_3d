@@ -85,6 +85,8 @@ def assembly_parts():
             standoff=d.drv_tray_standoff)),
         ("MP1584EN buck", tray_placement(
             d.buck_x, d.buck_y, mp_dims.board_thickness, make_mp1584(mp_dims), d)),
+        ("MP1584EN buck", tray_placement(
+            d.buck_x, d.motor_buck_y, mp_dims.board_thickness, make_mp1584(mp_dims), d)),
         ("LiPo pack", battery_placement(d)[0]),
     ]
     for i, side in enumerate((+1, -1)):
