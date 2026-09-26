@@ -23,14 +23,17 @@ LAYOUT
 - Raspberry Pi Zero 2 W (C1), front area: four bosses with Ø2.2 pilots for
   self-tapping M2.5 screws, on the 58 x 23 mm hole rectangle, board long
   axis across the car, connector edge facing front.
-- Motor driver (D2 DRV8833), rear left: its own tilt-and-slide tray,
-  drv_tray (see PCB TRAYS).
-- Buck converters (P1 MP1584EN, two), mid right and mid left, mirror
-  images on the generic tilt-and-slide tray, pcb_tray. The right one (5.1 V)
-  feeds the Pi; the left one (6.0 V) feeds the motor driver on the same
-  side, so a motor stall can't pull down the Pi's supply
-  (cad/robot_car/WIRING.md). A Ø4 zip-tie hole past each one's +X short
-  edge is the strain relief for its power leads.
+- Motor driver (D2 DRV8833), rear left, and the buck converters (P1
+  MP1584EN, two), mid right and mid left: each on a tilt-and-slide tray
+  (see PCB TRAYS). The right buck (5.1 V) feeds the Pi; the left one
+  (6.0 V) feeds the motor driver on the same side, so a motor stall can't
+  pull down the Pi's supply (cad/robot_car/WIRING.md). A Ø4 zip-tie hole
+  past each buck's front short edge is the strain relief for its power
+  leads.
+- Power switch (KCD1 rocker, cad/parts/kcd1_rocker.py), left side between
+  the cradle and the motor buck, outboard of the strap slot: it snaps into
+  a raised panel on two end walls (switch_well.py), long axis across the
+  car, its bent terminals pointing forward toward the motor buck.
 - Battery (B2 2S LiPo, 93 x 35.2 mm calipered), centre: four L-shaped guide
   nubs hug its corners at 0.5 mm clearance, and one pair of 25 x 3 mm slots
   takes the 21 mm hook-and-loop strap. The XT60 lead exits at +X, toward
@@ -56,7 +59,8 @@ DESIGN RULES
   the inside of the end wall, so the wall stands fully on the plate.
 - The driver and bucks sit off the centreline because the battery and the
   cradles leave no room there; the Pi sits at X=48 so the 93 mm pack fits
-  behind it.
+  behind it. The bucks sit as far forward as the Pi allows, to make room
+  for the switch behind the motor buck, and level with each other.
 - Nothing may stick out past the plate edge: build() clips every added
   feature to the plate outline. A Ø10 hole placed exactly tangent to the
   plate edge meshes non-manifold, so every hole keeps real wall to the edge.
@@ -79,39 +83,53 @@ DESIGN RULES
 
 PCB TRAYS
 
-Both boards stand 7.0 mm off the plate on a tilt-and-slide tray: tilt the
-board ~15 deg, tuck one long edge under two fixed 45 deg tongues, rotate it
-down until the one flexing latch on the opposite edge clicks over. Press
-the latch back with a fingernail to lift it out. Only the latch flexes.
-A snap arm's travel grows with the square of its length, and the 7 mm
-standoff is what gives the latch a ~9 mm arm: 0.4-0.5 mm of barb travel
-stays under 1% strain in PLA at 2-3 N of finger force (latch_geometry,
-cantilever). A short rigid post of the same height can't deflect 0.6 mm
-without breaking, which is why the other retention points are rigid. The
-standoff also clears the DRV8833's 3 mm header solder tails and leaves
-room for wiring under both boards.
+All three boards stand 7.0 mm off the plate on the same tilt-and-slide
+tray, header_tray: tilt the board ~15 deg, tuck one long edge under two
+fixed 45 deg tongues, rotate it down until the one flexing latch on the
+opposite long edge clicks over. Press the latch back with a fingernail to
+lift it out. Only the latch flexes. A snap arm's travel grows with the
+square of its length, and the 7 mm standoff is what gives the latch a
+usable arm (tray_latch_geometry, cantilever). The standoff also clears the
+boards' 3 mm header solder tails and leaves room for wiring under them.
 
-The DRV8833 (18.5 x 15.6 mm calipered, 1.6 mm thick) has straight pin
-headers soldered pins-up along both short ends. They cover the board top
-edge to edge there, so nothing reaches over the board except the two
-tongues and the latch, all in the clear middle band of the long sides.
-drv_tray differs from pcb_tray in three ways:
-- The latch is PRELOADED (drv_latch_geometry). Its lower 45 deg face
+Every board carries headers across its short ends -- the DRV8833 straight
+strips pins-up along both, each MP1584 a 2-pin header on every corner pad
+pair -- so nothing reaches over a board anywhere except the two tongues and
+the latch, each on a long edge.
+- The latch is PRELOADED (tray_latch_geometry). Its lower 45 deg face
   would cut 0.30 mm into the seated board's top edge, so the arm stays
   bent and presses the board down and against the tongue columns. The
   board can't rattle against a spring that is already leaning on it.
-- The corners are end stops flush with the board top, over a 0.6 mm shelf
-  that clears the header solder pads. End fit 0.05 mm per end.
+- The corners are end stops flush with the board top, with a 0.6 mm
+  ledge under each long edge for the board to rest on. End fit per end:
+  0.05 mm for the DRV8833 (drv_coupons.py C), 0.15 for the MP1584s
+  (buck_coupons.py N).
 - The tongues' 45 deg undersides start right at the seated board's edge,
-  0.10 mm above it.
+  0.10 mm above it. Each tongue's column is also a 1.2 mm shelf under
+  the board.
+- The DRV8833 has its components on top: the tongues stand 3 mm either
+  side of centre, between its header rows, and the ledges sit right in the
+  corners, clear of the header solder pads.
+- The MP1584s ride components DOWN (p1_mp1584.py, mounted), so their top
+  is bare but for the corner headers, and what the tray must miss is under
+  the board. The tongue columns stand on the diode's edge in the one
+  stretch with nothing near it, between the end of the SS34 and the OUT
+  pads (buck_tongue_xs), and the ledges sit 3.2 mm in from the short ends,
+  past the pads' solder joints and clear of the passives, on longer corner
+  walls (buck_corner_arm, buck_ledge_inset).
 - The latch arm is 0.8 x 7 mm with a 1 mm radius on both sides of its
   root. It bends across the print layers and stays bent under the preload,
   so it is kept thin (strain scales with thickness for a given bend: 0.83%
   peak on insertion) and made wide to keep the clamping force (1.4 N).
   The radius removes the sharp corner at the plate where a square-rooted
   arm snaps off.
-End fit and preload are coupon C of drv_coupons.py: no wiggle, and the
-board still pops out by hand.
+End fit and preload are coupon C of drv_coupons.py, the arm is its H-J;
+the fit and latch numbers carry the DRV8833's names for that reason.
+
+Tongues face the battery and latches face outboard, where a finger
+reaches. A board can't be mirrored, so the two bucks sit rotated 180 deg
+to each other: the motor buck has IN at the rear, toward the switch, and
+OUT at the front; the Pi's buck has IN at the front and OUT at the rear.
 
 Run with:  uv run chassis.py [plate_length] [plate_width] [wheel_diameter]
 Exports (gitignored): chassis.stl/.step, skid.stl/.step, and
@@ -145,9 +163,11 @@ from build123d import (
 )
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "parts"))
+from kcd1_rocker import make_kcd1  # noqa: E402
 from n20_motor import N20Dims, make_motor  # noqa: E402
 
 from lid_coupons import LidDims, lid_for_print, make_cradle, make_lid  # noqa: E402
+from switch_well import WellDims, make_well  # noqa: E402
 
 ALIGN_BOTTOM = (Align.CENTER, Align.CENTER, Align.MIN)
 ALIGN_TOP = (Align.CENTER, Align.CENTER, Align.MAX)
@@ -187,45 +207,20 @@ class ChassisDims:
     pi_boss_h: float = 5.0
     pi_pilot_d: float = 2.2
 
-    # ---- tilt-and-slide PCB trays (D2 DRV8833, P1 MP1584EN) ------------
-    # The standoff is what makes the latch work: it sets the arm's free
-    # length, and a snap arm this short has no other way to earn travel.
-    # 7.0 mm also clears the DRV8833's 3.0 mm header solder tails by 4.0 mm
-    # and leaves room to route wiring under both boards.
+    # ---- tilt-and-slide PCB trays (D2 DRV8833, P1 MP1584EN x2) ----------
+    # One tray for all three boards, header_tray (module docstring, PCB
+    # TRAYS). The standoff sets the latch arm's free length, and a snap arm
+    # this short has no other way to earn travel. 7.0 mm also clears the
+    # 3.0 mm header solder tails by 4.0 mm and leaves room for wiring.
     tray_standoff: float = 7.0  # board stands this high off the plate
     tray_board_t: float = 1.6
-    tray_snap_hook_w: float = 3.0  # corner feature footprint, square
-    tray_clearance: float = 0.15  # vertical, board top to hook underside
-    tray_fit: float = 0.25  # in-plane, per side, board edge to post face
-    # extra in-plane slack on the FIXED-hook edge only: rotating the board
-    # down sweeps its leading top corner outward by board_t * sin(tilt),
-    # ~0.4 mm at a 15 deg tilt, and it needs somewhere to go.
-    tray_lead_slack: float = 0.5
-    tray_hook_capture: float = 1.2  # fixed tongue reach over the board top
-    # The one flexing feature. 0.4 mm of engagement costs 0.86% strain on a
-    # 9.15 mm arm at 2.7 N -- see latch_geometry().
-    tray_latch_barb: float = 0.4
-    tray_latch_w: float = 4.0
-    tray_latch_t: float = 1.2
+    tray_snap_hook_w: float = 3.0  # tongue column footprint, square
+    tray_hook_capture: float = 1.2  # tongue reach over the board top
 
-    # Kept per-tray because only the DRV8833 has anything below its board
-    # (with_headers=True solder tails, 3.0 mm down).
-    drv_tray_standoff: float = 7.0
-
-    # d2_drv8833.py's soldered header bases run 15.24 mm along Y at both X
-    # ends of the board, so tongues at the board corners land on plastic,
-    # not on the PCB. 3.0 mm puts both of them in the 13 mm-wide clear band
-    # between the two rows.
-    drv_hook_span: float = 3.0
-
-    drv_x: float = -54.0
-    drv_y: float = 29.0  # clears the battery guide nub, >= 1 mm to the plate edge
-    drv_board_x: float = 18.5  # calipered
-    drv_board_y: float = 15.6  # calipered
-
-    # drv_tray. The seated board rests against the tongue side; every other
-    # number is a gap to that. End fit and preload are drv_coupons.py's C.
-    drv_end_fit: float = 0.05  # per end, 18.5 mm axis
+    # The fit and latch numbers every tray shares. The seated board rests
+    # against the tongue side; every other number is a gap to that. End
+    # fit and preload are drv_coupons.py's C, the latch arm its H-J.
+    drv_end_fit: float = 0.05  # per end, long axis
     drv_lead_slack: float = 0.30  # tilt sweep room, 1.6 * sin(10 deg) = 0.28
     drv_latch_fit: float = 0.10  # latch face to board edge, board seated
     drv_latch_preload: float = 0.30
@@ -239,17 +234,48 @@ class ChassisDims:
     drv_latch_w: float = 7.0
     drv_latch_root_r: float = 1.0
     drv_tongue_clearance: float = 0.10
-    # Corner shelf under the board: the header solder pads (Ø~1.7) sit
-    # 1.45 mm in from both edges, so 0.6 mm is what clears them.
+    # Ledge under each long edge, this deep: the DRV8833's header solder
+    # pads start ~0.7 mm in from its short edges, so 0.6 mm clears them.
     drv_corner_ledge: float = 0.6
     drv_corner_wall: float = 1.5
     drv_corner_arm: float = 3.0
 
-    buck_x: float = 13.0
-    buck_y: float = -27.8  # the Pi's buck; 0.2 mm clear of the battery envelope
-    motor_buck_y: float = 27.8  # the motor driver's buck, the mirror image
-    buck_board_x: float = 22.0
-    buck_board_y: float = 17.0  # the two 22 mm long edges stay open
+    drv_x: float = -54.0
+    drv_y: float = 29.0  # clears the battery guide nub, >= 1 mm to the plate edge
+    drv_board_x: float = 18.5  # calipered
+    drv_board_y: float = 15.6  # calipered
+    # d2_drv8833.py's soldered header bases run 15.24 mm along Y at both X
+    # ends of the board, so tongues at the board corners land on plastic,
+    # not on the PCB. 3.0 mm puts both of them in the 13 mm-wide clear band
+    # between the two rows.
+    drv_hook_span: float = 3.0
+
+    buck_x: float = 18.75  # tray front 1.35 mm behind the Pi board's rear edge
+    buck_y: float = -28.1  # the Pi's buck; tongue columns 0.2 mm off the battery
+    motor_buck_y: float = 28.1  # the motor driver's buck, level with it
+    buck_board_x: float = 22.5  # calipered
+    buck_board_y: float = 17.0  # calipered
+    buck_end_fit: float = 0.15  # per end, 22.5 mm axis: buck_coupons.py N
+    # Tongue centres along the board's 22.5 mm axis, in p1_mp1584.py's
+    # mounted frame (components down, IN end -X, SS34 diode edge -Y): under
+    # the diode's edge from the end of the diode (+0.44) to the OUT pads'
+    # solder (+8.45), the one stretch with nothing near the edge.
+    buck_tongue_xs: tuple = (2.6, 6.0)
+    # Ledges 3.2 mm in from each short end, 1.5 long: past the corner pads'
+    # solder (2.8 in) and clear of the passives along the edges; the corner
+    # walls run 5 mm along the long edges to carry them.
+    buck_corner_arm: float = 5.0
+    buck_ledge_inset: float = 3.2
+    buck_ledge_len: float = 1.5
+
+    # ---- power switch (switch_well.py) ------------------------------------
+    # Between the left cradle and the motor buck's tray: the body 3.55 mm
+    # clear of the cradle, the bent terminal tips 3.4 mm short of the tray,
+    # room to solder. Y puts the well's inboard end 0.3 mm
+    # outboard of the strap slot.
+    switch_x: float = -9.75
+    switch_y: float = 34.15
+    well: WellDims = field(default_factory=WellDims)
 
     # ---- B2 LiPo strap bay (calipered) ----------------------------------
     battery_x: float = -16.0
@@ -272,7 +298,7 @@ class ChassisDims:
     # Mirrored text cut into the bottom face, centred between the two skid
     # sockets and inboard of the strap slots;
     # readable when the robot is flipped over.
-    label_lines: tuple = ("DELECTOSOFT", "© 2026  PROTO-03")
+    label_lines: tuple = ("DELECTOSOFT", "© 2026  PROTO-04")
     # It prints against the textured PEI sheet, which stipples the plate
     # face and the letter floors with the same grain, so legibility comes
     # from stroke width and depth: Arial Black's strokes are ~1.7 mm wide at
@@ -435,40 +461,14 @@ def pi_mount(d: ChassisDims) -> Part:
 
 
 # ---------------------------------------------------------------------------
-# generic tilt-and-slide PCB tray (DRV8833, MP1584EN)
+# tilt-and-slide PCB tray (DRV8833, MP1584EN x2)
 #
-# Assembly: hold the board at ~15 deg, tuck its LEADING edge under the two
-# fixed 45 deg tongues, then rotate it down flat. The trailing edge cams
+# Assembly: hold the board at ~15 deg, tuck its long edge under the two
+# fixed 45 deg tongues, then rotate it down flat. The other long edge cams
 # the single latch outward on the way past and the barb closes over the
 # board top. Removal is the reverse -- press the latch back with a
 # fingernail and lift that edge.
-#
-# Only the latch flexes. A snap arm this short has almost no travel in
-# it, so the design spends its one flexing feature where it must and makes
-# the other three rigid (module docstring, PCB TRAYS).
 # ---------------------------------------------------------------------------
-
-
-def latch_geometry(d: ChassisDims, standoff=None) -> dict:
-    """Working numbers for one tray latch, so the arm is sized by
-    arithmetic rather than by eye. Standard cantilever snap-fit relations
-    for a constant rectangular section:
-
-        permissible deflection  y = eps * L^2 / (1.5 * t)
-        deflection force        F = b * t^3 * E * y / (4 * L^3)
-
-    with L the free length from the plate to the barb, t the thickness in
-    the bending direction and b the width. PLA is taken at E = 3000 MPa
-    (printed, not datasheet bulk) and a 1% permissible strain, which is
-    conservative for a part assembled a handful of times."""
-    standoff = d.tray_standoff if standoff is None else standoff
-    board_top = d.plate_thickness + standoff + d.tray_board_t
-    barb_z = board_top + d.tray_clearance + d.tray_latch_barb  # widest point
-    return dict(
-        board_top=board_top, barb_z=barb_z,
-        **cantilever(barb_z - d.plate_thickness, d.tray_latch_t,
-                     d.tray_latch_w, d.tray_latch_barb),
-    )
 
 
 def cantilever(L, t, b, y, root_r=0.0) -> dict:
@@ -494,17 +494,23 @@ def cantilever(L, t, b, y, root_r=0.0) -> dict:
     )
 
 
-def drv_latch_geometry(d: ChassisDims) -> dict:
-    """The DRV8833 latch is PRELOADED: its barb's lower 45 deg face passes
+def tray_latch_geometry(d: ChassisDims) -> dict:
+    """The tray latch is PRELOADED: its barb's lower 45 deg face passes
     drv_latch_preload below the seated board's top corner, so the arm
     stays bent by that much and pushes the board down and against the
     tongue side. The board can't wiggle away from a spring that is already
-    leaning on it -- the gap-based latch above can only stop it escaping.
+    leaning on it.
+
+    Working numbers from the standard cantilever snap-fit relations
+    (cantilever), PLA at E = 3000 MPa printed and a 1% permissible strain:
+
+        permissible deflection  y = eps * L^2 / (1.5 * t)
+        deflection force        F = b * t^3 * E * y / (4 * L^3)
 
     `gap` is the latch face to the seated board edge. Insertion deflects
     the arm by barb - gap (the tip has to clear the board edge); at rest it
     keeps `preload`, and the barb tip reaches `reach` over the board."""
-    board_top = d.plate_thickness + d.drv_tray_standoff + d.tray_board_t
+    board_top = d.plate_thickness + d.tray_standoff + d.tray_board_t
     gap = d.drv_lead_slack + d.drv_latch_fit
     barb, pre = d.drv_latch_barb, d.drv_latch_preload
     barb_z = board_top + barb - gap - pre
@@ -518,124 +524,34 @@ def drv_latch_geometry(d: ChassisDims) -> dict:
     )
 
 
-def pcb_tray(cx, cy, board_x, board_y, d: ChassisDims, standoff=None,
-             axis="x", lead=1, hook_span=None) -> Part:
-    """`axis` is the capture axis -- the one the fixed hooks and the latch
-    face each other across; the board's other two edges stay open for
-    wiring. `lead` picks which end of that axis carries the FIXED hooks
-    (+1 or -1), so the latch always ends up on the opposite, accessible
-    side. `standoff` defaults to the generic (MP1584) tray height.
-
-    `hook_span` is how far the fixed tongues sit from the board centre
-    along the OTHER axis; it defaults to the board corners. Pass a smaller
-    value when something stands on the board there -- the tongues are the
-    only feature that reaches over the board top, so they are the only
-    ones a tall component can foul.
-
-    Built in a canonical frame -- capture axis along X, fixed hooks at +X
-    -- then rotated into place, so there is one piece of geometry to reason
-    about instead of four mirrored variants."""
-    standoff = d.tray_standoff if standoff is None else standoff
+def header_tray(d: ChassisDims, bx: float, by: float, tongue_ys, arm=None,
+                ledge_inset=0.0, ledge_len=None, end_fit=None) -> Part:
+    """The tray (module docstring, PCB TRAYS) for a board bx across its
+    capture axis and by along it, in its canonical frame: board centred on
+    the origin, capture axis X with the tongues at +X and the latch at -X,
+    the board's short ends at +-Y. `tongue_ys` are the tongues' Y centres,
+    wherever that long edge is clear. Two tongues and one latch are all
+    that reach over the board; the corners are flush end stops, walls `arm`
+    long along both edges, with a drv_corner_ledge deep ledge under each
+    long edge, `ledge_inset` in from the short end and `ledge_len` long (a
+    square right in the corner by default). `end_fit` defaults to
+    drv_end_fit."""
     plate_top = d.plate_thickness
-    board_bot = plate_top + standoff
+    board_bot = plate_top + d.tray_standoff
     board_top = board_bot + d.tray_board_t
-    w, fit, slack = d.tray_snap_hook_w, d.tray_fit, d.tray_lead_slack
-    cap = d.tray_hook_capture
-
-    # canonical bx is the board dimension ALONG the capture axis
-    bx, by = (board_x, board_y) if axis == "x" else (board_y, board_x)
-    lead_face = bx / 2 + slack  # fixed-hook posts stand off by the tilt slack
-    trail_face = -bx / 2 - fit  # latch/locator posts sit snug
-    hook_top = board_top + d.tray_clearance + cap + 0.8
-    post_top = board_top + 0.6  # plain locators: no overhang, no lead-in
-
-    span = by / 2 if hook_span is None else hook_span
-    tray = Part()
-    for sx in (+1, -1):
-        for sy in (+1, -1):
-            px = lead_face if sx > 0 else trail_face
-            top = hook_top if sx > 0 else post_top
-            tray += Pos(px, sy * by / 2, plate_top) * Box(
-                w, w, top - plate_top, align=ALIGN_BOTTOM
-            )
-    # A tongue moved inboard of the corner (hook_span) needs its own column
-    # to stand on; without it the tongue floats at board height with
-    # nothing below it to print onto.
-    # When hook_span is the default the column coincides with the corner
-    # post and the union changes nothing.
-    for sy in (+1, -1):
-        tray += Pos(lead_face, sy * span, plate_top) * Box(
-            w, w, hook_top - plate_top, align=ALIGN_BOTTOM
-        )
-
-    # Clear the board's own volume out of everything above the ledge, so
-    # each corner block becomes an L-bracket hugging two board edges. The
-    # tongues are added AFTER this cut -- overhanging the board is their job.
-    tray -= rbox(trail_face, lead_face, -by / 2 - fit, by / 2 + fit,
-                 board_bot, board_top + 50)
-
-    # fixed hooks: a tongue over the board top, its underside chamfered to
-    # 45 deg so it prints unsupported AND guides the board in as it rotates
-    # down. The chamfer eats the whole overhang, so the tongue reaches its
-    # full `cap` only at the top -- the retention face is that 45 deg slope.
-    for sy in (+1, -1):
-        z0 = board_top + d.tray_clearance
-        tongue = rbox(
-            lead_face - cap, lead_face + w / 2,
-            sy * span - w / 2, sy * span + w / 2,
-            z0, z0 + cap + 0.8,
-        )
-        bottom = tongue.edges().group_by(Axis.Z)[0]
-        tray += chamfer(bottom.sort_by(Axis.X)[0], cap)
-
-    # the one flexing feature: a plain constant-section arm rising from the
-    # plate at the trailing edge centre, with a 45/45 diamond barb on its
-    # inner face. Free-standing on all sides -- the corner posts are out at
-    # +-by/2, so nothing stiffens it.
-    g = latch_geometry(d, standoff)
-    tray += rbox(
-        trail_face - d.tray_latch_t, trail_face,
-        -d.tray_latch_w / 2, d.tray_latch_w / 2,
-        plate_top, g["barb_z"] + d.tray_latch_barb + 0.4,
-    )
-    tray += channel_barb(trail_face, +1, 0, g["barb_z"],
-                         overhang=d.tray_latch_barb, length=d.tray_latch_w)
-
-    if axis == "y":
-        tray = tray.rotate(Axis.Z, 90 if lead > 0 else -90)
-    elif lead < 0:
-        tray = tray.rotate(Axis.Z, 180)
-    return Pos(cx, cy, 0) * tray
-
-
-def drv_tray(d: ChassisDims, placed=True) -> Part:
-    """The DRV8833 tray (module docstring, PCB TRAYS). Same tilt-and-slide as pcb_tray --
-    two fixed tongues on one long side, one latch on the other -- but
-    nothing reaches over the board anywhere except those three, because
-    the soldered header strips cover the board top edge to edge along both
-    short ends. The corners are flush end stops with a small shelf under
-    the board, and the latch is preloaded (drv_latch_geometry).
-
-    placed=False returns it in its canonical frame, board centred on the
-    origin: capture axis along X with the tongues at +X, 18.5 mm axis along
-    Y. drv_coupons.py prints it that way."""
-    standoff = d.drv_tray_standoff
-    plate_top = d.plate_thickness
-    board_bot = plate_top + standoff
-    board_top = board_bot + d.tray_board_t
-    bx, by = d.drv_board_y, d.drv_board_x
     w, cap = d.tray_snap_hook_w, d.tray_hook_capture
-    span = d.drv_hook_span
 
     lead_face = bx / 2 + d.drv_lead_slack
     trail_face = -bx / 2 - d.drv_latch_fit
-    end_face = by / 2 + d.drv_end_fit
+    end_face = by / 2 + (d.drv_end_fit if end_fit is None else end_fit)
     pocket = rbox(trail_face, lead_face, -end_face, end_face,
                   plate_top, board_top + 50)
 
     # corner end stops: an L of wall round each corner, flush with the
-    # board top, and a drv_corner_ledge square shelf under the corner itself
-    wall, arm, e = d.drv_corner_wall, d.drv_corner_arm, d.drv_corner_ledge
+    # board top, and a ledge under each long edge to rest the board on
+    wall, e = d.drv_corner_wall, d.drv_corner_ledge
+    arm = d.drv_corner_arm if arm is None else arm
+    ledge_len = e if ledge_len is None else ledge_len
     corners = Part()
     for sx, face in ((+1, lead_face), (-1, trail_face)):
         for sy in (+1, -1):
@@ -646,24 +562,25 @@ def drv_tray(d: ChassisDims, placed=True) -> Part:
     for sx, face in ((+1, lead_face), (-1, trail_face)):
         for sy in (+1, -1):
             x0, x1 = sorted((face, face - sx * e))
-            y0, y1 = sorted((sy * end_face, sy * (end_face - e)))
+            y0, y1 = sorted((sy * (end_face - ledge_inset),
+                             sy * (end_face - ledge_inset - ledge_len)))
             corners += rbox(x0, x1, y0, y1, plate_top, board_bot)
 
-    # fixed tongues, as pcb_tray's: the column is also the board's shelf on
-    # this side, and the 45 deg underside starts right at the board edge
+    # fixed tongues: the column is also the board's shelf on this side, and
+    # the 45 deg underside starts right at the board edge
     z0 = board_top + d.drv_tongue_clearance
     tray = corners
-    for sy in (+1, -1):
-        column = Pos(lead_face, sy * span, plate_top) * Box(
+    for ty in tongue_ys:
+        column = Pos(lead_face, ty, plate_top) * Box(
             w, w, z0 + cap + 0.8 - plate_top, align=ALIGN_BOTTOM
         )
         tray += column - Pos(0, 0, board_bot - plate_top) * pocket
         tongue = rbox(lead_face - cap, lead_face + w / 2,
-                      sy * span - w / 2, sy * span + w / 2, z0, z0 + cap + 0.8)
+                      ty - w / 2, ty + w / 2, z0, z0 + cap + 0.8)
         bottom = tongue.edges().group_by(Axis.Z)[0]
         tray += chamfer(bottom.sort_by(Axis.X)[0], cap)
 
-    g = drv_latch_geometry(d)
+    g = tray_latch_geometry(d)
     lw, r = d.drv_latch_w, d.drv_latch_root_r
     tray += rbox(
         trail_face - d.drv_latch_t, trail_face, -lw / 2, lw / 2,
@@ -679,11 +596,61 @@ def drv_tray(d: ChassisDims, placed=True) -> Part:
         )
     tray += channel_barb(trail_face, +1, 0, g["barb_z"],
                          overhang=d.drv_latch_barb, length=d.drv_latch_w)
+    return tray
 
+
+def drv_tray(d: ChassisDims, placed=True) -> Part:
+    """The DRV8833's tray, tongues on the battery side (-Y). placed=False
+    returns it in header_tray's canonical frame; drv_coupons.py prints it
+    that way."""
+    tray = header_tray(d, d.drv_board_y, d.drv_board_x,
+                       (d.drv_hook_span, -d.drv_hook_span))
     if not placed:
         return tray
-    # tongues on the battery side (-Y), latch outboard where a finger reaches
     return Pos(d.drv_x, d.drv_y, 0) * tray.rotate(Axis.Z, -90)
+
+
+def buck_tray(d: ChassisDims, side: int, placed=True) -> Part:
+    """An MP1584's tray, side=+1 the motor buck (+Y), -1 the Pi's (-Y),
+    tongues on the battery side. In the canonical frame p1_mp1584.py's
+    mounted board sits rotated +90 deg (its diode edge on the tongues), so
+    its X runs along +Y there."""
+    tray = header_tray(d, d.buck_board_y, d.buck_board_x, d.buck_tongue_xs,
+                       arm=d.buck_corner_arm, ledge_inset=d.buck_ledge_inset,
+                       ledge_len=d.buck_ledge_len, end_fit=d.buck_end_fit)
+    if not placed:
+        return tray
+    y = d.motor_buck_y if side > 0 else d.buck_y
+    return Pos(d.buck_x, y, 0) * tray.rotate(Axis.Z, -90 if side > 0 else 90)
+
+
+def buck_board_pose(d: ChassisDims, side: int) -> tuple[float, float, float]:
+    """(X, Y, Z-rotation deg) that place p1_mp1584.py's mounted board
+    (centred on its own origin) seated in buck_tray(d, side): resting
+    against the tongues, diode edge toward the battery."""
+    y = d.motor_buck_y if side > 0 else d.buck_y
+    return d.buck_x, y - side * d.drv_lead_slack, 0.0 if side > 0 else 180.0
+
+
+# ---------------------------------------------------------------------------
+# power switch well
+# ---------------------------------------------------------------------------
+
+
+def _switch_to_car(part: Part, d: ChassisDims) -> Part:
+    """switch_well.py's frame -> the car: long axis along Y, terminals +X."""
+    z = d.plate_thickness + d.well.height
+    return Pos(d.switch_x, d.switch_y, z) * part.rotate(Axis.Z, -90)
+
+
+def switch_well(d: ChassisDims) -> Part:
+    return _switch_to_car(make_well(d.well), d)
+
+
+def switch_placement(d: ChassisDims, clips: bool = False) -> Part:
+    """The reference switch, seated. Clips off by default: they flex, and
+    they grip the panel by design."""
+    return _switch_to_car(make_kcd1(d.well.sw, clips=clips), d)
 
 
 # ---------------------------------------------------------------------------
@@ -853,17 +820,11 @@ def build(d: ChassisDims) -> Chassis:
     plate_top = d.plate_thickness
     cradle_p = motor_cradle(d, +1)
     cradle_m = motor_cradle(d, -1)
-    # Capture axis per tray = across the edges that DON'T carry wiring.
-    # DRV8833: its short X-ends carry the headers, so it captures along Y,
-    # hooks on the battery side and the latch outboard where a finger can
-    # reach it (drv_tray).
-    # MP1584: its 22 mm long edges stay open, so it captures along X with
-    # the latch forward, into clear plate.
+    # Every tray captures across the board's long edges: the short ends
+    # carry the headers. Tongues on the battery side, latch outboard.
     drv = drv_tray(d)
-    buck_trays = [
-        pcb_tray(d.buck_x, y, d.buck_board_x, d.buck_board_y, d, axis="x", lead=-1)
-        for y in (d.buck_y, d.motor_buck_y)
-    ]
+    buck_trays = [buck_tray(d, -1), buck_tray(d, +1)]  # Pi's, motor's
+    well = switch_well(d)
     nubs = battery_nubs(d)
     # The trays reach into the battery guide-nub arms.
     # Trim whatever nub material actually collides with each tray's BUILT
@@ -880,6 +841,7 @@ def build(d: ChassisDims) -> Chassis:
     body += drv
     for t in buck_trays:
         body += t
+    body += well
     body += nubs
 
     # safety net: nothing added above may stick out past the plate's own
@@ -891,7 +853,7 @@ def build(d: ChassisDims) -> Chassis:
         body -= Pos(x, 0, -0.5) * Cylinder(
             radius=d.skid_hole_d / 2, height=d.plate_thickness + 1, align=ALIGN_BOTTOM
         )
-    # zip-tie hole past each MP1584 board's +X short edge, away from the
+    # zip-tie hole past each MP1584 board's front short edge, away from the
     # battery bay, keeping >=4 mm of plate on every side (between the long
     # edge and the plate edge there is only 0.2 mm, which prints as an open
     # notch). The DRV8833 has none: its open edges face the cradle on one
@@ -943,6 +905,8 @@ def build(d: ChassisDims) -> Chassis:
         "drv8833": drv,
         "buck_pi": buck_trays[0],
         "buck_motor": buck_trays[1],
+        "switch_well": well,
+        "switch": switch_placement(d),
         "battery": battery_env,
         # a cut, not a feature: nothing may stand over the strap's path
         "strap_slots": strap_slots(d),
@@ -1048,6 +1012,7 @@ if __name__ == "__main__":
     print(f"  DRV8833 tray       : X={d.drv_x:g}  Y={d.drv_y:g}")
     print(f"  MP1584EN tray, Pi  : X={d.buck_x:g}  Y={d.buck_y:g}")
     print(f"  MP1584EN tray, mot.: X={d.buck_x:g}  Y={d.motor_buck_y:g}")
+    print(f"  power switch well  : X={d.switch_x:g}  Y={d.switch_y:g}")
     print(f"  battery bay        : X={d.battery_x:g}  Y=0")
     print(f"  front skid hole    : X={d.skid_front_x:g}  Y=0")
     print(f"  rear skid hole     : X={d.skid_rear_x:g}  Y=0")

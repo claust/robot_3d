@@ -31,9 +31,9 @@ from mpl_toolkits.mplot3d.art3d import Poly3DCollection
 from scipy.spatial import ConvexHull
 
 from assembly import (
-    battery_placement, pi_placement, tray_placement, wheel_placement,
+    battery_placement, buck_placement, pi_placement, tray_placement, wheel_placement,
 )
-from chassis import ChassisDims, build, motor_placement
+from chassis import ChassisDims, build, motor_placement, switch_placement
 from d2_drv8833 import Drv8833Dims, make_drv8833
 from p1_mp1584 import Mp1584Dims, make_mp1584
 from wheel import WheelDims
@@ -50,6 +50,7 @@ COLOURS = {
     "DRV8833 driver": "#d64550",
     "MP1584EN buck": "#39a8c4",
     "LiPo pack": "#3b6fd4",
+    "power switch": "#222222",
 }
 
 # module -> text anchor for the top-plan leader lines. Small modules get a
@@ -60,12 +61,13 @@ PLAN_CALLOUTS = {
     "N20 gearmotor": (-92, 26),
     "drive wheel": (-24, 54),
     "front skid": (86, -26),
+    "power switch": (16, 58),
 }
 PLAN_INLINE = ("LiPo pack", "Pi Zero 2 W")  # big enough to label in place
 
 # draw order, back to front
 ORDER = ["chassis plate", "drive wheel", "N20 gearmotor", "motor lid", "front skid",
-         "LiPo pack", "Pi Zero 2 W", "DRV8833 driver", "MP1584EN buck"]
+         "LiPo pack", "Pi Zero 2 W", "DRV8833 driver", "MP1584EN buck", "power switch"]
 
 
 def assembly_parts():
@@ -81,13 +83,11 @@ def assembly_parts():
         ("Pi Zero 2 W", pi_placement(d)[0]),
         ("DRV8833 driver", tray_placement(
             d.drv_x, d.drv_y - d.drv_lead_slack, drv_dims.board_thickness,
-            make_drv8833(drv_dims), d,
-            standoff=d.drv_tray_standoff)),
-        ("MP1584EN buck", tray_placement(
-            d.buck_x, d.buck_y, mp_dims.board_thickness, make_mp1584(mp_dims), d)),
-        ("MP1584EN buck", tray_placement(
-            d.buck_x, d.motor_buck_y, mp_dims.board_thickness, make_mp1584(mp_dims), d)),
+            make_drv8833(drv_dims), d)),
+        ("MP1584EN buck", buck_placement(d, -1, mp_dims, make_mp1584(mp_dims, with_headers=True, with_dupont=True, mounted=True))),
+        ("MP1584EN buck", buck_placement(d, +1, mp_dims, make_mp1584(mp_dims, with_headers=True, with_dupont=True, mounted=True))),
         ("LiPo pack", battery_placement(d)[0]),
+        ("power switch", switch_placement(d, clips=True)),
     ]
     for i, side in enumerate((+1, -1)):
         parts.append(("N20 gearmotor", motor_placement(side, d)))

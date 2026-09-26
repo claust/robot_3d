@@ -62,7 +62,7 @@ from build123d import (
     extrude,
 )
 
-from chassis import ChassisDims, drv_latch_geometry, drv_tray
+from chassis import ChassisDims, tray_latch_geometry, drv_tray
 
 END_FITS = (0.05, 0.15)
 PRELOADS = (0.10, 0.20, 0.30)
@@ -121,7 +121,7 @@ if __name__ == "__main__":
     plate = make_coupons(table)
     print(f"DRV8833 tray coupons, {which} plate")
     for letter, d in table:
-        g = drv_latch_geometry(d)
+        g = tray_latch_geometry(d)
         print(
             f"  {letter}: end fit {d.drv_end_fit:.2f}, preload "
             f"{d.drv_latch_preload:.2f}, arm {d.drv_latch_t:g} x {d.drv_latch_w:g} "

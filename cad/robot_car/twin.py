@@ -47,6 +47,7 @@ FINISH = {
     "DRV8833 driver": (0.55, 0.0),
     "MP1584EN buck": (0.55, 0.0),
     "LiPo pack": (0.45, 0.0),
+    "power switch": (0.6, 0.0),
 }
 
 
