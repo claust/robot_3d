@@ -140,10 +140,13 @@ def write_usdz(meshes: dict, out: Path) -> None:
 def write_movie(usdz: Path, out: Path) -> None:
     n_frames = KEYS[-1][0]
     with tempfile.TemporaryDirectory() as tmp:
-        # placeholder form matters: "####" prints frame 10+ as "1e+01" and
-        # the files overwrite each other; "####.###" gives plain 8-digit ints
+        # Keep the "####.###" placeholder. usdrecord writes it as plain 8-digit
+        # frame numbers (name.00000000.png ... name.00000011.png), which the
+        # ffmpeg %08d input below reads. Any all-hash form ("####",
+        # "########") formats frame 10 as "1e+01", and later frames overwrite
+        # it. Tested with usdrecord 0:11 on 2026-09-26.
         procs = [subprocess.Popen(["usdrecord", "--frames", f"0:{n_frames}", "--imageWidth", "800",
-                                   "--cam", name, str(usdz), str(Path(tmp) / f"{name}.########.png")],
+                                   "--cam", name, str(usdz), str(Path(tmp) / f"{name}.####.###.png")],
                                   stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
                  for name, _, _ in CAMERAS]
         for pr in procs:
