@@ -415,6 +415,9 @@ VARIANTS = [
     LidDims(label="F", rail_clearance=0.10, pad_preload=0.40),
     LidDims(label="G", rail_clearance=0.10, pad_preload=0.50),
 ]
+# The lid the car uses (chassis.lid_dims carries the same two numbers);
+# the previews and the twin show this one.
+CHOSEN = next(v for v in VARIANTS if v.label == "E")
 PRINT_BASE = False
 
 
@@ -495,9 +498,9 @@ def render(base: Part, motor: Part, lids, plate: Part, out: Path) -> None:
     from mpl_toolkits.mplot3d.art3d import Poly3DCollection
 
     fig = plt.figure(figsize=(15, 5.2))
-    d = VARIANTS[-1]
+    d = CHOSEN
 
-    # -- section (XZ) through the can, lid B seated
+    # -- section (XZ) through the can, the chosen lid seated
     ax = fig.add_subplot(1, 3, 1)
     ax.set_title(f"section through the can, lid {d.label} seated")
     W, T = d.W, d.T
@@ -536,9 +539,10 @@ def render(base: Part, motor: Part, lids, plate: Part, out: Path) -> None:
         ax3.set_box_aspect((1, 1, 1))
 
     ax3 = fig.add_subplot(1, 3, 2, projection="3d")
-    ax3.set_title(f"coupon assembled: base, N20, lid {VARIANTS[-1].label} (half on)")
+    ax3.set_title(f"coupon assembled: base, N20, lid {CHOSEN.label} (half on)")
+    chosen_lid = next(lid for dd, lid in lids if dd.label == CHOSEN.label)
     b = [add_mesh(ax3, base, "#5a6472"), add_mesh(ax3, motor, "#9aa5b1"),
-         add_mesh(ax3, Pos(0, -9, 0) * lids[-1][1], "#e07b39", 0.85)]
+         add_mesh(ax3, Pos(0, -9, 0) * chosen_lid, "#e07b39", 0.85)]
     frame(ax3, b); ax3.view_init(elev=28, azim=-50)
 
     ax4 = fig.add_subplot(1, 3, 3, projection="3d")

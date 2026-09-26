@@ -2,9 +2,9 @@
 
 Two outputs, both from the very same Parts lid_coupons.py checks and prints:
 
-- lid_coupon_twin.usdz -- base cradle, N20 motor and lid B, colour-coded,
-  with the lid ANIMATED sliding on from the inboard side, pausing seated,
-  and sliding back off. macOS Quick Look plays USDZ animation directly:
+- lid_coupon_twin.usdz -- base cradle, N20 motor and the car's lid (E),
+  colour-coded, with the lid ANIMATED sliding on from the inboard side,
+  pausing seated, and sliding back off. macOS Quick Look plays USDZ animation directly:
       qlmanage -p robot_car/lid_coupon_twin.usdz
       open robot_car/lid_coupon_twin.usdz        # Preview.app
 - lid_coupon_slide.mp4 -- the same motion rendered as a short movie: the
@@ -28,7 +28,7 @@ import numpy as np  # noqa: E402
 import trimesh  # noqa: E402
 from build123d import Pos, export_stl  # noqa: E402
 
-from lid_coupons import VARIANTS, make_base, make_lid, motor_placement  # noqa: E402
+from lid_coupons import CHOSEN, make_base, make_lid, motor_placement  # noqa: E402
 
 COLOURS = {"base": "#5a6472", "motor": "#9aa5b1", "lid": "#e07b39"}
 FPS = 24
@@ -168,7 +168,7 @@ def main() -> None:
     ap = argparse.ArgumentParser(description=__doc__)
     ap.add_argument("--no-movie", action="store_true")
     args = ap.parse_args()
-    d = VARIANTS[-1]  # the hardest clamp of the current round
+    d = CHOSEN
     meshes = {"base": mesh_of(make_base(d)), "motor": mesh_of(motor_placement(d)),
               "lid": mesh_of(make_lid(d))}
     print({k: len(m.faces) for k, m in meshes.items()}, "triangles")

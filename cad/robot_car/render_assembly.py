@@ -53,7 +53,7 @@ COLOURS = {
 }
 
 # module -> text anchor for the top-plan leader lines. Small modules get a
-# callout out in clear space rather than a label dropped on a 16 mm board.
+# callout out in clear space rather than a label dropped on a 15.6 mm board.
 PLAN_CALLOUTS = {
     "DRV8833 driver": (-72, 52),
     "MP1584EN buck": (10, -54),
