@@ -4,10 +4,18 @@ How the prototype's electronics hang together: B2 LiPo → two P1 bucks → C1
 (Pi Zero 2 W) for logic and D2 (DRV8833) for power, driving two M2 N20
 gearmotors. Part IDs are the ones in `parts/index.html`.
 
-Nothing here has been powered up yet — D2, M2, P1 and B2 are all still
-`untested` in the parts library, and C1 is `verify`. Treat this as the plan to
-bring up, in the order given under [Bring-up](#bring-up), not as a tested
-circuit.
+Status (2026-09-26): one link of the chain has run. One B2 pack → a 10 A
+fuse → one P1 buck at 6.0 V → bridge A of one D2 → one M2, with `IN1` pulled high
+through 10 kΩ: the motor ran, and reversed with the resistor moved to `IN2`.
+That is bring-up step 4 for bridge A, powered from the pack instead of a bench
+supply, and it is why M2, D2, P1 and B2 read `ok` in the parts library. D2's
+bridge B, the Pi (C1, still `verify`) and steps 5–7 are not done yet, so the
+rest of this page is still the plan to bring up, in the order given under
+[Bring-up](#bring-up), not a tested circuit.
+
+The 10 A fuse was what was on the bench for that test. The car's harness
+takes the **2 A** fuse specified under [Power](#power); don't copy the test
+rating.
 
 ## What the D2 pins actually are
 
@@ -364,6 +372,8 @@ In this order. Steps 1–4 need no battery.
    should run. Swap to `IN2`: it should run the other way. Both inputs high:
    it should brake. Repeat on `IN3`/`IN4` with `OUT3`/`OUT4`. This is the
    step that confirms the `en` jumper really does leave the chip awake.
+   Done for bridge A on 2026-09-26 (see the status at the top), which
+   confirmed the jumper; bridge B is still to test.
 5. **Pi first, motors on the bench supply.** Pi on its normal USB power (the
    jack silkscreened `PWR IN`, not the `USB` one next to it), D2
    on the bench supply, grounds tied together, `IN1`–`IN4` on the four GPIOs.
@@ -379,8 +389,9 @@ In this order. Steps 1–4 need no battery.
    then buck #1 to the Pi. Connect the XT60 last, every time. Watch the pack
    voltage under a stall; the 2S pack must not go below 6.4 V.
 
-Only after step 7 does D2 move from `untested` to `ok` in
-`parts/index.html`.
+D2 went to `ok` in `parts/index.html` after bridge A passed step 4, with a
+note that bridge B is untested. Keep that note until bridge B has passed step
+4 and the whole chain has run on the pack in step 7.
 
 ## Open questions
 

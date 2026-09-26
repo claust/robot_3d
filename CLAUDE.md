@@ -9,6 +9,9 @@ uv project — run everything with `uv run` from inside `cad/`.
 
 - Experiments go in `cad/demo_NN/`; an ongoing build graduates to a named
   folder (e.g. `cad/robot_car/`) by renaming, not copying.
+- `cad/robot_car/README.md` is the car's design overview (parts, which
+  script owns what, settled fits, prototype history). Update it when a
+  prototype changes or a coupon settles a fit.
 - Render a model and check it visually before slicing; run a design's
   PASS/FAIL check script, if it has one, before printing.
 - Running clearance is 0.2 mm radial (calibrated — don't re-derive).
