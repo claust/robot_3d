@@ -11,7 +11,7 @@
   <a class="back-link" href="index.html">&larr; Parts Library</a>
 
   <section class="part" id="d2">
-    <div class="part-head"><span class="part-id">D2</span><h2>DRV8833 dual H-bridge motor driver module</h2><span class="badge untested">untested</span><span class="note">×5</span></div>
+    <div class="part-head"><span class="part-id">D2</span><h2>DRV8833 dual H-bridge motor driver module</h2><span class="badge ok">ok</span><span class="note">×5</span></div>
     <div class="part-body">
       <div class="part-text">
         <p>New-bought stock, a small breakout carrying a chip marked <code>V8833 / 82K / CV25</code>
@@ -75,24 +75,28 @@
         <p>Wiring plan for the robot-car prototype &mdash; pin-by-pin to the C1 Pi Zero 2 W
         and the M2 motors, power tree, control logic, bring-up order &mdash; is in
         <code>cad/robot_car/WIRING.md</code>.</p>
+        <p><strong>First motor test, 2026-09-26:</strong> one B2 pack &rarr; 10&nbsp;A fuse &rarr;
+        one P1 buck (target 6.0&nbsp;V) &rarr; one D2, bridge A &rarr; one M2 on
+        <code>OUT1</code>/<code>OUT2</code>. <code>IN1</code> pulled high through 10&nbsp;k&Omega;
+        from <code>VCC</code>, the other input left floating. The motor ran, and reversed
+        with the resistor moved to <code>IN2</code>.
+        That settles two open points: <code>VCC</code> does double as the motor supply,
+        and the factory-bridged <code>en</code> jumper leaves the chip awake with nothing on
+        <code>EEP</code>/<code>ULT</code>.</p>
         <p>To verify:</p>
         <ul class="checklist">
           <li>Row spacing with calipers before soldering: 12.7 mm means the module drops
               into the breadboard across the channel, anything else means jumper leads
               straight onto the pins instead</li>
           <li>Solder the header strips</li>
-          <li>Confirm VCC range and that it really does double as the motor supply before wiring a battery</li>
           <li>Settle <code>EEP</code> vs <code>ULT</code>: unpowered, measure each to
               <code>VCC</code>. The sleep pin reads ~47&nbsp;k&Omega; (good) or ~0&nbsp;&Omega;
               (hard tie, cap VCC at 6.5&nbsp;V); nFAULT reads open</li>
           <li>Measure <code>IN1</code>&ndash;<code>IN4</code> to <code>GND</code> unpowered &mdash;
               expect ~150&nbsp;k&Omega; internal pulldown on each</li>
-          <li>Confirm the bridged <code>en</code> jumper really does leave the chip awake: 6&nbsp;V
-              on VCC, one motor on <code>OUT1</code>/<code>OUT2</code>, jumper <code>IN1</code>
-              high &mdash; it should run with nothing on <code>EEP</code>/<code>ULT</code></li>
           <li>Check whether the green front-side part is a power LED (it should light when VCC
               comes up)</li>
-          <li>Bench-test each H-bridge independently against an M2 motor before trusting both channels at once</li>
+          <li>Bench-test bridge B (<code>IN3</code>/<code>IN4</code> &rarr; <code>OUT3</code>/<code>OUT4</code>) the same way as bridge A, then the other four boards</li>
         </ul>
       </div>
       <figure>
