@@ -24,6 +24,8 @@ over the LAN. Python environment is managed with [uv](https://docs.astral.sh/uv/
   profiles (inheritance resolved locally — the CLI doesn't do it and silently
   drops the AMS filament-load start gcode, causing "air prints").
 - `printer_status.py` — quick MQTT status check.
+- `robot_car/` — the ongoing robot-car build (graduated from `demo_06`).
+  Start at [robot_car/README.md](robot_car/README.md), the design overview.
 
 ## Printer connection
 
