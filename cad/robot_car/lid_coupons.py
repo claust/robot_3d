@@ -1,27 +1,27 @@
-"""robot_car: coupon for the PROTO-03 motor mount -- a slide-on locking lid.
+"""robot_car: the motor mount -- a slide-on locking lid -- and its fit coupon.
 
-PROTO-02's cradle holds the N20 with two retention lips on flexing fingers;
-in use the motors pop out too easily. This coupon tries the alternative the
-user sketched: the cradle keeps its rigid U-channel but carries a heavy
-DOVETAIL RAIL along the outside of each wall, and a separate LID slides on
-from the inboard side toward the wheel, its two skirts hooking under the
-rails. The lid's ceiling has a centre pad that lands on the motor's top
-(gearbox top and can crown are both 12 mm above the plate) with a small
-PRELOAD, so the motor is clamped down rather than merely fenced in. The
-lid stops against the end wall at the plate edge, is removable by sliding
-it back inboard, and ends 1 mm before the can's rear face so the two solder
-tabs and their wires stay completely free.
+chassis.py builds the car's two motor cradles and lids from this file's
+make_cradle and make_lid (via chassis.lid_dims), at lid E's fit.
 
-Fit is the whole question, so the coupon is one base plus lids that vary
-the fit, printed in rounds (the variant lists near the bottom, ROUND1 and
-VARIANTS, carry the exact values and each round's result):
+The cradle is a rigid U-channel with a DOVETAIL RAIL along the outside of
+each wall. A separate LID slides on from the inboard side toward the wheel,
+its two skirts hooking under the rails. The lid's ceiling has a centre pad
+that lands on the motor's top (gearbox top and can crown are both 12 mm
+above the plate) with a small PRELOAD, so the motor is clamped down rather
+than merely fenced in. The lid stops against the end wall at the plate
+edge, is removable by sliding it back inboard, and ends 1 mm before the
+can's rear face so the two solder tabs and their wires stay completely free.
 
-    round 1  base + lids A-D   rail clearance 0.1-0.3, preload 0.1-0.3
-             -> A (0.10 rail) fit best, motor still a bit wobbly
-    round 2  lids E-G only     rail clearance 0.10, preload 0.3 / 0.4 / 0.5
-             -> E fits nicely; F and G too tight to slide on
+The coupon is one base plus lids that vary the fit (ROUND1 and VARIANTS
+near the bottom carry the exact values). Results, black PLA Basic, X2D:
 
-Design values carried forward: rail_clearance 0.10, pad_preload 0.30.
+    A  rail 0.10  preload 0.10   fits, motor a bit wobbly
+    B  rail 0.20  preload 0.10   not as good as A
+    C  rail 0.30  preload 0.10   not as good as A
+    D  rail 0.20  preload 0.30   not as good as A
+    E  rail 0.10  preload 0.30   fits nicely and holds the motor -- USED
+    F  rail 0.10  preload 0.40   too tight to slide on
+    G  rail 0.10  preload 0.50   too tight to slide on
 
 Rail clearance is the gap on every mating face of the dovetail; preload is
 how far the pad's underside sits below the motor's top, i.e. how much the
@@ -37,7 +37,7 @@ the rail's outer face during the slide (the skirt springs out by the
 lid meets the end wall. Both ends of the tip ramp at 45 deg, so it clicks
 in and a firm pull clicks it back out. The skirt is short and stiff, so a
 beam estimate says ~3 % strain -- pessimistic, since only the free corner
-of a 23 mm plate is loaded, but this IS the thing the coupon has to prove.
+of a 23 mm plate is loaded.
 
 Run with:  uv run robot_car/lid_coupons.py
 Exports lid_coupons.stl/.step (the print plate: the current round's lids,
@@ -289,10 +289,13 @@ def hook_profile(d: LidDims):
     ]
 
 
-def make_base(d: LidDims) -> Part:
+def make_cradle(d: LidDims) -> Part:
+    """The motor cradle without a plate under it: channel walls with the
+    dovetail rails and detent recesses, and the end wall. Channel along Y
+    from y=0 (inboard) to edge_y (the plate edge), centred on x=0.
+    chassis.py places two of these on the car."""
     plate_top = d.plate_t
-    y0, y1 = -d.base_inboard, d.edge_y
-    base = rbox(-d.base_x / 2, d.base_x / 2, y0, y1, 0, plate_top)
+    base = Part()
 
     # channel walls
     for sgn in (-1, 1):
@@ -317,6 +320,14 @@ def make_base(d: LidDims) -> Part:
     ew -= rbox(-d.endwall_slot_w / 2, d.endwall_slot_w / 2,
                d.face_y - 0.1, d.edge_y + 0.1, slot_z0, d.T + d.ceiling_t + 1)
     base += ew
+    return base
+
+
+def make_base(d: LidDims) -> Part:
+    """The coupon: a cradle on its own small plate, labelled."""
+    plate_top = d.plate_t
+    base = rbox(-d.base_x / 2, d.base_x / 2, -d.base_inboard, d.edge_y, 0, plate_top)
+    base += make_cradle(d)
 
     # identity, raised on the plate beside the channel
     txt = label_face("O2 LID", 5.0)
@@ -357,6 +368,8 @@ def make_lid(d: LidDims) -> Part:
         lid += hook
     for sgn in (-1, 1):
         lid += tip_prism(d, sgn)
+    if not d.label:
+        return lid
     # letter engraved into the pad face (the lid's printed top)
     txt = label_face(d.label, d.label_size)
     bb = txt.bounding_box()

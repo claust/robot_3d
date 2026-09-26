@@ -45,6 +45,7 @@ COLOURS = {
     "N20 gearmotor": "#e07b39",
     "drive wheel": "#7d5ba6",
     "front skid": "#c9b458",
+    "motor lid": "#8a94a3",
     "Pi Zero 2 W": "#2e9e5b",
     "DRV8833 driver": "#d64550",
     "MP1584EN buck": "#39a8c4",
@@ -63,7 +64,7 @@ PLAN_CALLOUTS = {
 PLAN_INLINE = ("LiPo pack", "Pi Zero 2 W")  # big enough to label in place
 
 # draw order, back to front
-ORDER = ["chassis plate", "drive wheel", "N20 gearmotor", "front skid",
+ORDER = ["chassis plate", "drive wheel", "N20 gearmotor", "motor lid", "front skid",
          "LiPo pack", "Pi Zero 2 W", "DRV8833 driver", "MP1584EN buck"]
 
 
@@ -86,8 +87,9 @@ def assembly_parts():
             d.buck_x, d.buck_y, mp_dims.board_thickness, make_mp1584(mp_dims), d)),
         ("LiPo pack", battery_placement(d)[0]),
     ]
-    for side in (+1, -1):
+    for i, side in enumerate((+1, -1)):
         parts.append(("N20 gearmotor", motor_placement(side, d)))
+        parts.append(("motor lid", c.lids[i]))
         parts.append(("drive wheel", wheel_placement(side, d, wd)[0]))
     return d, parts
 

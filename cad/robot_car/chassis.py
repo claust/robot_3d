@@ -8,13 +8,18 @@ holds every number; this docstring says what each feature is and why.
 
 LAYOUT
 
-- Motors (M2 N20, two): one snap cradle per side, rear area, output shafts
-  pointing out past the plate edge. Two U-channel walls hold the gearbox
-  and can; an end wall at the plate edge, slotted for the Ø4 boss, takes
-  the axial load where the gearbox face lands. Both the gearbox (flat
-  bottom) and the Ø12 can sit directly on the plate. Retention is one lip
-  per wall on a slotted 1.2 mm finger (channel_lip). The motor's M1.6
-  bracket holes are not used.
+- Motors (M2 N20, two): one cradle per side at X=-31, output shafts
+  pointing out past the plate edge. A rigid U-channel holds the gearbox
+  and can, both sitting directly on the plate; an end wall at the plate
+  edge, slotted for the Ø4 boss, takes the axial load where the gearbox
+  face lands. A separately printed lid (motor_lid, exported as
+  motor_lid.stl -- print two) slides on from inboard along dovetail rails
+  on the outside of the channel walls, stops on the end wall, and clicks
+  into a detent recess in each rail. Its centre pad presses 0.30 mm down
+  on the motor's top, so the motor is clamped, not just fenced in. The lid
+  ends before the can's rear face, leaving the solder tabs and wires free.
+  The geometry is lid_coupons.py's (lid E: rail clearance 0.10, preload
+  0.30). The motor's M1.6 bracket holes are not used.
 - Raspberry Pi Zero 2 W (C1), front area: four bosses with Ø2.2 pilots for
   self-tapping M2.5 screws, on the 58 x 23 mm hole rectangle, board long
   axis across the car, connector edge facing front.
@@ -34,6 +39,11 @@ LAYOUT
 
 DESIGN RULES
 
+- The lids slide on over the battery bay, so they go on before the
+  battery and a motor comes out with the battery removed.
+- The cradles sit at X=-31 so the lid skirts clear the DRV8833 tray behind
+  them (0.5 mm). The tray can't move back: it already reaches the rear
+  plate edge.
 - Plate width 94 mm is set by the motors and the battery. Every motor
   dimension hangs off the plate edge, and the battery can't move out of the
   way in X or Z, so the edge is what keeps the N20's can and its rear
@@ -50,22 +60,19 @@ DESIGN RULES
 - Where a tray and a battery guide nub collide, the nub is trimmed by the
   tray's built geometry. The trays locate a board to a tenth of a mm; the
   nubs only fence a soft pack.
-- The motor cradle's lip is asymmetric on purpose. A symmetric 45/45 barb
-  must sit above the can's flats, on the round shoulder, which falls away
-  as fast as the barb reaches in (0.07 mm of engagement at best). A flat
-  underside landing exactly at the top of the flats closes over the can at
-  full width: 0.35 mm of engagement for 0.35 mm of deflection. The 3 mm
-  wall itself only gives ~0.28 mm, so each lip rides a 1.2 mm finger
-  (0.48 mm available, 0.73% strain at 0.29 kgf).
 - Overlaps are checked on BUILT geometry (exact boolean volume), never on
   plan-view rectangles, and the motor bodies are checked against their
   neighbours, not just the cradles. The only intended overlap is each
-  motor's lips biting its can, checked against a range (overlap_check).
+  lid's pad pressing on its motor, checked against a range
+  (overlap_check). The strap slots are in the check too: nothing may
+  stand over the strap's path.
 - Underside text is Arial Black 8 mm, 0.9 mm deep. It prints against the
   textured PEI sheet, which grains the plate face and the letter floors
   alike, so legibility comes from stroke width and depth.
-- Strap slot: one 25 mm slot per side for the 21 mm strap, spanning X
-  -25..0 between the cradles, the driver tray and the pack.
+- Strap slot: one 25 x 3 mm slot per side for the 21 mm strap, spanning X
+  -25..0 between the cradles and the buck tray, 1 mm off the pack's side.
+  The cradles stand in line with the slots, 0.4 mm past their outer
+  edge.
 
 PCB TRAYS
 
@@ -130,6 +137,8 @@ from build123d import (
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "parts"))
 from n20_motor import N20Dims, make_motor  # noqa: E402
 
+from lid_coupons import LidDims, lid_for_print, make_cradle, make_lid  # noqa: E402
+
 ALIGN_BOTTOM = (Align.CENTER, Align.CENTER, Align.MIN)
 ALIGN_TOP = (Align.CENTER, Align.CENTER, Align.MAX)
 
@@ -143,39 +152,20 @@ class ChassisDims:
     corner_radius: float = 6.0
     wheel_diameter: float = 59.0  # rolling Ø of the wood-copy wheel (root 39 + 2 x cord 10); drives skid only
 
-    # ---- N20 motor snap cradle (one instance, mirrored for +-Y) --------
-    cradle_x: float = -35.0
+    # ---- N20 motor cradle + slide-on lid (one each per side) -----------
+    # The cradle and lid geometry is lid_coupons.py's (lid_dims); these are
+    # the numbers the car sets on it.
+    cradle_x: float = -31.0  # lid skirt 0.5 mm clear of the DRV8833 tray
     channel_clearance: float = 0.2  # radial fit around the 10 mm can flats
     wall_t: float = 3.0
-    wall_h: float = 10.5  # tall enough to carry the retention lip
-    # Only 1 mm of bare can left outside the channel: the retention finger
-    # and lip run the whole length of can that lies inside it, so this
-    # number IS the lip length budget (lip = can_length - tail_exposed -
-    # 2 * lip_end_margin). The rear solder tabs sit on the can's rear FACE
-    # and reach 2.5 mm further inboard, so they and the wires stay clear of
-    # the channel however small this gets.
+    # 1 mm of bare can left inboard of the channel and the lid: the rear
+    # solder tabs sit on the can's rear FACE and reach 2.5 mm further
+    # inboard, so they and their wires stay completely free.
     tail_exposed: float = 1.0
     endwall_t: float = 2.0
-    endwall_h: float = 8.0
     endwall_slot_w: float = 4.5  # clears the Ø4 boss, open at the top
-    # channel_barb defaults; only the PCB tray latch uses them, and it
-    # passes its own. The motor channel uses channel_lip instead.
-    barb_overhang: float = 0.4  # per side, 45 deg both faces
-    barb_len: float = 3.0
-
-    # Motor retention lip. Engagement == deflection here, exactly, because
-    # the lip's flat underside lands where the can's flats end -- see
-    # channel_lip. One lip per wall, each on its own flexing finger.
-    lip_engage: float = 0.35  # how far the lip reaches over the can's flat
-    lip_h: float = 0.8
-    # The finger runs the whole length of can that lies inside the channel,
-    # and the lip all of that bar an end margin -- there is no reason to
-    # grab a third of the can when the full run is free. It cannot extend
-    # over the GEARBOX: that is square and stays full width to its top, so a
-    # lip there would have nothing to close over and would just rub.
-    lip_end_margin: float = 0.5
-    finger_t: float = 1.2  # radial, this is what bends
-    finger_slot_w: float = 1.2
+    lid_rail_clearance: float = 0.10  # lid_coupons.py lid E
+    lid_pad_preload: float = 0.30  # lid_coupons.py lid E
 
     # ---- C1 Raspberry Pi Zero 2 W mount ---------------------------------
     pi_x: float = 48.0
@@ -256,7 +246,9 @@ class ChassisDims:
     # One slot per side, sized for the 21 mm hook-and-loop strap.
     strap_slot_len: float = 25.0
     strap_slot_wid: float = 3.0
-    strap_y_offset: float = 4.0  # slot Y = wid/2 + this
+    # slot Y = wid/2 + this: 1 mm off the pack's side, and 0.4 mm short of
+    # the motor cradles' inboard ends, which stand in line with the slots
+    strap_y_offset: float = 2.5
     strap_stations: tuple = (-12.5,)
 
     # ---- underside identity engraving -----------------------------------
@@ -344,16 +336,14 @@ def plate_footprint_prism(d: ChassisDims) -> Part:
 # ---------------------------------------------------------------------------
 
 
-def channel_barb(wall_face_x, tip_dir, y_center, z_center, d: ChassisDims,
-                 overhang=None, length=None) -> Part:
+def channel_barb(wall_face_x, tip_dir, y_center, z_center, overhang,
+                 length) -> Part:
     """A small diamond-section ridge (45 deg both faces) poking `overhang`
     mm out from a vertical wall face, running `length` mm along Y. Prints
     without support: both the top and bottom faces slope at 45 deg -- the
     upper slope is the insertion ramp, the lower one the retention face.
-    Defaults are the motor cradle's numbers; the tray latch passes its
-    own."""
-    oh = d.barb_overhang if overhang is None else overhang
-    length = d.barb_len if length is None else length
+    The tray latches carry these."""
+    oh = overhang
     height = 2 * oh  # symmetric diamond -> exactly 45 deg both sides
     w = Wedge(length, oh, height, 0, height / 2, length, height / 2)
     w = w.rotate(Axis.Z, 90 if tip_dir < 0 else -90)
@@ -361,108 +351,35 @@ def channel_barb(wall_face_x, tip_dir, y_center, z_center, d: ChassisDims,
     return Pos(x, y_center, z_center) * w
 
 
-def channel_lip(x_face, inward, y_center, length, z_bottom, d: ChassisDims) -> Part:
-    """The motor retention lip: a small ledge with a FLAT underside and a
-    45 deg ramp on top, protruding into the channel from a wall face.
+def lid_dims(d: ChassisDims) -> LidDims:
+    """lid_coupons.py's cradle and lid, with the car's numbers."""
+    return LidDims(
+        plate_t=d.plate_thickness, channel_clearance=d.channel_clearance,
+        wall_t=d.wall_t, tail_exposed=d.tail_exposed, endwall_t=d.endwall_t,
+        endwall_slot_w=d.endwall_slot_w, rail_clearance=d.lid_rail_clearance,
+        pad_preload=d.lid_pad_preload, label="",
+    )
 
-    Asymmetry is the whole point. A symmetric diamond (channel_barb) has to
-    sit clear of the can's flats, which puts it up on the round shoulder
-    where the can narrows as fast as the barb reaches in -- engagement peaks
-    at 0.07 mm however big you make it. Landing a flat underside exactly at
-    the top of the flats instead means the lip closes over the can at its
-    full width, so engagement equals deflection with nothing wasted. The
-    underside is a ~0.45 mm unsupported overhang, under one extrusion width,
-    and the can's own shoulder cams the lip open on the way in."""
-    p = d.channel_clearance / 2 + d.lip_engage
-    x0, x1 = sorted((x_face, x_face + inward * p))
-    lip = rbox(x0, x1, y_center - length / 2, y_center + length / 2,
-               z_bottom, z_bottom + d.lip_h)
-    # chamfer < p: at exactly p the cut would consume the lip's whole
-    # width and the chamfer degenerates
-    top = lip.edges().group_by(Axis.Z)[-1]
-    return chamfer(top.sort_by(Axis.X)[-1 if inward > 0 else 0], d.lip_engage)
+
+def _to_side(part: Part, d: ChassisDims, side: int) -> Part:
+    """Coupon frame (channel along +Y, plate edge at y=edge_y) -> the car,
+    at the +Y (side=+1) or -Y (side=-1) plate edge."""
+    y = d.plate_width / 2 - lid_dims(d).edge_y
+    if side < 0:
+        part = part.rotate(Axis.Z, 180)
+    return Pos(d.cradle_x, side * y, 0) * part
 
 
 def motor_cradle(d: ChassisDims, side: int) -> Part:
-    """One snap cradle (side=+1 -> +Y edge, side=-1 -> -Y edge)."""
-    plate_top = d.plate_thickness
-    axis_z = plate_top + N20.gearbox_height / 2  # motor centerline height
-    gap = N20.gearbox_width + d.channel_clearance
-    wall_inner_x = [d.cradle_x - gap / 2, d.cradle_x + gap / 2]
-    wall_outer_x = [wall_inner_x[0] - d.wall_t, wall_inner_x[1] + d.wall_t]
-    edge_y = side * (d.plate_width / 2)
-    face_y = side * (d.plate_width / 2 - d.endwall_t)  # gearbox front face
-    channel_run = d.endwall_t + N20.gearbox_length + N20.can_length - d.tail_exposed
-    inboard_y = side * (d.plate_width / 2 - channel_run)
+    """One cradle (side=+1 -> +Y edge, side=-1 -> -Y edge): a rigid
+    U-channel with a dovetail rail along the outside of each wall and an
+    end wall at the plate edge."""
+    return _to_side(make_cradle(lid_dims(d)), d, side)
 
-    def yspan():
-        return (min(edge_y, inboard_y), max(edge_y, inboard_y))
 
-    y0, y1 = yspan()
-
-    cradle = Part()
-    # two side walls
-    for x0 in (wall_outer_x[0], wall_inner_x[1]):
-        x1 = x0 + d.wall_t if x0 == wall_outer_x[0] else wall_outer_x[1]
-        cradle += rbox(x0, x1, y0, y1, plate_top, plate_top + d.wall_h)
-
-    # end wall / face plate at the plate edge, with a slot for the boss
-    ew_y0, ew_y1 = (face_y, edge_y) if side > 0 else (edge_y, face_y)
-    endwall = rbox(
-        wall_outer_x[0], wall_outer_x[1], ew_y0, ew_y1, plate_top, plate_top + d.endwall_h
-    )
-    slot_z0 = axis_z - N20.boss_diameter / 2 - 1.0
-    slot = rbox(
-        d.cradle_x - d.endwall_slot_w / 2,
-        d.cradle_x + d.endwall_slot_w / 2,
-        ew_y0 - 0.1,
-        ew_y1 + 0.1,
-        slot_z0,
-        plate_top + d.endwall_h + 0.1,  # open at the top
-    )
-    endwall -= slot
-    cradle += endwall
-
-    # No rib at the can/gearbox junction: the gearbox is 12 mm tall with a
-    # flat bottom and the can is Ø12, so both sit directly on the plate
-    # (measured step 0.00 mm). Anything under the can would lift the motor
-    # and let it rock. Axial location is the end wall's job -- the gearbox
-    # face lands against its inner face.
-
-    # the can's run inside the channel
-    can_start_y = side * (d.plate_width / 2 - d.endwall_t - N20.gearbox_length)
-    can_end_y = side * (
-        d.plate_width / 2 - d.endwall_t - N20.gearbox_length - N20.can_length
-    )
-    lo, hi = sorted((max(y0, min(can_start_y, can_end_y)), min(y1, max(can_start_y, can_end_y))))
-    # Retention: one lip per wall, each on a finger freed by a slot at the
-    # gearbox end and thinned from the outside so the channel face stays
-    # flush. The 3 mm x 20 mm wall itself cannot flex anywhere near enough.
-    # The finger spans the can's whole run inside the channel; its inboard
-    # end is free already, because that is where the wall stops.
-    flat_top = axis_z + (N20.can_diameter ** 2 / 4 - N20.gearbox_width ** 2 / 4) ** 0.5
-    can_far = side * (d.plate_width / 2 - d.endwall_t - N20.gearbox_length)
-    can_near = inboard_y
-    slot_far = can_far + side * d.finger_slot_w
-    lip_a = can_near + side * d.lip_end_margin
-    lip_b = can_far - side * d.lip_end_margin
-    for x_face, inward, outward in ((wall_inner_x[0], +1, -1),
-                                    (wall_inner_x[1], -1, +1)):
-        wx0 = min(x_face, x_face + outward * d.wall_t)
-        wx1 = max(x_face, x_face + outward * d.wall_t)
-        # free the finger from the rest of the wall at the gearbox end
-        cradle -= rbox(wx0 - 0.1, wx1 + 0.1,
-                       min(can_far, slot_far), max(can_far, slot_far),
-                       plate_top, plate_top + d.wall_h + 1)
-        # thin it from the outside, over the finger's whole run
-        thin_near, thin_far = x_face + outward * d.finger_t, x_face + outward * d.wall_t
-        cradle -= rbox(min(thin_near, thin_far), max(thin_near, thin_far),
-                       min(can_near, can_far), max(can_near, can_far),
-                       plate_top, plate_top + d.wall_h + 1)
-        cradle += channel_lip(x_face, inward, (lip_a + lip_b) / 2,
-                              abs(lip_b - lip_a), flat_top, d)
-
-    return cradle
+def motor_lid(d: ChassisDims, side: int) -> Part:
+    """The slide-on lid, seated on its cradle."""
+    return _to_side(make_lid(lid_dims(d)), d, side)
 
 
 def motor_placement(side: int, d: ChassisDims):
@@ -654,7 +571,7 @@ def pcb_tray(cx, cy, board_x, board_y, d: ChassisDims, standoff=None,
         -d.tray_latch_w / 2, d.tray_latch_w / 2,
         plate_top, g["barb_z"] + d.tray_latch_barb + 0.4,
     )
-    tray += channel_barb(trail_face, +1, 0, g["barb_z"], d,
+    tray += channel_barb(trail_face, +1, 0, g["barb_z"],
                          overhang=d.tray_latch_barb, length=d.tray_latch_w)
 
     if axis == "y":
@@ -725,7 +642,7 @@ def drv_tray(d: ChassisDims, placed=True) -> Part:
         -d.drv_latch_w / 2, d.drv_latch_w / 2,
         plate_top, g["barb_z"] + d.drv_latch_barb + 0.4,
     )
-    tray += channel_barb(trail_face, +1, 0, g["barb_z"], d,
+    tray += channel_barb(trail_face, +1, 0, g["barb_z"],
                          overhang=d.drv_latch_barb, length=d.drv_latch_w)
 
     if not placed:
@@ -878,6 +795,7 @@ class Chassis:
     plate: Part
     skid: Part
     skid_below: float
+    lids: list  # [+Y, -Y], seated; separate printed parts
     footprints: dict = field(default_factory=dict)
 
 
@@ -948,6 +866,7 @@ def build(d: ChassisDims) -> Chassis:
     body -= label_engraving(d)
 
     skid, below = build_skid(d)
+    lids = [motor_lid(d, +1), motor_lid(d, -1)]
 
     # Footprints are real BUILT Part envelopes, not nominal rectangles (a
     # rectangle either badly over-approximates the sparse, multi-armed
@@ -978,13 +897,17 @@ def build(d: ChassisDims) -> Chassis:
         "cradle-Y": cradle_m,
         "motor+Y": motor_placement(+1, d),
         "motor-Y": motor_placement(-1, d),
+        "lid+Y": lids[0],
+        "lid-Y": lids[1],
         "pi_board": pi_env,
         "drv8833": drv,
         "mp1584": buck_tray,
         "battery": battery_env,
+        # a cut, not a feature: nothing may stand over the strap's path
+        "strap_slots": strap_slots(d),
     }
 
-    return Chassis(d, body, skid, below, footprints)
+    return Chassis(d, body, skid, below, lids, footprints)
 
 
 def connectivity_check(body: Part) -> bool:
@@ -1011,14 +934,14 @@ def overlap_check(footprints: dict) -> bool:
 
     A pair that is MEANT to interfere gets an expected range in EXPECTED
     rather than an exemption, and a range fails in both directions -- too
-    little means the snap has no grip, too much means something is fouling
+    little means the clamp has no grip, too much means something is fouling
     that should not be."""
-    # motor in its own cradle: the retention lips bite the can's shoulder by
-    # design. The lower bound catches lips that grip nothing, the upper
-    # bound interference that is not the lips at all.
+    # each lid's pad presses lid_pad_preload into its motor's top by design
+    # (~34 mm^3 at 0.30). The lower bound catches a pad that doesn't reach,
+    # the upper bound interference that is not the pad at all.
     EXPECTED = {
-        ("cradle+Y", "motor+Y"): (0.5, 5.0),
-        ("cradle-Y", "motor-Y"): (0.5, 5.0),
+        ("motor+Y", "lid+Y"): (10.0, 60.0),
+        ("motor-Y", "lid-Y"): (10.0, 60.0),
     }
     OVERLAP_TOL = 1.0  # mm^3
 
@@ -1032,7 +955,7 @@ def overlap_check(footprints: dict) -> bool:
             band = EXPECTED.get((a, b)) or EXPECTED.get((b, a))
             if band:
                 ok = band[0] <= vol <= band[1]
-                detail = (f"snap engagement {vol:.3f} mm^3, "
+                detail = (f"designed clamp {vol:.3f} mm^3, "
                           f"expected {band[0]:g}-{band[1]:g}")
             else:
                 ok = vol < OVERLAP_TOL
@@ -1058,10 +981,15 @@ if __name__ == "__main__":
     export_step(c.plate, here / "chassis.step")
     export_stl(c.skid, here / "skid.stl")
     export_step(c.skid, here / "skid.step")
+    # the two lids are identical; print two of this one, ceiling down
+    lid = lid_for_print(make_lid(lid_dims(d)), lid_dims(d))
+    export_stl(lid, here / "motor_lid.stl")
+    export_step(lid, here / "motor_lid.step")
 
     assembly = Part() + c.plate
     assembly += motor_placement(+1, d)
     assembly += motor_placement(-1, d)
+    assembly += c.lids[0] + c.lids[1]
     installed_skid = Pos(d.skid_front_x, 0, -c.skid_below) * c.skid
     assembly += installed_skid
     export_stl(assembly, here / "chassis_assembly.stl")
@@ -1082,5 +1010,6 @@ if __name__ == "__main__":
     print(f"  front skid hole    : X={d.skid_front_x:g}  Y=0")
     print(f"  rear skid hole     : X={d.skid_rear_x:g}  Y=0")
 
-    print("\nExported chassis.stl/.step, skid.stl/.step, chassis_assembly.stl")
+    print("\nExported chassis.stl/.step, skid.stl/.step, motor_lid.stl/.step "
+          "(print two), chassis_assembly.stl")
     sys.exit(0 if ok else 1)

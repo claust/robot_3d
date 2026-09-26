@@ -40,6 +40,7 @@ from render_assembly import COLOURS, assembly_parts
 FINISH = {
     "chassis plate": (0.75, 0.0),
     "front skid": (0.75, 0.0),
+    "motor lid": (0.75, 0.0),
     "N20 gearmotor": (0.35, 0.9),
     "drive wheel": (0.85, 0.0),
     "Pi Zero 2 W": (0.55, 0.0),
