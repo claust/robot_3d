@@ -79,7 +79,8 @@ def assembly_parts():
         ("front skid", Pos(d.skid_front_x, 0, -c.skid_below) * c.skid),
         ("Pi Zero 2 W", pi_placement(d)[0]),
         ("DRV8833 driver", tray_placement(
-            d.drv_x, d.drv_y, drv_dims.board_thickness, make_drv8833(drv_dims), d,
+            d.drv_x, d.drv_y - d.drv_lead_slack, drv_dims.board_thickness,
+            make_drv8833(drv_dims), d,
             standoff=d.drv_tray_standoff)),
         ("MP1584EN buck", tray_placement(
             d.buck_x, d.buck_y, mp_dims.board_thickness, make_mp1584(mp_dims), d)),

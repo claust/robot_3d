@@ -4,7 +4,7 @@ library D2, see parts/d2.html).
 This is a *reference* part — it models the bought hardware so a robot
 chassis can be designed around it. It is not meant to be printed.
 
-Board is 18.5 x 16 mm (per the listing and parts/d2.html), with two loose
+Board is 18.5 x 15.6 x 1.6 mm (calipered; the seller lists 16 mm), with two loose
 6-pin 2.54 mm header strips that ship unsoldered — solder before use. The
 pinout photo (parts/photos/d2-drv8833-pinout.jpg) confirms two 6-pin rows
 running along the two opposite 16 mm edges. Hole pitch (2.54 mm) is fixed
@@ -40,8 +40,8 @@ class Drv8833Dims:
     """All dimensions in mm, from parts/d2.html unless marked est."""
 
     board_length: float = 18.5  # X
-    board_width: float = 16.0  # Y
-    board_thickness: float = 1.6  # est, standard 1.6 mm PCB
+    board_width: float = 15.6  # Y, calipered
+    board_thickness: float = 1.6  # calipered
 
     # Two 6-pin 2.54 mm header rows, one on each 16 mm (Y) edge
     header_pin_count: int = 6
