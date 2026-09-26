@@ -178,6 +178,10 @@ card. We have five P1s; separating the rails is cheaper than a corrupted card.
 (One buck plus a fat bulk cap does work — it's just the variant to fall back
 to, not the one to start with.)
 
+On the chassis the two bucks sit in mirror-image trays either side of the
+battery: P1 #1 (5.1 V, Pi) on the right, P1 #2 (6.0 V, D2) on the left, the
+same side as D2, so each rail's wiring stays on its own side of the car.
+
 #### From the pack to the bucks
 
 The pack ends in an XT60 and the P1s have bare solder pads, so something has

@@ -1,13 +1,12 @@
 """robot_car/assembly.py: full-car verification assembly (visualization + checks
 only -- not meant to print). Places the chassis plate, two N20 motors in
 their cradles under seated lids, two drive wheels on the motor shafts, the
-front skid,
-and the four electronics modules (Pi Zero 2 W, DRV8833, MP1584EN, LiPo
-pack) at their documented chassis positions, then runs a battery of
+front skid, and the electronics (Pi Zero 2 W, DRV8833, two MP1584EN bucks,
+LiPo pack) at their documented chassis positions, then runs a battery of
 programmatic PASS/FAIL checks against the assembled geometry.
 
 Every placement is derived from chassis.py's own ChassisDims constants
-(cradle_x, endwall_t, tray_standoff, pi_x, drv_x/y, buck_x/y, battery_x,
+(cradle_x, endwall_t, tray_standoff, pi_x, drv_x/y, buck_x/y, motor_buck_y, battery_x,
 skid_front_x, ...) and the parts library dataclasses -- nothing here
 re-derives a number chassis.py or wheel.py already owns.
 
@@ -208,6 +207,8 @@ def main():
     mp_dims = Mp1584Dims()
     mp_board = make_mp1584(mp_dims)
     mp_placed = tray_placement(d.buck_x, d.buck_y, mp_dims.board_thickness, mp_board, d)
+    mp_motor_placed = tray_placement(d.buck_x, d.motor_buck_y, mp_dims.board_thickness,
+                                     mp_board, d)
 
     battery, ldims, batt_z = battery_placement(d)
 
@@ -219,7 +220,7 @@ def main():
     assembly += motor_p + motor_m
     assembly += wheel_p + wheel_m
     assembly += installed_skid
-    assembly += pi_board + drv_placed + mp_placed + battery
+    assembly += pi_board + drv_placed + mp_placed + mp_motor_placed + battery
 
     export_stl(assembly, HERE / "car_assembly.stl")
     print(f"Exported {HERE / 'car_assembly.stl'}")
@@ -369,7 +370,8 @@ def main():
 
     for name, part in (
         ("Pi Zero 2 W vs chassis", pi_board),
-        ("MP1584 vs chassis", mp_placed),
+        ("MP1584 (Pi) vs chassis", mp_placed),
+        ("MP1584 (motors) vs chassis", mp_motor_placed),
         ("LiPo pack vs chassis", battery),
     ):
         v = ivol(part, chassis_all)
