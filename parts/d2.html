@@ -19,15 +19,14 @@
         enough to sit right next to a gearmotor rather than on a central driver board like the
         MD22 (D1).</p>
         <ul>
-          <li>Board 18.5 × 16 mm; both 6-pin rows are unpopulated. What ships loose with it is
+          <li>Board 18.5 × 15.6 mm as calipered (the listing says 16); both 6-pin rows are unpopulated. What ships loose with it is
               a <em>single 12-way</em> male strip, snapped in half to make the two 6-pin pieces —
               exactly the count needed, so there is no spare pin to practise on.</li>
-          <li>Row spacing works out at 12.7 mm (0.5 in): 6 holes span 12.7 mm along the 18.5 mm
-              edge, and 0.5 in is the only 2.54 mm multiple that fits across 16 mm with sane
-              edge margins. If that holds, the module soldered pins-down straddles a
-              breadboard's centre channel with rows in <code>e</code> and <code>h</code> —
-              which is how it should be soldered, so the C2 breadboard can hold it square as a
-              jig and then carry it through bench bring-up.</li>
+          <li>The two 6-pin rows run along the two 15.6&nbsp;mm short edges, each spanning
+              12.7&nbsp;mm (5&nbsp;&times;&nbsp;2.54). They sit about 15.5&nbsp;mm apart across
+              the 18.5&nbsp;mm length (estimated from the photos, not calipered), each
+              ~1.5&nbsp;mm in from its end &mdash; not the 0.5&nbsp;in spacing that would let the
+              module straddle a breadboard's centre channel, so it takes jumper leads.</li>
           <li>VCC 3–10 V. Unlike the MD22 there's no separate logic supply: VCC powers both the
               logic and the motor outputs (the DRV8833 doesn't need a separate low-voltage rail).</li>
           <li>Two independent H-bridges, 1.5 A per channel: <code>OUT1</code>/<code>OUT2</code>
@@ -85,9 +84,8 @@
         <code>EEP</code>/<code>ULT</code>.</p>
         <p>To verify:</p>
         <ul class="checklist">
-          <li>Row spacing with calipers before soldering: 12.7 mm means the module drops
-              into the breadboard across the channel, anything else means jumper leads
-              straight onto the pins instead</li>
+          <li>Row spacing with calipers (about 15.5&nbsp;mm estimated), which fixes where
+              the header solder tails sit under the board</li>
           <li>Solder the header strips</li>
           <li>Settle <code>EEP</code> vs <code>ULT</code>: unpowered, measure each to
               <code>VCC</code>. The sleep pin reads ~47&nbsp;k&Omega; (good) or ~0&nbsp;&Omega;

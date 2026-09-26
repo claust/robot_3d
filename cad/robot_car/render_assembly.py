@@ -45,6 +45,7 @@ COLOURS = {
     "N20 gearmotor": "#e07b39",
     "drive wheel": "#7d5ba6",
     "front skid": "#c9b458",
+    "motor lid": "#8a94a3",
     "Pi Zero 2 W": "#2e9e5b",
     "DRV8833 driver": "#d64550",
     "MP1584EN buck": "#39a8c4",
@@ -52,7 +53,7 @@ COLOURS = {
 }
 
 # module -> text anchor for the top-plan leader lines. Small modules get a
-# callout out in clear space rather than a label dropped on a 16 mm board.
+# callout out in clear space rather than a label dropped on a 15.6 mm board.
 PLAN_CALLOUTS = {
     "DRV8833 driver": (-72, 52),
     "MP1584EN buck": (10, -54),
@@ -63,7 +64,7 @@ PLAN_CALLOUTS = {
 PLAN_INLINE = ("LiPo pack", "Pi Zero 2 W")  # big enough to label in place
 
 # draw order, back to front
-ORDER = ["chassis plate", "drive wheel", "N20 gearmotor", "front skid",
+ORDER = ["chassis plate", "drive wheel", "N20 gearmotor", "motor lid", "front skid",
          "LiPo pack", "Pi Zero 2 W", "DRV8833 driver", "MP1584EN buck"]
 
 
@@ -79,14 +80,16 @@ def assembly_parts():
         ("front skid", Pos(d.skid_front_x, 0, -c.skid_below) * c.skid),
         ("Pi Zero 2 W", pi_placement(d)[0]),
         ("DRV8833 driver", tray_placement(
-            d.drv_x, d.drv_y, drv_dims.board_thickness, make_drv8833(drv_dims), d,
+            d.drv_x, d.drv_y - d.drv_lead_slack, drv_dims.board_thickness,
+            make_drv8833(drv_dims), d,
             standoff=d.drv_tray_standoff)),
         ("MP1584EN buck", tray_placement(
             d.buck_x, d.buck_y, mp_dims.board_thickness, make_mp1584(mp_dims), d)),
         ("LiPo pack", battery_placement(d)[0]),
     ]
-    for side in (+1, -1):
+    for i, side in enumerate((+1, -1)):
         parts.append(("N20 gearmotor", motor_placement(side, d)))
+        parts.append(("motor lid", c.lids[i]))
         parts.append(("drive wheel", wheel_placement(side, d, wd)[0]))
     return d, parts
 

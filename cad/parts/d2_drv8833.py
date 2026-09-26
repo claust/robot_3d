@@ -4,10 +4,10 @@ library D2, see parts/d2.html).
 This is a *reference* part — it models the bought hardware so a robot
 chassis can be designed around it. It is not meant to be printed.
 
-Board is 18.5 x 16 mm (per the listing and parts/d2.html), with two loose
-6-pin 2.54 mm header strips that ship unsoldered — solder before use. The
-pinout photo (parts/photos/d2-drv8833-pinout.jpg) confirms two 6-pin rows
-running along the two opposite 16 mm edges. Hole pitch (2.54 mm) is fixed
+Board is 18.5 x 15.6 x 1.6 mm (calipered; the seller lists 16 mm), with
+two loose 6-pin 2.54 mm header strips that ship unsoldered — solder before
+use. The pinout photo (parts/photos/d2-drv8833-pinout.jpg) confirms two
+6-pin rows running along the two opposite 15.6 mm edges. Hole pitch (2.54 mm) is fixed
 by the header standard; the exact inset from the edge is not dimensioned
 anywhere and is marked "est". The DRV8833 IC footprint/position is also
 "est" — a small block standing in for the chip near the board center.
@@ -23,7 +23,7 @@ Run with:  uv run parts/d2_drv8833.py
 Exports d2_drv8833.stl and d2_drv8833.step (gitignored).
 
 Orientation: PCB on the XY plane, top (component) face at +Z, origin at
-the PCB center. The 18.5 mm axis is X, the 16 mm header-row axis is Y.
+the PCB center. The 18.5 mm axis is X, the 15.6 mm header-row axis is Y.
 """
 
 from dataclasses import dataclass
@@ -40,10 +40,10 @@ class Drv8833Dims:
     """All dimensions in mm, from parts/d2.html unless marked est."""
 
     board_length: float = 18.5  # X
-    board_width: float = 16.0  # Y
-    board_thickness: float = 1.6  # est, standard 1.6 mm PCB
+    board_width: float = 15.6  # Y, calipered
+    board_thickness: float = 1.6  # calipered
 
-    # Two 6-pin 2.54 mm header rows, one on each 16 mm (Y) edge
+    # Two 6-pin 2.54 mm header rows, one on each 15.6 mm (Y) edge
     header_pin_count: int = 6
     header_pitch: float = 2.54
     header_hole_diameter: float = 1.0  # est

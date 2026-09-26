@@ -1,6 +1,7 @@
 """robot_car/assembly.py: full-car verification assembly (visualization + checks
 only -- not meant to print). Places the chassis plate, two N20 motors in
-their snap cradles, two drive wheels on the motor shafts, the front skid,
+their cradles under seated lids, two drive wheels on the motor shafts, the
+front skid,
 and the four electronics modules (Pi Zero 2 W, DRV8833, MP1584EN, LiPo
 pack) at their documented chassis positions, then runs a battery of
 programmatic PASS/FAIL checks against the assembled geometry.
@@ -16,9 +17,8 @@ its INNER face (2 mm inboard) against the gearbox front. wheel.py's wheel
 mounts with its web (the spoked face, local Z=0) OUTBOARD and its long
 hub reaching inboard through the rim to the shaft; the hub tip and the
 rim's inboard edge are flush and sit `WALL_CLEARANCE_MM` outboard of the
-wall's outer face, so the whole wheel stays clear of the plate (the
-overlap an earlier web-inboard orientation had). See `wheel_geometry()`
-for the worked numbers.
+wall's outer face, so the whole wheel stays clear of the plate. See
+`wheel_geometry()` for the worked numbers.
 
 Run with:  uv run robot_car/assembly.py
 Exports robot_car/car_assembly.stl (gitignored) and prints a PASS/FAIL
@@ -39,8 +39,8 @@ from build123d import Axis, Part, Pos, export_stl
 from scipy.spatial import cKDTree
 
 from chassis import (
-    ChassisDims, N20, build, latch_geometry, motor_placement,
-    plate as chassis_plate, pcb_tray,
+    ChassisDims, N20, build, drv_latch_geometry, drv_tray, latch_geometry,
+    motor_placement, plate as chassis_plate,
 )
 from wheel import WheelDims, make_wheel
 from pi_zero_2w import PiZero2WDims, make_pi_zero_2w
@@ -199,8 +199,9 @@ def main():
 
     drv_dims = Drv8833Dims()
     drv_board = make_drv8833(drv_dims)
+    # seated against the tongues (-Y), where the preloaded latch pushes it
     drv_placed = tray_placement(
-        d.drv_x, d.drv_y, drv_dims.board_thickness, drv_board, d,
+        d.drv_x, d.drv_y - d.drv_lead_slack, drv_dims.board_thickness, drv_board, d,
         standoff=d.drv_tray_standoff,
     )
 
@@ -210,7 +211,11 @@ def main():
 
     battery, ldims, batt_z = battery_placement(d)
 
-    assembly = Part() + c.plate
+    # the plate plus both seated lids: everything printed that the wheels
+    # and the electronics must clear
+    chassis_all = c.plate + c.lids[0] + c.lids[1]
+
+    assembly = Part() + chassis_all
     assembly += motor_p + motor_m
     assembly += wheel_p + wheel_m
     assembly += installed_skid
@@ -249,13 +254,13 @@ def main():
             f"Y={g['edge_y']:.2f} -> clearance {g['web_clearance']:.2f} mm (>= 1.0, by construction)",
         )
 
-    chassis_mesh = to_trimesh(c.plate)
+    chassis_mesh = to_trimesh(chassis_all)
     wheel_p_mesh = to_trimesh(wheel_p)
     wheel_m_mesh = to_trimesh(wheel_m)
     dist_p = min_mesh_distance(chassis_mesh, wheel_p_mesh)
     dist_m = min_mesh_distance(chassis_mesh, wheel_m_mesh)
-    vol_p = ivol(wheel_p, c.plate)
-    vol_m = ivol(wheel_m, c.plate)
+    vol_p = ivol(wheel_p, chassis_all)
+    vol_m = ivol(wheel_m, chassis_all)
     OVERLAP_TOL = 1.0  # mm^3 -- anything above this means the meshes truly intersect
     for side, dist, vol, g in ((+1, dist_p, vol_p, wg_p), (-1, dist_m, vol_m, wg_m)):
         # Once two meshes actually intersect, an unsigned vertex-nearest-
@@ -318,18 +323,13 @@ def main():
     # Split the DRV8833 signal in two: the bare plate slab (does anything
     # hanging below the board reach it?) and its own tray (do the retention
     # features foul the board or its headers?). Both are built from the same
-    # functions chassis.build() calls. The tilt-and-slide tray clears the
-    # board top by tray_clearance rather than biting into it, so unlike the
-    # old snap-barb tray this number is a real signal, not an accepted
-    # overlap -- it should be zero.
-    drv_tray_only = pcb_tray(
-        d.drv_x, d.drv_y, d.drv_board_x, d.drv_board_y, d,
-        standoff=d.drv_tray_standoff, axis="y", lead=-1,
-        hook_span=d.drv_hook_span,
-    )
+    # functions chassis.build() calls. The only thing meant to touch the
+    # board is the preloaded latch barb (a sliver of a fraction of a mm^3),
+    # so anything past that is a real conflict.
+    drv_tray_only = drv_tray(d)
     v_drv_plate = ivol(drv_placed, chassis_plate(d))
     v_drv_tray = ivol(drv_placed, drv_tray_only)
-    v_drv_total = ivol(drv_placed, c.plate)
+    v_drv_total = ivol(drv_placed, chassis_all)
     check(
         "DRV8833 vs bare plate (header solder-tails)",
         v_drv_plate < TOL,
@@ -340,9 +340,9 @@ def main():
     check(
         "DRV8833 vs its own tray (hooks/latch vs board + headers)",
         v_drv_tray < 1.0,
-        f"intersection {v_drv_tray:.3f} mm^3 (< 1) -- tongues sit "
-        f"{d.tray_clearance:g} mm above the board top and hook_span="
-        f"{d.drv_hook_span:g} mm keeps them clear of the header bases",
+        f"intersection {v_drv_tray:.3f} mm^3 (< 1) -- only the latch's "
+        f"{d.drv_latch_preload:g} mm preload bites, and hook_span="
+        f"{d.drv_hook_span:g} mm keeps the tongues clear of the header bases",
     )
     print(f"    (combined DRV8833-vs-full-chassis total = {v_drv_total:.3f} mm^3)")
 
@@ -350,9 +350,8 @@ def main():
     # check 4b: can the one flexing feature per tray actually flex?
     # -----------------------------------------------------------------
     print("\n-- 4b. tray latch snap-fit strain --")
-    for tag, standoff in (("MP1584EN", d.tray_standoff),
-                          ("DRV8833", d.drv_tray_standoff)):
-        g = latch_geometry(d, standoff)
+    for tag, g in (("MP1584EN", latch_geometry(d, d.tray_standoff)),
+                   ("DRV8833", drv_latch_geometry(d))):
         check(
             f"{tag} latch strain at full deflection",
             g["strain"] <= 0.01,
@@ -360,13 +359,20 @@ def main():
             f"-> {g['strain'] * 100:.2f}% strain (<= 1.00%), "
             f"{g['force']:.1f} N ({g['force'] / 9.81:.2f} kgf) to press past",
         )
+    g = drv_latch_geometry(d)
+    check(
+        "DRV8833 latch still reaches over the seated board",
+        g["reach"] >= 0.1,
+        f"barb tip {g['reach']:.2f} mm over the board edge (>= 0.10) with "
+        f"{d.drv_latch_preload:g} mm preload held at {g['rest_force']:.1f} N",
+    )
 
     for name, part in (
         ("Pi Zero 2 W vs chassis", pi_board),
         ("MP1584 vs chassis", mp_placed),
         ("LiPo pack vs chassis", battery),
     ):
-        v = ivol(part, c.plate)
+        v = ivol(part, chassis_all)
         check(name, v < TOL, f"intersection {v:.3f} mm^3 (< {TOL:g})")
 
     # -----------------------------------------------------------------
