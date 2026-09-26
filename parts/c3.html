@@ -45,21 +45,28 @@
               (11&nbsp;GPIO, all PWM-capable) plus <code>5V</code>, <code>GND</code>,
               <code>3V3</code>. Castellated <em>and</em> drilled, so the board can take headers
               or be reflowed flat onto a carrier.</li>
-          <li>Pin map, <em>from third-party pinout references and not yet checked against our
+          <li>Pin map, <em>from Seeed's pinout (below), not yet checked pad by pad on our
               boards</em>: <code>D0</code>=GPIO1, <code>D1</code>=GPIO0, <code>D2</code>=GPIO25,
               <code>D3</code>=GPIO7, <code>D4</code>=GPIO23&nbsp;(SDA),
               <code>D5</code>=GPIO24&nbsp;(SCL), <code>D6</code>=GPIO11&nbsp;(TX),
-              <code>D7</code>=GPIO12&nbsp;(RX), <code>D8</code>=GPIO8, <code>D9</code>=GPIO9,
-              <code>D10</code> unconfirmed. I²C on D4/D5, UART on D6/D7, SPI on D8/D9/D10.
-              Blink each pad before trusting any of it.</li>
+              <code>D7</code>=GPIO12&nbsp;(RX), <code>D8</code>=GPIO8&nbsp;(SCK),
+              <code>D9</code>=GPIO9&nbsp;(MISO), <code>D10</code>=GPIO10&nbsp;(MOSI).
+              I²C on D4/D5, UART on D6/D7, SPI on D8/D9/D10. <code>D0</code> doubles as
+              ADC1/A0, <code>D0</code>/<code>D1</code> are the low-power LP_GPIO1/0, and the
+              BOOT button is GPIO28. Blink each pad before trusting any of it.</li>
           <li>User LED on <strong>GPIO&nbsp;27, active-low</strong> &mdash; driving the pin low
               lights it. That one <em>is</em> confirmed on our board; see
               <code>esp32-c5/blink/main/blink_main.c</code>.</li>
-          <li><strong>Underside pads</strong> (bare SMD, no header footprint): <code>B+</code>
-              and <code>B-</code> for a 3.7&nbsp;V LiPo, the JTAG bonding pads, and four extra
-              ADC inputs <code>A1</code>&ndash;<code>A4</code>. Battery charging is an onboard
-              SGM40567 at ~100&nbsp;mA whenever USB is in, with a TPS22916 gating the
-              battery-voltage sense.</li>
+          <li><strong>Underside pads</strong> (bare SMD, no header footprint, per Seeed's back
+              pinout below): <code>B+</code>/<code>B-</code> (<code>BAT+</code>/<code>BAT-</code>)
+              for a 3.7&nbsp;V LiPo, the JTAG pads <code>MTDO</code>, <code>MTDI</code>,
+              <code>MTCK</code>, <code>MTMS</code>, and <code>GND</code>, <code>EN</code>,
+              <code>3V3</code>, <code>BOOT</code>. Battery charging is an onboard SGM40567 at
+              ~100&nbsp;mA whenever USB is in, with a TPS22916 gating the battery-voltage
+              sense.</li>
+          <li>Battery voltage in firmware: drive <strong>GPIO26</strong> high to switch the
+              sense divider on (low saves power), read <strong>GPIO6</strong> on the ADC, and
+              double it &mdash; battery voltage = ADC voltage &times;&nbsp;2.</li>
           <li>Power in: USB-C, the <code>5V</code> pad, or a cell on <code>B+</code>/<code>B-</code>.
               <code>B+</code> is a <em>battery</em> node, not a supply input &mdash; feed the
               board from the MP1584 buck (<a href="p1.html">P1</a>) on the <code>5V</code> pad,
@@ -96,7 +103,7 @@
           <li>Second board: enumerate over USB-C and flash <code>blink</code> &mdash; clears the
               board, the cable and the USB Serial/JTAG path in one go</li>
           <li>Confirm the <code>D0</code>&ndash;<code>D10</code> → GPIO map by blinking each pad
-              in turn, and pin down what <code>D10</code> is</li>
+              in turn</li>
           <li>Whether PSRAM is actually present and how much (<code>idf.py size</code> /
               an <code>esp_psram</code> probe at boot)</li>
           <li>Caliper the outline, thickness, pad pitch and row spacing, plus U.FL connector
@@ -108,13 +115,21 @@
           <li>LEDC hardware PWM on four pins into a DRV8833 (<a href="d2.html">D2</a>), scoped
               or LED-checked, before any motor is connected</li>
           <li>Battery path: pigtail onto <code>B+</code>/<code>B-</code>, confirm the ~100&nbsp;mA
-              charge current and whether cell voltage can be read back in firmware</li>
+              charge current and read the cell voltage back on GPIO6 (GPIO26 high)</li>
           <li>Decide the split with the Pi (<a href="c1.html">C1</a>) &mdash; C5 as a motor/timing
               co-processor over UART, or as the whole brain on a smaller robot</li>
         </ul>
-        <p class="note">No photo in the library yet &mdash; worth one of the top face and one of
-        the underside pads, since the underside is where all the interesting connections are.</p>
+        <p class="note">No photo of our own boards yet &mdash; worth one of the top face and one
+        of the underside pads, since the underside is where all the interesting connections are.</p>
       </div>
+      <figure>
+        <a href="photos/c3-xiao-esp32c5-pinout-front.png"><img src="photos/c3-xiao-esp32c5-pinout-front.png" alt="Seeed XIAO ESP32-C5 front pinout: D0-D10 with their GPIO numbers, ADC, I2C, UART and SPI functions, VBUS, GND and 3.3V pads, user LED on GPIO27 and BOOT on GPIO28"></a>
+        <figcaption>Front pinout (Seeed image). Click for full size.</figcaption>
+      </figure>
+      <figure>
+        <a href="photos/c3-xiao-esp32c5-pinout-back.png"><img src="photos/c3-xiao-esp32c5-pinout-back.png" alt="Seeed XIAO ESP32-C5 back pinout: underside JTAG pads MTDO, MTDI, MTCK, MTMS, plus GND, EN, 3V3 and BOOT pads, and the BAT- and BAT+ battery pads; battery voltage is read on GPIO6 (ADC x 2) with GPIO26 enabling the reading"></a>
+        <figcaption>Back pinout (Seeed image): underside JTAG and battery pads.</figcaption>
+      </figure>
     </div>
   </section>
 </main>
