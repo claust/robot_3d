@@ -35,6 +35,7 @@ an old wooden toy wheel, and the printed wheel copies that wheel's groove.
 | Chassis plate | 1 | [chassis.py](chassis.py) | 130 x 94 x 3 mm, prints flat, no supports |
 | Motor lid | 2 | [chassis.py](chassis.py), exports `motor_lid.stl` | geometry from [lid_coupons.py](lid_coupons.py) |
 | Skid | 1 | [chassis.py](chassis.py), exports `skid.stl` | print it as its own job, with a brim |
+| Nose caster | 6 pieces | [caster.py](caster.py), exports `caster_plate.stl` | arm, anchor rivet, fork, wheel and two pins, one plate; in place of the front skid, not yet printed |
 | Drive wheel | 2 | [wheel.py](wheel.py) | spoked web outboard, hub reaches in to the shaft |
 | Stand-in dummies | as needed | [dummies.py](dummies.py) | white stand-ins for motors and boards, for dry fits |
 
@@ -67,6 +68,12 @@ anything on the plate.
   hook-and-loop strap through a pair of slots.
 - **Skid** push-snaps up from underneath through the hole at the front.
   An identical hole at the rear takes it too.
+- **Nose caster** ([caster.py](caster.py)) replaces the skid at the front: a
+  Ø40 wheel on a 10 mm trail, swivelling on an arm whose foot an anchor
+  rivet clamps up through the front skid hole. The wheel is taller than
+  the space under the plate, so the pivot sits 39 mm ahead of the nose,
+  far enough that the wheel's swing circle clears the arm. The pivot and
+  the axle are the same Ø5 snap pin.
 
 ### Assembly order
 
@@ -125,6 +132,15 @@ Checks the switch in its well and searches for a way to put it in past the
 panel, the cradle and the motor buck, with room left to solder the
 terminals.
 
+```bash
+uv run robot_car/caster.py
+```
+
+Checks the nose caster: the wheel meets the floor with the drive wheels,
+it swings a full turn clear of the arm, anchor and chassis, the arm clears
+the Pi's connectors, and every moving fit has its gap. Writes
+`caster_render.png`.
+
 Then look at the result before slicing. [render_assembly.py](render_assembly.py)
 draws a colour-coded plan and elevations, and [twin.py](twin.py) writes a
 USDZ of the whole car that macOS Quick Look opens.
@@ -164,6 +180,7 @@ The commit messages for each step carry the measurements behind them.
 - The electrical open questions are listed in [WIRING.md](WIRING.md#open-questions),
   including a low-voltage cutoff for the pack.
 - D2's second bridge has not been tested, and C1 still needs a bench check.
-- A swivel caster would replace the skid, but the one on hand is too tall
-  for the car's ground clearance. It needs a cantilevered nose bracket,
-  which in turn needs the caster's hole pattern and swing radius measured.
+- The nose caster is designed and passes its checks, but it hasn't been
+  printed yet. Things to judge on the first print: the pins' snap and the
+  pivot's turn, and whether the anchor holds the arm when the car goes
+  over a bump. The arm covers the Pi's centre USB port.
