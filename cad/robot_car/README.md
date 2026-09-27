@@ -35,7 +35,7 @@ an old wooden toy wheel, and the printed wheel copies that wheel's groove.
 | Chassis plate | 1 | [chassis.py](chassis.py) | 130 x 94 x 3 mm, prints flat, no supports |
 | Motor lid | 2 | [chassis.py](chassis.py), exports `motor_lid.stl` | geometry from [lid_coupons.py](lid_coupons.py) |
 | Skid | 1 | [chassis.py](chassis.py), exports `skid.stl` | print it as its own job, with a brim |
-| Nose caster | 6 pieces | [caster.py](caster.py), exports `caster_plate.stl` | arm, anchor rivet, fork, wheel and two pins, one plate; in place of the front skid. First iteration, printed in green, not yet tested |
+| Nose caster | 6 pieces | [caster.py](caster.py), exports `caster_plate.stl` | arm, anchor rivet, fork, wheel and two pins, one plate; in place of the front skid. First iteration, tested: wobbles and drags, see Open items |
 | Drive wheel | 2 | [wheel.py](wheel.py) | spoked web outboard, hub reaches in to the shaft |
 | Stand-in dummies | as needed | [dummies.py](dummies.py) | white stand-ins for motors and boards, for dry fits |
 
@@ -164,7 +164,9 @@ USDZ of the whole car that macOS Quick Look opens.
   bucks moved forward to make room for the switch.
 - **Caster, first iteration** replaces the front skid with a Ø40 swivel
   caster on a 10 mm trail, on a nose arm that snaps into the front skid
-  hole, so it fits PROTO-04 as printed.
+  hole, so it fits PROTO-04 as printed. In use the arm wobbles on its
+  single rivet and lets the nose sag, and the pivot has so much friction
+  that the wheel doesn't turn to follow the car. It drags like the skid.
 
 The commit messages for each step carry the measurements behind them.
 
@@ -183,7 +185,8 @@ The commit messages for each step carry the measurements behind them.
 - The electrical open questions are listed in [WIRING.md](WIRING.md#open-questions),
   including a low-voltage cutoff for the pack.
 - D2's second bridge has not been tested, and C1 still needs a bench check.
-- The nose caster's first iteration is printed but not yet tested. Things
-  to judge: the pins' snap and the
-  pivot's turn, and whether the anchor holds the arm when the car goes
-  over a bump. The arm covers the Pi's centre USB port.
+- Caster, second iteration. The mount has to be part of the chassis:
+  one rivet through the skid hole can't hold the arm rigid. The pivot has
+  to turn far more freely, for example with a metal washer as the thrust
+  face in place of the PLA crown rubbing on the PLA housing. The arm also
+  covers the Pi's centre USB port.
