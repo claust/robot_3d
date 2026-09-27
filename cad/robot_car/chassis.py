@@ -40,7 +40,8 @@ LAYOUT
   the bucks and the Pi.
 - Skid: a Ø10 hole on the centreline at the front (X=55) and another at the
   rear (X=-58). The skid is a separate part that push-snaps up through
-  either hole from underneath, on four slit prongs.
+  either hole from underneath, on four slit prongs. The front hole also
+  anchors the nose caster's arm (caster.py) in the skid's place.
 - Identity text engraved, mirrored, into the underside.
 
 DESIGN RULES
