@@ -1,0 +1,78 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>S2 — 38 kHz IR transmitter + receiver modules — Parts Library</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<main>
+  <a class="back-link" href="index.html">&larr; Parts Library</a>
+
+  <section class="part" id="s2">
+    <div class="part-head"><span class="part-id">S2</span><h2>38 kHz IR transmitter + receiver modules</h2><span class="badge untested">untested</span><span class="note">×1 each</span></div>
+    <div class="part-body">
+      <div class="part-text">
+        <p>TV-remote IR pair from AliExpress
+        (<a href="https://www.aliexpress.com/item/1005011906650052.html" target="_blank" rel="noopener">listing</a>).
+        The receiver only reacts to IR modulated at 38&nbsp;kHz. The transmitter has no
+        oscillator, so the controller generates the carrier on the data pin.</p>
+        <p>Both boards, measured:</p>
+        <ul>
+          <li>PCB <strong>23.6 × 21 × 1.6 mm</strong>. The 23.6&nbsp;mm runs from the optics
+              edge to the header edge.</li>
+          <li>Two <strong>3.2 mm</strong> mounting holes (M3 clearance) in the header-edge
+              corners, <strong>15.0 mm</strong> center to center. Each rim sits 1.5&nbsp;mm from
+              the edges, so the centers are 3.1&nbsp;mm in.</li>
+          <li>3-pin right-angle 0.1" header. The optics face the opposite edge.</li>
+        </ul>
+        <p>Transmitter, <code>DAT</code> / <code>VCC</code> / <code>GND</code>:</p>
+        <ul>
+          <li>5&nbsp;mm 940&nbsp;nm IR LED lying in an edge notch.</li>
+          <li><code>221</code> (220&nbsp;&Omega;), <code>102</code> (1&nbsp;k&Omega;),
+              indicator LED, no transistor. <code>DAT</code> drives the IR LED directly, about
+              10&nbsp;mA from a 3.3&nbsp;V pin.</li>
+          <li>Range: the seller claims 1.3&nbsp;m at 5&nbsp;V. A buyer review reports
+              30&nbsp;cm from an ESP32 at 3.3&nbsp;V.</li>
+        </ul>
+        <p>Receiver, <code>OUT</code> / <code>VCC</code> / <code>GND</code>:</p>
+        <ul>
+          <li>VS1838 receiver (per the listing), standing upright, dome facing the edge.</li>
+          <li><code>103</code> (10&nbsp;k&Omega;), <code>102</code> (1&nbsp;k&Omega;),
+              capacitor, indicator LED.</li>
+          <li><code>OUT</code> is active-low and pulled up to <code>VCC</code>.
+              <strong>Power it from 3.3&nbsp;V for the Pi (<a href="c1.html">C1</a>) or XIAO
+              (<a href="c3.html">C3</a>)</strong>, whose pins aren't 5&nbsp;V tolerant. The
+              VS1838B is rated 2.7&ndash;5.5&nbsp;V.</li>
+        </ul>
+        <p>Driving it:</p>
+        <ul>
+          <li>XIAO (<a href="c3.html">C3</a>): RMT peripheral. The ESP-IDF example
+              <code>peripherals/rmt/ir_nec_transceiver</code> supports the ESP32-C5.</li>
+          <li>Pi (<a href="c1.html">C1</a>): <code>gpio-ir</code> and <code>gpio-ir-tx</code>
+              overlays, with <code>ir-keytable</code> and <code>ir-ctl</code>.</li>
+          <li>Uno (<a href="c2.html">C2</a>): IRremote library.</li>
+        </ul>
+        <p>To verify:</p>
+        <ul class="checklist">
+          <li>Ring out the transmitter: <code>DAT</code> &rarr; 220&nbsp;&Omega; &rarr; IR LED,
+              and what <code>VCC</code> connects to</li>
+          <li>Receiver at 3.3&nbsp;V: decode a TV remote on the XIAO</li>
+          <li>Range test, transmitter to receiver</li>
+          <li>For a mount: component heights above the PCB</li>
+        </ul>
+      </div>
+      <figure>
+        <a href="photos/s2-ir-transmitter.jpg"><img src="photos/s2-ir-transmitter.jpg" alt="IR transmitter board: 5 mm clear IR LED lying in a notch at the left edge, 221 and 102 resistors, an SMD LED, and a DAT/VCC/GND right-angle header"></a>
+        <figcaption>Transmitter.</figcaption>
+      </figure>
+      <figure>
+        <a href="photos/s2-ir-receiver.jpg"><img src="photos/s2-ir-receiver.jpg" alt="IR receiver board: 3-pin receiver module at the left edge, 103 and 102 resistors, a ceramic capacitor, an SMD LED, and an OUT/VCC/GND right-angle header"></a>
+        <figcaption>Receiver.</figcaption>
+      </figure>
+    </div>
+  </section>
+</main>
+</body>
+</html>
