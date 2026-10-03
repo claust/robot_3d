@@ -89,7 +89,7 @@ Board features worth knowing, from the back-side photo
  │ hdr 35 GPIO19├────►│ IN3 OUT3 ├───────────► right (+)
  │ hdr 36 GPIO16├────►│ IN4 OUT4 ├───────────► right (−)
  │ hdr 34 GND   ├──┐  └──────────┘
- └──────────────┘  └──────────────► P1 #2 second OUT− pad
+ └──────────────┘  └──────────────► P1 #2 second OUT− pin
 ```
 
 ### Pi Zero 2 W → D2 (4 signals + ground)
@@ -100,7 +100,7 @@ Board features worth knowing, from the back-side photo
 | 33 | GPIO13 | `IN2` | left motor, reverse |
 | 35 | GPIO19 | `IN3` | right motor, forward |
 | 36 | GPIO16 | `IN4` | right motor, reverse |
-| 34 | — | P1 #2 second `OUT−` pad | signal ground; **not optional** — see [Grounds](#grounds) |
+| 34 | — | P1 #2 second `OUT−` pin | signal ground; **not optional** — see [Grounds](#grounds) |
 
 Why these four GPIOs: they sit in one block at the far end of the header (one
 short ribbon, no fan-out), none of them has a competing default function
@@ -132,10 +132,10 @@ pins 32, 33, 35 and 36 and it stays in order by itself, which is most of the
 defence against miscounting. Nothing needs crimping or soldering for those
 four.
 
-The fifth lead, pin 34's ground, is different: it ends on a bare buck pad and
-carries a share of the ground current (see [Grounds](#grounds)). Make it from
-22 AWG with a Dupont socket crimped on the Pi end, solder the other end to
-P1 #2's second `OUT−` pad, and run it alongside the signal strip.
+The fifth lead, pin 34's ground, is different: it goes to buck #2's second
+`OUT−` header pin, not to D2, and carries a share of the ground current (see
+[Grounds](#grounds)). Make it from 22 AWG with a Dupont socket crimped on each
+end, and run it alongside the signal strip.
 
 Orientation, then, with the header along the far edge and the connector edge
 (mini-HDMI, `USB`, `PWR IN`) toward you:
@@ -184,8 +184,8 @@ sources and the Pi's WiFi and microSD are both nearby.
 | P1 #1 `OUT+` | Pi header pin 2 (or 4) | set to 5.1 V |
 | P1 #1 `OUT−` | Pi header pin 6 | |
 | P1 #2 `OUT+` | D2 `VCC` | set to 6.0 V |
-| P1 #2 `OUT−` (one pad) | D2 `GND` | motor current return |
-| P1 #2 `OUT−` (other pad) | Pi header pin 34 | Pi–D2 ground reference |
+| P1 #2 `OUT−` (one pin) | D2 `GND` | motor current return |
+| P1 #2 `OUT−` (other pin) | Pi header pin 34 | Pi–D2 ground reference |
 
 Two bucks rather than one shared 5 V rail: a stalling motor drags its rail
 down, and the thing on the other end of a shared rail would be the Pi's SD
@@ -207,19 +207,19 @@ pointing forward. Wires solder straight onto the middle and outer
 
 #### Grounds
 
-Everything shares one ground: the P1 has no isolation, so its `IN−` and both
-`OUT−` pads are the same copper, and both bucks' `IN−` meet at the pack minus.
+Everything shares one ground: the P1 has no isolation, so its `IN−` and `OUT−`
+pads are the same copper, and both bucks' `IN−` meet at the pack minus.
 Two ground wires meet at buck #2, because they do different jobs:
 
 - **P1 #2 `OUT−` → D2 `GND`** is the motor current's direct return to the
   buck that sourced it.
-- **Pi pin 34 → P1 #2's other `OUT−` pad** ties the Pi's 0 V to D2's at the
+- **Pi pin 34 → P1 #2's other `OUT−` pin** ties the Pi's 0 V to D2's at the
   buck, so D2 reads `IN1`–`IN4` against the ground the Pi drives them from.
-  D2 has a single `GND` pin, so meeting at the buck's second pad avoids
-  stacking two sockets on one header pin. Run this lead alongside the four
+  D2 has a single `GND` pin, but the buck's `OUT−` pad pair carries a 2-pin
+  header, so the two leads meet there, one per pin, in one 2-pin housing. Run this lead alongside the four
   signal wires and split it off only near the buck: it is their return path,
   and a ground routed away from them opens a loop that picks up motor noise.
-  Meter both `OUT−` pads to `IN−` before the first wire: all three should
+  Meter both `OUT−` pins to `IN−` before the first wire: all three should
   beep.
 
 The pin-34 lead is not signal-only. Pins 6 and 34 share the Pi's ground
@@ -238,9 +238,10 @@ small: they are the low-resistance side of the loop.
 
 D2's only ground is its wire to the buck, so that connection has to be
 dependable. If it comes loose while `VCC` is live, D2's ground floats up
-and the chip finds a return through `IN1`–`IN4` into the Pi's GPIOs. Solder
-it at the buck. At D2, put `VCC` and `GND` (adjacent pins in the same row)
-into one 2-pin Dupont housing. That makes an accidental separation less
+and the chip finds a return through `IN1`–`IN4` into the Pi's GPIOs. At D2,
+put `VCC` and `GND` (adjacent pins in the same row) into one 2-pin Dupont
+housing; at the buck, its `GND` lead shares the `OUT−` housing with the
+pin-34 lead. That makes an accidental separation less
 likely, but a half-pulled housing or a backed-out contact can still leave
 `VCC` on with `GND` open, so it is not a guarantee. Add strain relief: tie
 the pair to the chassis a few cm from D2 so a tug lands on the tie, not the
@@ -250,8 +251,8 @@ what it lacks is grip.
 
 #### From the pack to the bucks
 
-The pack ends in an XT60 and the P1s have bare solder pads, so something has
-to bridge them. What goes between:
+The pack ends in an XT60 and the P1s carry 2-pin male headers on their pad
+pairs, so something has to bridge them. What goes between:
 
 ```
 B2 pack ──XT60── pigtail ── 2 A fuse ── switch ──┬── P1 #1 (5.1 V) → Pi
@@ -273,8 +274,9 @@ B2 pack ──XT60── pigtail ── 2 A fuse ── switch ──┬── P
 - **A switch** rated 5 A or more, so the XT60 isn't the on/off control. They
   are stiff to mate and rated for a few hundred cycles.
 - **The fan-out to two bucks** wants a junction, not two wires stuffed into
-  one pad: a lever connector (WAGO 221) or a screw terminal. The only
-  soldering in this chain is the buck `IN+`/`IN−` pads.
+  one header pin: a lever connector (WAGO 221) or a screw terminal, then a
+  22 AWG lead with a Dupont socket to each buck's `IN+` and `IN−` pins.
+  Nothing in this chain needs soldering.
 
 **The P1 has no reverse-polarity protection** ([parts/p1.html](../../parts/p1.html)), so a swapped
 input kills the module and can pass 7.4 V downstream into the Pi. That is the
@@ -295,12 +297,13 @@ something shorts ahead of the fuse.
 
 | Run | Wire |
 | --- | --- |
-| Pack → fuse → switch → bucks | 20 AWG silicone, or the pigtail's own 14 AWG |
-| Buck → D2 `VCC`/`GND` | 20–22 AWG, soldered at the buck; a strain-relieved 2-pin housing at D2 (see [Grounds](#grounds)) |
+| Pack → fuse → switch → junction | 20 AWG silicone, or the pigtail's own 14 AWG |
+| Junction → buck `IN+`/`IN−` | 22 AWG with Dupont sockets (the largest a Dupont crimp takes); ~0.75 A worst case per buck |
+| Buck → D2 `VCC`/`GND` | 22 AWG, Dupont sockets; a strain-relieved 2-pin housing at D2 (see [Grounds](#grounds)) |
 | Buck → Pi header pins 2/6 | 22 AWG; a jumper lead works electrically (1 A over 15 cm of 24 AWG drops ~15 mV) but the crimp is what fails |
 | D2 → motors | 22–24 AWG, twisted pair, 100 nF across the tabs |
 | Pi → D2 `IN1`–`IN4` | ordinary jumper leads — microamps |
-| Pi pin 34 → P1 #2 `OUT−` | 22 AWG, Dupont socket at the Pi, soldered at the buck; carries a share of the return current (see [Grounds](#grounds)) |
+| Pi pin 34 → P1 #2 `OUT−` | 22 AWG, Dupont sockets, sharing a 2-pin housing with D2's `GND` lead at the buck; carries a share of the return current (see [Grounds](#grounds)) |
 
 Silicone-insulated stranded, not PVC hookup wire: it stays flexible in a
 chassis and doesn't shrink back from the soldering iron.
@@ -439,7 +442,7 @@ In this order. Steps 1–4 need no battery.
    Run the snippet above. Check both wheels for direction and creep
    threshold before either buck is in the picture.
 6. **Set the bucks.** Both P1s fed from the pack, outputs unloaded, meter
-   on the output pads: #1 to 5.1 V, #2 to 6.0 V. Leave them a minute and
+   on the output pins: #1 to 5.1 V, #2 to 6.0 V. Leave them a minute and
    re-check. The trimpot is single-turn, about 270° end to end, so a few
    degrees moves the output a lot. It has a 1.7 mm cross slot: use a PH000
    tip, press lightly, and don't force it past its end stop.
