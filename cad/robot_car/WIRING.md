@@ -258,7 +258,7 @@ B2 pack ──XT60── pigtail ── 2 A fuse ── switch ──┬── P
 - **The fan-out to two bucks** wants a junction, not two wires stuffed into
   one header pin: a lever connector (WAGO 221) or a screw terminal, then a
   22 AWG lead with a Dupont socket to each buck's `IN+` and `IN−` pins.
-  Nothing in this chain needs soldering.
+  The bucks need no soldering; the switch's terminals do (see above).
 
 **The P1 has no reverse-polarity protection** ([parts/p1.html](../../parts/p1.html)), so a swapped
 input kills the module and can pass 7.4 V downstream into the Pi. That is the
