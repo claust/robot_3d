@@ -11,7 +11,7 @@
   <a class="back-link" href="index.html">&larr; Parts Library</a>
 
   <section class="part" id="c1">
-    <div class="part-head"><span class="part-id">C1</span><h2>Raspberry Pi Zero 2 W single-board computer</h2><span class="badge verify">verify</span><span class="note">×1</span></div>
+    <div class="part-head"><span class="part-id">C1</span><h2>Raspberry Pi Zero 2 W single-board computer</h2><span class="badge ok">ok</span><span class="note">×1</span></div>
     <div class="part-body">
       <div class="part-text">
         <p>Already-owned board, confirmed to be the <strong>Zero 2 W</strong> variant (onboard
@@ -45,7 +45,8 @@
           <li>3.3 V logic — drives the
               DRV8833 inputs directly whatever the driver's VCC is, since the DRV8833's
               logic thresholds aren't referenced to its motor rail (V<sub>IH</sub> 2 V).
-              Software PWM (e.g. <code>pigpio</code>, DMA-timed) is smooth enough for
+              Software PWM (<code>gpiozero</code> on its <code>lgpio</code> backend; Raspberry Pi
+              OS 13 doesn&rsquo;t package <code>pigpio</code>) is smooth enough for
               brushed gearmotors, which is just as well: the two hardware PWM channels
               are shared across pins (PWM0 = GPIO12/18, PWM1 = GPIO13/19), so four
               driver inputs can't each have their own.</li>
@@ -57,25 +58,23 @@
               its 2 V V<sub>IH</sub> and twitch a motor before Linux is up. Full plan in
               <code>cad/robot_car/WIRING.md</code>.</li>
           <li>Power: 5 V. Budget ~1 A worst case with WiFi busy (idle is far less).
-              Plan: P1 MP1584EN buck set to 5.1 V from the B2 2S pack, feeding the
+              On the car: a P1 MP1584EN buck set to 5.1 V from the B2 2S pack, feeding the
               5 V/GND GPIO pins directly (bypasses the micro-USB connector; the Pi has
               no input protection on those pins, so the buck output must be verified
               with a meter first).</li>
         </ul>
+        <p><strong>First run on the car, 2026-10-03:</strong> powered from the B2 pack
+        through a P1 set to 5.1&nbsp;V on header pins 2 and 6, the board booted the fitted
+        128&nbsp;GB card (Raspberry Pi OS 13 &ldquo;trixie&rdquo;, 64-bit), joined the
+        WiFi and took SSH. It then drove both M2 motors through the D2 from GPIO12/13/16/19
+        with <code>pi/robot_car/motor_test.py</code>. <code>vcgencmd get_throttled</code>
+        stayed <code>0x0</code> (no undervoltage) throughout, motors running included, at
+        47&nbsp;&deg;C. The card is borrowed from the home-security project and still runs
+        its BLE observer alongside.</p>
         <p>To verify:</p>
         <ul class="checklist">
-          <li>Header numbering, before any wire goes on: pin 1 is the end nearest the
-              microSD slot, and continuity from a pin to a micro-USB shell picks out the
-              ground pins. At the far end from the SD card the last pair is pin 39 (GND)
-              and pin 40 (GPIO21) — the one that beeps is 39, which fixes which row
-              carries the odd numbers</li>
-          <li>What is on the fitted microSD (a 128 GB Samsung card is in the slot), and
-              whether it boots current Raspberry Pi OS; WiFi joins the LAN</li>
           <li>Idle and WiFi-active current draw at 5 V (sets the real buck budget)</li>
-          <li>Powering via GPIO 5 V pins from the P1 buck: set and measure 5.1 V under
-              no load before first connection</li>
-          <li><code>pigpio</code> software PWM on four GPIOs, scoped or LED-checked,
-              before wiring the DRV8833</li>
+          <li>A card of its own, so the borrowed one can go back</li>
         </ul>
       </div>
       <figure>

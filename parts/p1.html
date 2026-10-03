@@ -52,7 +52,12 @@
         from <code>VCC</code>, the other input left floating. The motor ran, and reversed
         with the resistor moved to <code>IN2</code>. Straight from the bag, with no load, this board&rsquo;s
         trimpot gave ~5.5&nbsp;V out of the 2S pack: a working buck, set at an arbitrary
-        factory position, as expected. The other four are untested.</p>
+        factory position, as expected.</p>
+        <p><strong>On the car, 2026-10-03:</strong> two boards, set unloaded to 5.1&nbsp;V
+        (C1 Pi) and 6.0&nbsp;V (D2 driver), both fed from the B2 pack through the
+        fuse and switch. The Pi ran with no undervoltage flag (<code>vcgencmd
+        get_throttled</code> = <code>0x0</code>) while the motors ran off the other buck.
+        The remaining three are untested.</p>
         <p>To verify:</p>
         <ul class="checklist">
           <li>Set the output voltage with a multimeter under no load before connecting anything

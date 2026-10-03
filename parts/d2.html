@@ -82,11 +82,17 @@
         That settles two open points: <code>VCC</code> does double as the motor supply,
         and the factory-bridged <code>en</code> jumper leaves the chip awake with nothing on
         <code>EEP</code>/<code>ULT</code>.</p>
+        <p><strong>On the car, 2026-10-03:</strong> the same board, headers soldered, fed
+        from its own P1 at 6.0&nbsp;V and driven from the C1 Pi on <code>IN1</code>&ndash;<code>IN4</code>.
+        Both bridges ran their motor forward and reverse at 60&nbsp;% duty (2&nbsp;kHz,
+        fast decay), and both motors start turning at 25&ndash;30&nbsp;% with the wheels off
+        the ground. With <code>IN1</code> or <code>IN3</code> high, the car&rsquo;s wheel
+        turns backward, so forward is <code>IN2</code>/<code>IN4</code> (see
+        <code>cad/robot_car/WIRING.md</code>).</p>
         <p>To verify:</p>
         <ul class="checklist">
           <li>Row spacing with calipers (about 15.5&nbsp;mm estimated), which fixes where
               the header solder tails sit under the board</li>
-          <li>Solder the header strips</li>
           <li>Settle <code>EEP</code> vs <code>ULT</code>: unpowered, measure each to
               <code>VCC</code>. The sleep pin reads ~47&nbsp;k&Omega; (good) or ~0&nbsp;&Omega;
               (hard tie, cap VCC at 6.5&nbsp;V); nFAULT reads open</li>
@@ -94,7 +100,7 @@
               expect ~150&nbsp;k&Omega; internal pulldown on each</li>
           <li>Check whether the green front-side part is a power LED (it should light when VCC
               comes up)</li>
-          <li>Bench-test bridge B (<code>IN3</code>/<code>IN4</code> &rarr; <code>OUT3</code>/<code>OUT4</code>) the same way as bridge A, then the other four boards</li>
+          <li>Brake (both inputs high) on either bridge, then the other four boards</li>
         </ul>
       </div>
       <figure>

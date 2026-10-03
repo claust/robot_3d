@@ -19,8 +19,8 @@ IDs and status come from the parts library, [parts/index.html](../../parts/index
 | ID | Part | On the car | Status |
 |----|------|------------|--------|
 | M2 | N20 micro gearmotor, 6 V 1:100 | two, rear corners | ok |
-| D2 | DRV8833 dual H-bridge module | one, rear left | ok, bridge B not yet tested |
-| C1 | Raspberry Pi Zero 2 W | one, front | verify |
+| D2 | DRV8833 dual H-bridge module | one, rear left | ok |
+| C1 | Raspberry Pi Zero 2 W | one, front | ok |
 | P1 | MP1584EN buck converter | two: 5.1 V for the Pi, 6.0 V for the motor driver | ok |
 | B2 | 2S LiPo 7.4 V 2200 mAh, XT60 | one, centre | ok |
 | — | KCD1-style mini rocker switch, 3 bent terminals ([kcd1_rocker.py](../parts/kcd1_rocker.py)) | one, left, between the motor and the motor buck | not yet in the parts library |
@@ -176,6 +176,8 @@ The commit messages for each step carry the measurements behind them.
 - [wheel.py](wheel.py) docstring: wheel, groove and bore.
 - [WIRING.md](WIRING.md): power tree, every connection, control logic,
   bring-up order and open electrical questions.
+- [pi/robot_car/](../../pi/robot_car/): the Pi's drive code, starting with
+  the `motor_test.py` bring-up script.
 - [parts/index.html](../../parts/index.html): the bought parts, with photos,
   datasheets and test status.
 - [../README.md](../README.md): the slice, verify and print pipeline.
@@ -184,7 +186,10 @@ The commit messages for each step carry the measurements behind them.
 
 - The electrical open questions are listed in [WIRING.md](WIRING.md#open-questions),
   including a low-voltage cutoff for the pack.
-- D2's second bridge has not been tested, and C1 still needs a bench check.
+- The 2 A fuse: the harness carries a 10 A until one is on hand, so the car
+  runs only while someone is watching.
+- WIRING.md bring-up step 7 still needs its stall checks: pack voltage and
+  the Pi–D2 ground offset with both motors held.
 - Caster, second iteration. The mount has to be part of the chassis:
   one rivet through the skid hole can't hold the arm rigid. The pivot has
   to turn far more freely, for example with a metal washer as the thrust
