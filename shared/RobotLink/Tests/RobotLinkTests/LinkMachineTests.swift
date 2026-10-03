@@ -43,7 +43,7 @@ import Testing
         #expect(effects.prefix(2) == [.stopScan, .connect(car)])
         #expect(effects.last == .report(.connecting(name: "RobotCar")))
         #expect(machine.handle(.discovered(other, name: "Other")) == [])
-        #expect(machine.handle(.connected(car)) == [.discoverDrive(car)])
+        #expect(machine.handle(.connected(car)).first == .discoverDrive(car))
         let verify = machine.handle(.driveFound(car))
         #expect(verify.first == .verify(car))
         #expect(machine.handle(.verified(car)) == [.startStream, .report(.connected(name: "RobotCar"))])
@@ -140,6 +140,38 @@ import Testing
         // The cancelled link's disconnect doesn't start a search by itself.
         #expect(machine.handle(.disconnected(car)) == [])
         #expect(machine.handle(.retry) == [.scan, .report(.searching)])
+    }
+
+    @Test func discoveryGetsAFreshTimeout() {
+        var machine = searching()
+        let connectToken = connecting(&machine)
+        let effects = machine.handle(.connected(car))
+        #expect(effects.contains { if case .armTimeout(_, LinkMachine.timeout) = $0 { true } else { false } })
+        #expect(machine.handle(.timedOut(token: connectToken)) == [])
+    }
+
+    @Test func eventsOutOfPhaseAreIgnored() {
+        var machine = searching()
+        _ = connecting(&machine)
+        #expect(machine.handle(.driveFound(car)) == [])
+        #expect(machine.handle(.verified(car)) == [])
+        #expect(machine.handle(.servicesInvalidated(car)) == [])
+        _ = machine.handle(.connected(car))
+        #expect(machine.handle(.connected(car)) == [])
+        #expect(machine.handle(.verified(car)) == [])
+    }
+
+    @Test func verifyFromBeforeAnInvalidationIsIgnored() {
+        var machine = searching()
+        _ = connecting(&machine)
+        _ = machine.handle(.connected(car))
+        _ = machine.handle(.driveFound(car))
+        _ = machine.handle(.servicesInvalidated(car))
+        // The old characteristic's write answers late, during rediscovery.
+        #expect(machine.handle(.verified(car)) == [])
+        #expect(machine.handle(.verifyFailed(car)) == [])
+        #expect(machine.handle(.driveFound(car)).first == .verify(car))
+        #expect(machine.handle(.verified(car)) == [.startStream, .report(.connected(name: "RobotCar"))])
     }
 
     @Test func retryOnlyMeansSomethingAfterAFailedPairing() {

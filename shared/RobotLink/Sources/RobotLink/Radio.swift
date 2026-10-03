@@ -13,11 +13,21 @@ import os
 /// late instead of old ones in a burst. The sequence number still advances
 /// on a skipped tick, which lets the Pi's log count them.
 ///
+/// Wheel commands count only while the stream is live. Each stream starts
+/// from stop, and a value set while the link was down or searching is
+/// dropped, so a reconnect never resumes motion from a command meant for
+/// the old link: the car waits for fresh input.
+///
 /// Everything here runs on `queue`, except `setWheels`, which goes through
 /// a lock, and the two report closures, which the owner hops back from.
 final class Radio: NSObject, @unchecked Sendable {
+    private struct Command {
+        var wheels = WheelSpeeds.stop
+        var live = false
+    }
+
     private let queue = DispatchQueue(label: "RobotLink.radio", qos: .userInteractive)
-    private let wheels = OSAllocatedUnfairLock(initialState: WheelSpeeds.stop)
+    private let command = OSAllocatedUnfairLock(initialState: Command())
     private let onState: @Sendable (CarLink.State) -> Void
     private let onRSSI: @Sendable (Int) -> Void
 
@@ -35,7 +45,7 @@ final class Radio: NSObject, @unchecked Sendable {
     }
 
     func setWheels(_ value: WheelSpeeds) {
-        wheels.withLock { $0 = value }
+        command.withLock { if $0.live { $0.wheels = value } }
     }
 
     func start() {
@@ -93,6 +103,7 @@ final class Radio: NSObject, @unchecked Sendable {
         case .startStream:
             startStream()
         case .stopStream:
+            command.withLock { $0 = Command() }
             stream?.cancel()
             stream = nil
             drive = nil
@@ -106,6 +117,7 @@ final class Radio: NSObject, @unchecked Sendable {
     }
 
     private func startStream() {
+        command.withLock { $0 = Command(wheels: .stop, live: true) }
         seq = 0
         let timer = DispatchSource.makeTimerSource(queue: queue)
         timer.schedule(deadline: .now(), repeating: 1 / DriveProtocol.rate, leeway: .milliseconds(2))
@@ -120,8 +132,8 @@ final class Radio: NSObject, @unchecked Sendable {
         guard let id = machine.car, let car = peripherals[id], let drive else { return }
         if seq % UInt8(DriveProtocol.rate) == 0 { car.readRSSI() }
         guard car.canSendWriteWithoutResponse else { return }
-        let command = DriveProtocol.encode(wheels.withLock { $0 }, seq: seq)
-        car.writeValue(command, for: drive, type: .withoutResponse)
+        let bytes = DriveProtocol.encode(command.withLock { $0.wheels }, seq: seq)
+        car.writeValue(bytes, for: drive, type: .withoutResponse)
     }
 }
 
@@ -175,9 +187,11 @@ extension Radio: CBPeripheralDelegate {
         handle(.driveFound(id))
     }
 
-    /// Only the verifying write expects a response.
+    /// Only the verifying write expects a response. One for a characteristic
+    /// other than the current `drive` belongs to a service that has since
+    /// been invalidated and found again.
     func peripheral(_ peripheral: CBPeripheral, didWriteValueFor characteristic: CBCharacteristic, error: Error?) {
-        guard characteristic.uuid == DriveProtocol.driveUUID else { return }
+        guard characteristic === drive else { return }
         handle(error == nil ? .verified(peripheral.identifier) : .verifyFailed(peripheral.identifier))
     }
 

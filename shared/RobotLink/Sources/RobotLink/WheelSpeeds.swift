@@ -1,9 +1,10 @@
 import Foundation
 
 /// Signed wheel speeds, each in -1...1: positive drives the car forward.
+/// Immutable, so the clamp in `init` holds for every value.
 public struct WheelSpeeds: Equatable, Sendable {
-    public var left: Double
-    public var right: Double
+    public let left: Double
+    public let right: Double
 
     public static let stop = WheelSpeeds(left: 0, right: 0)
 

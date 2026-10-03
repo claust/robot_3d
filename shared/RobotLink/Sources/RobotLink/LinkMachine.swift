@@ -5,11 +5,14 @@ import Foundation
 /// without Bluetooth. `Radio` feeds it CoreBluetooth's callbacks as events
 /// and carries out the effects it returns.
 ///
-/// It follows one car at a time, `car`. Events about any other peripheral
-/// are left over from an earlier attempt and are ignored. Every step that
-/// waits on the car (connecting, finding its drive service, pairing) arms a
-/// timeout, so no step can hang; a timeout that fires after its step
-/// finished carries an old token and is ignored too.
+/// It follows one car at a time, `car`, through the phases connecting,
+/// discovering, verifying and streaming. An event counts only for the car
+/// and only in the phase that waits for it. Anything else is a callback
+/// left over from an earlier attempt, or from before the car's service was
+/// invalidated (which keeps the peripheral, and so its UUID), and is
+/// ignored. Each waiting phase arms its own timeout, so no step can hang; a
+/// timeout that fires after its phase ended carries an old token and is
+/// ignored too.
 ///
 /// The car only takes drive writes over a link authenticated by pairing,
 /// so once the drive characteristic is found the link verifies it with one
@@ -50,7 +53,11 @@ struct LinkMachine {
         case report(CarLink.State)
     }
 
-    /// How long connecting, or finding the drive service again, may take.
+    private enum Phase {
+        case none, connecting, discovering, verifying, streaming
+    }
+
+    /// How long connecting, or finding the drive service, may take.
     static let timeout: TimeInterval = 6
     /// How long the verifying write may take, which includes someone
     /// fetching the passkey from the Pi's log and typing it in.
@@ -58,6 +65,7 @@ struct LinkMachine {
 
     private(set) var car: UUID?
     private var carName = ""
+    private var phase = Phase.none
     private var running = false
     private var bluetooth: CBManagerState = .unknown
     private var token = 0
@@ -81,31 +89,36 @@ struct LinkMachine {
             guard running, car == nil, bluetooth == .poweredOn else { return [] }
             car = id
             carName = name
+            phase = .connecting
             return [.stopScan, .connect(id), arm(Self.timeout)] + report(.connecting(name: name))
         case .connected(let id):
-            guard id == car else { return [] }
-            return [.discoverDrive(id)]
+            guard id == car, phase == .connecting else { return [] }
+            phase = .discovering
+            return [.discoverDrive(id), arm(Self.timeout)]
         case .driveFound(let id):
-            guard id == car else { return [] }
+            guard id == car, phase == .discovering else { return [] }
+            phase = .verifying
             return [.verify(id), arm(Self.pairingTimeout)]
+        case .driveMissing(let id):
+            guard id == car, phase == .discovering else { return [] }
+            // Its disconnect starts the next search.
+            return [.stopStream, .cancel(id)]
         case .verified(let id):
-            guard id == car else { return [] }
+            guard id == car, phase == .verifying else { return [] }
+            phase = .streaming
             token += 1  // the pending timeout is stale now
             return [.startStream] + report(.connected(name: carName))
         case .verifyFailed(let id):
-            guard id == car else { return [] }
+            guard id == car, phase == .verifying else { return [] }
             let name = carName
             forget()
             return [.stopStream, .cancel(id)] + report(.pairingFailed(name: name))
         case .retry:
             guard running, case .pairingFailed = state else { return [] }
             return search()
-        case .driveMissing(let id):
-            guard id == car else { return [] }
-            // Its disconnect starts the next search.
-            return [.stopStream, .cancel(id)]
         case .servicesInvalidated(let id):
-            guard id == car else { return [] }
+            guard id == car, phase != .connecting else { return [] }
+            phase = .discovering
             return [.stopStream, .discoverDrive(id), arm(Self.timeout)] + report(.connecting(name: carName))
         case .failedToConnect(let id), .disconnected(let id):
             guard id == car else { return [] }
@@ -142,6 +155,7 @@ struct LinkMachine {
     private mutating func forget() {
         car = nil
         carName = ""
+        phase = .none
         token += 1
     }
 

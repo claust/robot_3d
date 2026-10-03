@@ -32,6 +32,10 @@ import Testing
         #expect(abs(half.left - 0.5) < 1e-9)
     }
 
+    @Test func initClampsToTheUnitRange() {
+        #expect(WheelSpeeds(left: 10, right: -3) == WheelSpeeds(left: 1, right: -1))
+    }
+
     @Test func pastTheRimIsFullThrow() {
         #expect(WheelSpeeds.arcade(x: 0, y: 3) == WheelSpeeds(left: 1, right: 1))
     }

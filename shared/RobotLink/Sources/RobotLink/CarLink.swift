@@ -30,7 +30,9 @@ public final class CarLink {
     public private(set) var state: State = .idle
     /// Signal strength of the connection, refreshed once a second.
     public private(set) var rssi: Int?
-    /// What the wheels should do now.
+    /// What the wheels should do now. Only counts while connected: it goes
+    /// back to stop whenever the link isn't, and a reconnected car waits
+    /// for a fresh value.
     public var wheels: WheelSpeeds = .stop {
         didSet { radio?.setWheels(wheels) }
     }
@@ -65,7 +67,6 @@ public final class CarLink {
                     DispatchQueue.main.async { MainActor.assumeIsolated { self?.rssi = rssi } }
                 })
         }
-        radio?.setWheels(wheels)
         radio?.start()
     }
 
@@ -90,7 +91,10 @@ public final class CarLink {
 
     private func update(_ new: State) {
         state = new
-        if !isConnected { rssi = nil }
+        if !isConnected {
+            rssi = nil
+            wheels = .stop
+        }
     }
 
     private func simulate() {

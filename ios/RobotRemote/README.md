@@ -3,7 +3,9 @@
 Drives the robot car from an iPhone over Bluetooth LE, one thumb on a
 floating stick. Wherever the thumb lands in the bottom panel becomes the
 centre. Up drives both wheels forward, down both back, sideways spins the car
-on the spot, and anything between is an arc. Lifting the thumb stops the car.
+on the spot, and anything between is an arc. Lifting the thumb stops the car,
+and so does losing the link: after a reconnect the car waits for the thumb to
+move again rather than resuming the old command.
 The two bars show what each wheel is being told, and "Top speed" caps both.
 
 The first time, iOS asks for a pairing code: the car only takes commands

@@ -26,8 +26,9 @@ struct DriveView: View {
                         .foregroundStyle(.secondary)
                 }
                 Slider(value: $topSpeed, in: 0.3...1, step: 0.05)
+                    .accessibilityLabel("Top speed")
             }
-            Thumbstick { x, y in
+            Thumbstick(active: link.isConnected) { x, y in
                 stick = (x, y)
                 drive()
             }
@@ -45,6 +46,7 @@ struct DriveView: View {
     }
 
     private func drive() {
+        guard link.isConnected else { return }
         link.wheels = WheelSpeeds.arcade(x: stick.x, y: stick.y).scaled(by: topSpeed)
     }
 }
