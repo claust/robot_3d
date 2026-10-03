@@ -14,6 +14,13 @@ import Foundation
 /// timeout that fires after its phase ended carries an old token and is
 /// ignored too.
 ///
+/// Letting go of a car (a timeout, a failed pairing, a stop) cancels its
+/// connection, and CoreBluetooth reports the end of that attempt later.
+/// Until it does, the car is `cancelling` and is not connected to again,
+/// so that late callback can't be mistaken for one about a new attempt to
+/// the same UUID. Once it arrives, or a fallback timeout passes, a search
+/// that is still on restarts the scan to find the car again.
+///
 /// The car only takes drive writes over an encrypted link from a bonded
 /// phone, so once the drive characteristic is found the link verifies it
 /// with one write that expects a response. iOS answers the car's "insufficient
@@ -37,6 +44,7 @@ struct LinkMachine {
         case verifyFailed(UUID)
         case servicesInvalidated(UUID)
         case timedOut(token: Int)
+        case settleTimedOut(UUID, token: Int)
         case retry
     }
 
@@ -50,6 +58,7 @@ struct LinkMachine {
         case startStream
         case stopStream
         case armTimeout(token: Int, seconds: TimeInterval)
+        case armSettleTimeout(UUID, token: Int, seconds: TimeInterval)
         case report(CarLink.State)
     }
 
@@ -69,6 +78,10 @@ struct LinkMachine {
     private var running = false
     private var bluetooth: CBManagerState = .unknown
     private var token = 0
+    /// Cars let go of whose cancellation hasn't been confirmed yet, each
+    /// with the token of its fallback timeout.
+    private var cancelling: [UUID: Int] = [:]
+    private var settleToken = 0
     private var state: CarLink.State = .idle
 
     mutating func handle(_ event: Event) -> [Effect] {
@@ -79,14 +92,14 @@ struct LinkMachine {
         case .stopped:
             running = false
             var effects: [Effect] = [.stopStream, .stopScan]
-            if let car { effects.append(.cancel(car)) }
+            if let car { effects += letGo(car) }
             forget()
             return effects + report(.idle)
         case .bluetooth(let new):
             bluetooth = new
             return running ? follow(new) : []
         case .discovered(let id, let name):
-            guard running, car == nil, bluetooth == .poweredOn else { return [] }
+            guard running, car == nil, bluetooth == .poweredOn, cancelling[id] == nil else { return [] }
             car = id
             carName = name
             phase = .connecting
@@ -112,7 +125,7 @@ struct LinkMachine {
             guard id == car, phase == .verifying else { return [] }
             let name = carName
             forget()
-            return [.stopStream, .cancel(id)] + report(.pairingFailed(name: name))
+            return [.stopStream] + letGo(id) + report(.pairingFailed(name: name))
         case .retry:
             guard running, case .pairingFailed = state else { return [] }
             return search()
@@ -121,11 +134,16 @@ struct LinkMachine {
             phase = .discovering
             return [.stopStream, .discoverDrive(id), arm(Self.timeout)] + report(.connecting(name: carName))
         case .failedToConnect(let id), .disconnected(let id):
+            if cancelling.removeValue(forKey: id) != nil { return rescanIfSearching() }
             guard id == car else { return [] }
             return [.stopStream] + search()
         case .timedOut(let fired):
             guard fired == token, let car else { return [] }
-            return [.stopStream, .cancel(car)] + search()
+            return [.stopStream] + letGo(car) + search()
+        case .settleTimedOut(let id, let fired):
+            guard cancelling[id] == fired else { return [] }
+            cancelling[id] = nil
+            return rescanIfSearching()
         }
     }
 
@@ -135,12 +153,15 @@ struct LinkMachine {
             return car == nil ? search() : []
         case .poweredOff, .resetting:
             forget()
+            cancelling.removeAll()  // every connection is gone with the radio
             return [.stopStream] + report(.bluetoothOff)
         case .unauthorized:
             forget()
+            cancelling.removeAll()
             return [.stopStream] + report(.unauthorized)
         case .unsupported:
             forget()
+            cancelling.removeAll()
             return [.stopStream] + report(.unsupported)
         default:
             return []
@@ -151,6 +172,21 @@ struct LinkMachine {
         forget()
         guard bluetooth == .poweredOn else { return [] }
         return [.scan] + report(.searching)
+    }
+
+    /// Cancel the car's connection and hold it off until that is confirmed.
+    private mutating func letGo(_ id: UUID) -> [Effect] {
+        settleToken += 1
+        cancelling[id] = settleToken
+        return [.cancel(id), .armSettleTimeout(id, token: settleToken, seconds: Self.timeout)]
+    }
+
+    /// A let-go car has settled. A search that saw it advertise in the
+    /// meantime skipped it, and CoreBluetooth reports a peripheral once per
+    /// scan, so scan afresh.
+    private func rescanIfSearching() -> [Effect] {
+        guard running, car == nil, bluetooth == .poweredOn, state == .searching else { return [] }
+        return [.scan]
     }
 
     /// Drop the car, and with it any pending timeout.

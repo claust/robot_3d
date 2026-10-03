@@ -60,10 +60,35 @@ import Testing
     @Test func connectTimeoutCancelsAndSearchesAgain() {
         var machine = searching()
         let token = connecting(&machine)
-        #expect(machine.handle(.timedOut(token: token)) == [.stopStream, .cancel(car), .scan, .report(.searching)])
+        let effects = machine.handle(.timedOut(token: token))
+        #expect(effects.prefix(2) == [.stopStream, .cancel(car)])
+        #expect(effects.suffix(2) == [.scan, .report(.searching)])
         #expect(machine.car == nil)
-        // The cancelled connection's disconnect is old news by now.
-        #expect(machine.handle(.disconnected(car)) == [])
+        // The cancelled connection's disconnect only settles it: scan afresh.
+        #expect(machine.handle(.disconnected(car)) == [.scan])
+    }
+
+    @Test func lateCancelCallbackCannotTearDownANewAttempt() {
+        var machine = searching()
+        let token = connecting(&machine)
+        _ = machine.handle(.timedOut(token: token))
+        // The car still advertises, but isn't taken until its cancel settles.
+        #expect(machine.handle(.discovered(car, name: "RobotCar")) == [])
+        #expect(machine.handle(.disconnected(car)) == [.scan])
+        #expect(machine.handle(.discovered(car, name: "RobotCar")).contains(.connect(car)))
+        // A second, stale disconnect for the old attempt would have matched
+        // here before; now the new attempt is the only one tracked.
+        #expect(machine.car == car)
+    }
+
+    @Test func cancelThatNeverReportsSettlesOnItsTimeout() {
+        var machine = searching()
+        let token = connecting(&machine)
+        var settle = -1
+        for case .armSettleTimeout(_, let armed, _) in machine.handle(.timedOut(token: token)) { settle = armed }
+        #expect(machine.handle(.discovered(car, name: "RobotCar")) == [])
+        #expect(machine.handle(.settleTimedOut(car, token: settle)) == [.scan])
+        #expect(machine.handle(.discovered(car, name: "RobotCar")).contains(.connect(car)))
     }
 
     @Test func timeoutAfterConnectingIsStale() {
@@ -88,7 +113,9 @@ import Testing
         var machine = connected()
         var token = -1
         for case .armTimeout(let armed, _) in machine.handle(.servicesInvalidated(car)) { token = armed }
-        #expect(machine.handle(.timedOut(token: token)) == [.stopStream, .cancel(car), .scan, .report(.searching)])
+        let effects = machine.handle(.timedOut(token: token))
+        #expect(effects.prefix(2) == [.stopStream, .cancel(car)])
+        #expect(effects.suffix(2) == [.scan, .report(.searching)])
     }
 
     @Test func missingDriveServiceDropsTheConnection() {
@@ -113,7 +140,9 @@ import Testing
 
     @Test func stopLetsGoAndIgnoresLaterEvents() {
         var machine = connected()
-        #expect(machine.handle(.stopped) == [.stopStream, .stopScan, .cancel(car), .report(.idle)])
+        let stopped = machine.handle(.stopped)
+        #expect(stopped.prefix(3) == [.stopStream, .stopScan, .cancel(car)])
+        #expect(stopped.last == .report(.idle))
         #expect(machine.handle(.disconnected(car)) == [])
         #expect(machine.handle(.bluetooth(.poweredOn)) == [])
         #expect(machine.handle(.discovered(car, name: "RobotCar")) == [])
@@ -135,7 +164,9 @@ import Testing
         _ = connecting(&machine)
         _ = machine.handle(.connected(car))
         _ = machine.handle(.driveFound(car))
-        #expect(machine.handle(.verifyFailed(car)) == [.stopStream, .cancel(car), .report(.pairingFailed(name: "RobotCar"))])
+        let failed = machine.handle(.verifyFailed(car))
+        #expect(failed.prefix(2) == [.stopStream, .cancel(car)])
+        #expect(failed.last == .report(.pairingFailed(name: "RobotCar")))
         #expect(machine.car == nil)
         // The cancelled link's disconnect doesn't start a search by itself.
         #expect(machine.handle(.disconnected(car)) == [])

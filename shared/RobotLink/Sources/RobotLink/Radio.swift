@@ -111,6 +111,10 @@ final class Radio: NSObject, @unchecked Sendable {
             queue.asyncAfter(deadline: .now() + seconds) { [weak self] in
                 self?.handle(.timedOut(token: token))
             }
+        case .armSettleTimeout(let id, let token, let seconds):
+            queue.asyncAfter(deadline: .now() + seconds) { [weak self] in
+                self?.handle(.settleTimedOut(id, token: token))
+            }
         case .report(let state):
             onState(state)
         }
