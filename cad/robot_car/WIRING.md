@@ -2,7 +2,7 @@
 
 How the prototype's electronics hang together: B2 LiPo → two P1 bucks → C1
 (Pi Zero 2 W) for logic and D2 (DRV8833) for power, driving two M2 N20
-gearmotors. Part IDs are the ones in `parts/index.html`.
+gearmotors. Part IDs are the ones in [parts/index.html](../../parts/index.html).
 
 Status (2026-09-26): one link of the chain has run. One B2 pack → a 10 A
 fuse → one P1 buck at 6.0 V → bridge A of one D2 → one M2, with `IN1` pulled high
@@ -48,7 +48,7 @@ which is what leaves the chip awake, and neither pin needs a wire for basic
 two-motor drive.
 
 Board features worth knowing, from the back-side photo
-(`parts/photos/d2-drv8833-back.jpg`):
+([d2-drv8833-back.jpg](../../parts/photos/d2-drv8833-back.jpg)):
 
 - `en` solder jumper: **bridged** (factory default). `sleep` jumper: open.
   `J1`, a 2-pad SMD footprint next to `EEP`, is unpopulated.
@@ -60,39 +60,19 @@ Board features worth knowing, from the back-side photo
 
 ## Connections
 
-```
-                B2 2S LiPo 7.4 V  (XT60)
-                  +                      -
-                  |                      |
-             [2 A fuse]                  |
-                  |                      |
-              [switch]                   |
-                  |                      |
-        +---------+----------+           |
-        |                    |           |
-   +----+-----+        +-----+----+      |
-   | P1 buck 1|        | P1 buck 2|      |
-   |  5.1 V   |        |  6.0 V   |      |
-   +--+----+--+        +--+----+--+      |
-      |    |              |    |         |
-    5V1  GND1           VCC2  GND2       |
-      |    +---------------+----+--------+---- one common ground
-      |                    |                   (star at the pack minus)
-      |                    |
- C1 Pi Zero 2 W       D2 DRV8833            M2 N20 gearmotors
- ┌──────────────┐     ┌──────────┐
- │ hdr 2   5V   │◄────┤          │
- │ hdr 6   GND  │     │ VCC  GND │
- │              │     │          │
- │ hdr 32 GPIO12├────►│ IN1 OUT1 ├───────────► left  (+)
- │ hdr 33 GPIO13├────►│ IN2 OUT2 ├───────────► left  (−)
- │ hdr 35 GPIO19├────►│ IN3 OUT3 ├───────────► right (+)
- │ hdr 36 GPIO16├────►│ IN4 OUT4 ├───────────► right (−)
- │ hdr 34 GND   ├─────┤ GND      │
- └──────────────┘     └──────────┘
-```
+![robot_car schematic](robot_car_schematic.png)
 
-### Pi Zero 2 W → D2 (5 wires)
+The schematic's source is [robot_car.fzz](robot_car.fzz). Edit it in Fritzing
+or with the fritzing-format skill, then re-render the PNG. The Pi symbol is
+Fritzing's Pi Zero V1.1; the Zero 2 W has the same 40-pin header. The MP1584
+and DRV8833 symbols are hand-made and bundled in the sketch. Each MP1584 net
+has two header pins, and the part ties IN− and OUT− together, as the board
+does. The DRV8833 symbol keeps the board's pin order (see
+[parts/d2.html](../../parts/d2.html)). `GND` and `VCC` sit mid-row between the
+inputs, so `IN1`–`IN4` are drawn as net labels rather than wires that would
+cross the supply.
+
+### Pi Zero 2 W → D2 (4 signals + ground)
 
 | Pi header pin | BCM | D2 pin | Note |
 | --- | --- | --- | --- |
@@ -100,10 +80,10 @@ Board features worth knowing, from the back-side photo
 | 33 | GPIO13 | `IN2` | left motor, reverse |
 | 35 | GPIO19 | `IN3` | right motor, forward |
 | 36 | GPIO16 | `IN4` | right motor, reverse |
-| 34 | — | `GND` | signal ground; **not optional** |
+| 34 | — | P1 #2 second `OUT−` pin | signal ground; **not optional** — see [Grounds](#grounds) |
 
 Why these four GPIOs: they sit in one block at the far end of the header (one
-5-wire ribbon, no fan-out), none of them has a competing default function
+short ribbon, no fan-out), none of them has a competing default function
 (I²C on GPIO2/3 is left free for the S1 rangefinder later, UART on GPIO14/15
 for the console, SPI on GPIO7–11), and — the reason that matters — every GPIO
 from 9 up idles with an internal *pull-down* at boot. GPIO0–8 idle pulled
@@ -119,17 +99,23 @@ no series resistors are needed. Every unconnected input pulls itself low
 
 #### Finding those pins on the board
 
-From the top-face photo (`parts/photos/c1-pi-zero-2w-top.jpg`): the 40-pin
+From the top-face photo ([c1-pi-zero-2w-top.jpg](../../parts/photos/c1-pi-zero-2w-top.jpg)): the 40-pin
 header is **already populated with male pins** — ten 4-way plastic blocks in
 one strip, 2 × 20 on 2.54 mm pitch — so unlike D2, the Pi end needs no
 soldering. (Straight down, those pins read as recessed contacts in black
 wells; edge-on they are plainly pins.)
 
-D2 gets male pins too, so **the five wires between the boards are
-female–female jumper leads** — a Dupont socket on each end, pushed onto a pin
-at each board. A 20 cm 40-way rainbow ribbon is the thing to buy: peel off a
-5-wide strip and it stays in pin order by itself, which is most of the defence
-against miscounting. Nothing needs crimping or soldering to make this link.
+D2 gets male pins too, so **the four signal wires are female–female jumper
+leads** — a Dupont socket on each end, pushed onto a pin at each board. A
+20 cm 40-way rainbow ribbon is the thing to buy: peel off a 4-wide strip for
+pins 32, 33, 35 and 36 and it stays in order by itself, which is most of the
+defence against miscounting. Nothing needs crimping or soldering for those
+four.
+
+The fifth lead, pin 34's ground, is different: it goes to buck #2's second
+`OUT−` header pin, not to D2, and carries a share of the ground current (see
+[Grounds](#grounds)). Make it from 22 AWG with a Dupont socket crimped on each
+end, and run it alongside the signal strip.
 
 Orientation, then, with the header along the far edge and the connector edge
 (mini-HDMI, `USB`, `PWR IN`) toward you:
@@ -146,7 +132,7 @@ Orientation, then, with the header along the far edge and the connector edge
   from a header pin to a micro-USB shell finds the grounds — pins 6, 9, 14,
   20, 25, 30, 34, 39. At the far end from the SD card, the last pair is 39
   (GND) and 40 (GPIO21): the one that beeps is 39, and that fixes both rows.
-  Pin 34, the ground for our ribbon, is then three pairs back along the even
+  Pin 34, the ground lead, is then three pairs back along the even
   row (40, 38, 36, 34) — and it should beep too.
 
 ### D2 → M2 motors (4 wires)
@@ -178,7 +164,8 @@ sources and the Pi's WiFi and microSD are both nearby.
 | P1 #1 `OUT+` | Pi header pin 2 (or 4) | set to 5.1 V |
 | P1 #1 `OUT−` | Pi header pin 6 | |
 | P1 #2 `OUT+` | D2 `VCC` | set to 6.0 V |
-| P1 #2 `OUT−` | D2 `GND` | |
+| P1 #2 `OUT−` (one pin) | D2 `GND` | motor current return |
+| P1 #2 `OUT−` (other pin) | Pi header pin 34 | Pi–D2 ground reference |
 
 Two bucks rather than one shared 5 V rail: a stalling motor drags its rail
 down, and the thing on the other end of a shared rail would be the Pi's SD
@@ -193,15 +180,63 @@ components down, and a board can't be mirrored, so they sit rotated 180°
 to each other: P1 #2 has `IN` at the rear, next to the switch, and `OUT`
 at the front; P1 #1 has `IN` at the front and `OUT` at the rear.
 
-The switch (a KCD1-style mini rocker, `cad/parts/kcd1_rocker.py`) snaps into
+The switch (a KCD1-style mini rocker, [kcd1_rocker.py](../parts/kcd1_rocker.py)) snaps into
 a well on the left, between the motor cradle and P1 #2, its bent terminals
 pointing forward. Wires solder straight onto the middle and outer
 (outboard) terminal tips; the inner one is unused.
 
+#### Grounds
+
+Everything shares one ground: the P1 has no isolation, so its `IN−` and `OUT−`
+pads are the same copper, and both bucks' `IN−` meet at the pack minus.
+Two ground wires meet at buck #2, because they do different jobs:
+
+- **P1 #2 `OUT−` → D2 `GND`** is the motor current's direct return to the
+  buck that sourced it.
+- **Pi pin 34 → P1 #2's other `OUT−` pin** ties the Pi's 0 V to D2's at the
+  buck, so D2 reads `IN1`–`IN4` against the ground the Pi drives them from.
+  D2 has a single `GND` pin, but the buck's `OUT−` pad pair carries a 2-pin
+  header, so the two leads meet there, one per pin, in one 2-pin housing. Run this lead alongside the four
+  signal wires and split it off only near the buck: it is their return path,
+  and a ground routed away from them opens a loop that picks up motor noise.
+  Meter both `OUT−` pins to `IN−` before the first wire: all three should
+  beep.
+
+The pin-34 lead is not signal-only. Pins 6 and 34 share the Pi's ground
+plane, so the Pi's two ground leads, both bucks and their pack-minus wires
+form a loop, and every return current in it splits by resistance. The Pi's
+return current comes in at its ground plane; the pack takes back the bucks'
+*input* current at the pack minus, and buck #1 takes the difference. Solving
+that network with the pin 6 lead at 15 cm and the pin 34 lead at 20 cm of
+22 AWG, 10 cm of 20 AWG from each buck to the pack minus and a 7.4 V pack,
+pin 34 carries ~0.4 A at the Pi's 1 A peak and ~0.15 A at a typical 0.4 A.
+Running motors lower it slightly, because buck #2's input return flows the
+other way through the loop. That is why the lead is 22 AWG, like the Pi's
+power leads. The same solve puts the Pi–D2 ground offset under ~10 mV (≤5 mV
+across the loop plus ~4 mV on D2's own ground lead at a double stall), with
+motor switching spikes on top, far inside the 0.7 V / 2 V input
+thresholds. The wire lengths are estimates, so treat the figures as a scale,
+not a spec. Bring-up step 7 measures it rather
+than trusting the estimate. Short, thick pack-minus wires keep the shares
+small: they are the low-resistance side of the loop.
+
+D2's only ground is its wire to the buck, so that connection has to be
+dependable. If it comes loose while `VCC` is live, D2's ground floats up
+and the chip finds a return through `IN1`–`IN4` into the Pi's GPIOs. At D2,
+put `VCC` and `GND` (adjacent pins in the same row) into one 2-pin Dupont
+housing; at the buck, its `GND` lead shares the `OUT−` housing with the
+pin-34 lead. That makes an accidental separation less
+likely, but a half-pulled housing or a backed-out contact can still leave
+`VCC` on with `GND` open, so it is not a guarantee. Add strain relief: tie
+the pair to the chassis a few cm from D2 so a tug lands on the tie, not the
+contacts. Only plug or unplug D2 with the switch off. An ordinary jumper
+lead carries the current easily (0.4 A over 20 cm of 26 AWG drops ~10 mV);
+what it lacks is grip.
+
 #### From the pack to the bucks
 
-The pack ends in an XT60 and the P1s have bare solder pads, so something has
-to bridge them. What goes between:
+The pack ends in an XT60 and the P1s carry 2-pin male headers on their pad
+pairs, so something has to bridge them. What goes between:
 
 ```
 B2 pack ──XT60── pigtail ── 2 A fuse ── switch ──┬── P1 #1 (5.1 V) → Pi
@@ -223,10 +258,11 @@ B2 pack ──XT60── pigtail ── 2 A fuse ── switch ──┬── P
 - **A switch** rated 5 A or more, so the XT60 isn't the on/off control. They
   are stiff to mate and rated for a few hundred cycles.
 - **The fan-out to two bucks** wants a junction, not two wires stuffed into
-  one pad: a lever connector (WAGO 221) or a screw terminal. The only
-  soldering in this chain is the buck `IN+`/`IN−` pads.
+  one header pin: a lever connector (WAGO 221) or a screw terminal, then a
+  22 AWG lead with a Dupont socket to each buck's `IN+` and `IN−` pins.
+  The bucks need no soldering; the switch's terminals do (see above).
 
-**The P1 has no reverse-polarity protection** (`parts/p1.html`), so a swapped
+**The P1 has no reverse-polarity protection** ([parts/p1.html](../../parts/p1.html)), so a swapped
 input kills the module and can pass 7.4 V downstream into the Pi. That is the
 argument for keeping the XT60 as the pack interface everywhere: it is keyed
 and cannot mate backwards. Red is +, black is −, and check with a meter at
@@ -245,11 +281,13 @@ something shorts ahead of the fuse.
 
 | Run | Wire |
 | --- | --- |
-| Pack → fuse → switch → bucks | 20 AWG silicone, or the pigtail's own 14 AWG |
-| Buck → D2 `VCC`/`GND` | 20–22 AWG |
+| Pack → fuse → switch → junction | 20 AWG silicone, or the pigtail's own 14 AWG |
+| Junction → buck `IN+`/`IN−` | 22 AWG with Dupont sockets (the largest a Dupont crimp takes); ~0.75 A worst case per buck |
+| Buck → D2 `VCC`/`GND` | 22 AWG, Dupont sockets; a strain-relieved 2-pin housing at D2 (see [Grounds](#grounds)) |
 | Buck → Pi header pins 2/6 | 22 AWG; a jumper lead works electrically (1 A over 15 cm of 24 AWG drops ~15 mV) but the crimp is what fails |
 | D2 → motors | 22–24 AWG, twisted pair, 100 nF across the tabs |
 | Pi → D2 `IN1`–`IN4` | ordinary jumper leads — microamps |
+| Pi pin 34 → P1 #2 `OUT−` | 22 AWG, Dupont sockets, sharing a 2-pin housing with D2's `GND` lead at the buck; carries a share of the return current (see [Grounds](#grounds)) |
 
 Silicone-insulated stranded, not PVC hookup wire: it stays flexible in a
 chassis and doesn't shrink back from the soldering iron.
@@ -372,7 +410,7 @@ In this order. Steps 1–4 need no battery.
    on, that face is against the breadboard.
 2. **Meter the unpowered board** (see [Open questions](#open-questions)):
    `EEP`→`VCC`, `ULT`→`VCC`, and each of `IN1`–`IN4`→`GND`. The IN pins
-   should read around 150 kΩ. Write the numbers into `parts/d2.html`.
+   should read around 150 kΩ. Write the numbers into [parts/d2.html](../../parts/d2.html).
 3. **Bench supply, no motor.** 6.0 V into `VCC`/`GND`, current limit at
    100 mA. Quiescent draw should be ~2 mA (1.7 mA typical). Nothing hot.
 4. **Bench supply, one motor on OUT1/OUT2.** Jumper `IN1` to 3.3 V (or to
@@ -388,16 +426,20 @@ In this order. Steps 1–4 need no battery.
    Run the snippet above. Check both wheels for direction and creep
    threshold before either buck is in the picture.
 6. **Set the bucks.** Both P1s fed from the pack, outputs unloaded, meter
-   on the output pads: #1 to 5.1 V, #2 to 6.0 V. Leave them a minute and
-   re-check — the trimpots are multi-turn and easy to nudge.
+   on the output pins: #1 to 5.1 V, #2 to 6.0 V. Leave them a minute and
+   re-check. The trimpot is single-turn, about 270° end to end, so a few
+   degrees moves the output a lot. It has a 1.7 mm cross slot: use a PH000
+   tip, press lightly, and don't force it past its end stop.
 7. **Battery power.** Build the harness above first — pigtail, fuse, switch,
    junction — and meter it end to end with the pack unplugged: continuity
    through the fuse with the switch on, open with it off, and no continuity
    between + and −. Then buck #2 to the driver first, motors running from it,
    then buck #1 to the Pi. Connect the XT60 last, every time. Watch the pack
-   voltage under a stall; the 2S pack must not go below 6.4 V.
+   voltage under a stall; the 2S pack must not go below 6.4 V. With both
+   motors stalled and the Pi busy, meter Pi pin 34 to D2 `GND` (DC, then
+   min/max if the meter has it): tens of mV at most.
 
-D2 went to `ok` in `parts/index.html` after bridge A passed step 4, with a
+D2 went to `ok` in [parts/index.html](../../parts/index.html) after bridge A passed step 4, with a
 note that bridge B is untested. Keep that note until bridge B has passed step
 4 and the whole chain has run on the pack in step 7.
 
@@ -424,15 +466,18 @@ note that bridge B is untested. Keep that note until bridge B has passed step
 - **Low-voltage cutoff.** Nothing here watches the pack. The Pi can't read an
   analog voltage without help, so this needs either a divider into an ADC or
   a standalone LiPo alarm on the balance lead. Open design item, tracked on
-  `parts/b2.html`.
+  [parts/b2.html](../../parts/b2.html).
 
 ## References
 
 - TI DRV8833 datasheet, SLVSAR1E (July 2015): §6.1/6.3 ratings, §6.5
   electrical characteristics, §7.3.2 bridge control and decay modes, §7.3.4
   nSLEEP, §7.3.5 protection, §9.1 bulk capacitance, §9.2 sequencing.
-- `parts/d2.html`, `parts/c1.html`, `parts/m2.html`, `parts/p1.html`,
-  `parts/b2.html` — the part-level notes and their own to-verify lists.
-- `cad/parts/d2_drv8833.py`, `cad/parts/pi_zero_2w.py`,
-  `cad/parts/n20_motor.py` — CAD reference models, for where these boards
-  physically sit in the chassis.
+- [d2](../../parts/d2.html), [c1](../../parts/c1.html),
+  [m2](../../parts/m2.html), [p1](../../parts/p1.html),
+  [b2](../../parts/b2.html) in `parts/` — the part-level notes and their
+  own to-verify lists.
+- [d2_drv8833.py](../parts/d2_drv8833.py),
+  [pi_zero_2w.py](../parts/pi_zero_2w.py),
+  [n20_motor.py](../parts/n20_motor.py) in `cad/parts/` — CAD reference
+  models, for where these boards physically sit in the chassis.
