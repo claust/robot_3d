@@ -98,7 +98,7 @@ struct LinkMachine {
         case .driveFound(let id):
             guard id == car, phase == .discovering else { return [] }
             phase = .verifying
-            return [.verify(id), arm(Self.pairingTimeout)]
+            return [.verify(id), arm(Self.pairingTimeout)] + report(.pairing(name: carName))
         case .driveMissing(let id):
             guard id == car, phase == .discovering else { return [] }
             // Its disconnect starts the next search.
@@ -137,9 +137,11 @@ struct LinkMachine {
             forget()
             return [.stopStream] + report(.bluetoothOff)
         case .unauthorized:
-            return report(.unauthorized)
+            forget()
+            return [.stopStream] + report(.unauthorized)
         case .unsupported:
-            return report(.unsupported)
+            forget()
+            return [.stopStream] + report(.unsupported)
         default:
             return []
         }

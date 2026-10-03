@@ -23,6 +23,9 @@ public final class CarLink {
         case searching
         case connecting(name: String)
         case connected(name: String)
+        /// Checking the link is paired: instant once bonded, otherwise the
+        /// system's pairing dialog is up, waiting for the passkey.
+        case pairing(name: String)
         /// Pairing was cancelled or the passkey was wrong; waits for `retry()`.
         case pairingFailed(name: String)
     }
@@ -49,6 +52,11 @@ public final class CarLink {
 
     public var isConnected: Bool {
         if case .connected = state { return true }
+        return false
+    }
+
+    public var isPairing: Bool {
+        if case .pairing = state { return true }
         return false
     }
 

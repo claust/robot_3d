@@ -32,6 +32,9 @@ struct DriveView: View {
                 stick = (x, y)
                 drive()
             }
+            // Down links take no input, by touch or assistive technology,
+            // so nothing is waiting to be replayed when they come back.
+            .disabled(!link.isConnected)
             .opacity(link.isConnected ? 1 : 0.5)
         }
         .padding()
@@ -39,6 +42,7 @@ struct DriveView: View {
         .onChange(of: link.isConnected) { _, connected in
             // The screen must not lock half-way through a drive.
             UIApplication.shared.isIdleTimerDisabled = connected
+            stick = (0, 0)
         }
         .sensoryFeedback(trigger: link.isConnected) { _, connected in
             connected ? .success : .warning
@@ -87,6 +91,7 @@ private struct StatusBadge: View {
         case .unsupported: "No Bluetooth LE on this device"
         case .searching: "Looking for the car…"
         case .connecting(let name): "Connecting to \(name)…"
+        case .pairing(let name): "Pairing with \(name)…"
         case .connected(let name):
             if let rssi { "\(name) · \(rssi) dBm" } else { name }
         case .pairingFailed(let name): "Couldn't pair with \(name)"
@@ -96,7 +101,7 @@ private struct StatusBadge: View {
     private var colour: Color {
         switch state {
         case .connected: .green
-        case .searching, .connecting, .idle: .orange
+        case .searching, .connecting, .pairing, .idle: .orange
         default: .red
         }
     }

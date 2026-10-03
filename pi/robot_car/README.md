@@ -38,7 +38,9 @@ ssh robot-pi 'journalctl -u robot-car-remote@$USER -f'
 ```
 
 then open the app near the car. iOS asks for a Bluetooth pairing code;
-type the six digits from the `pairing dev_…: passkey 123456` line. The
+type the six digits from the `pairing dev_…: passkey 123456` line within
+about 30 seconds. While the badge says "Pairing", the app holds the link
+even if you switch to another app to read the code. The
 dialog names the Pi by its Bluetooth name, which is its hostname. If you
 cancel or mistype, the app shows "Couldn't pair" with a Try again button.
 Pairing without a passkey (Just Works) is refused.

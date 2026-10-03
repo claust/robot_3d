@@ -113,6 +113,7 @@ struct Thumbstick: View {
     }
 
     private func hold(speed: Double? = nil, turn: Double? = nil) {
+        guard active else { return }
         if let speed { held.speed = min(1, max(-1, speed)) }
         if let turn { held.turn = turn }
         onChange(held.turn, held.speed)

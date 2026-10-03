@@ -174,6 +174,26 @@ import Testing
         #expect(machine.handle(.verified(car)) == [.startStream, .report(.connected(name: "RobotCar"))])
     }
 
+    @Test func verifyingReportsPairing() {
+        var machine = searching()
+        _ = connecting(&machine)
+        _ = machine.handle(.connected(car))
+        #expect(machine.handle(.driveFound(car)).last == .report(.pairing(name: "RobotCar")))
+    }
+
+    @Test func losingPermissionLetsGoAndRecoversWhenItReturns() {
+        var machine = connected()
+        #expect(machine.handle(.bluetooth(.unauthorized)) == [.stopStream, .report(.unauthorized)])
+        #expect(machine.car == nil)
+        #expect(machine.handle(.bluetooth(.poweredOn)) == [.scan, .report(.searching)])
+    }
+
+    @Test func unsupportedLetsGoToo() {
+        var machine = connected()
+        #expect(machine.handle(.bluetooth(.unsupported)) == [.stopStream, .report(.unsupported)])
+        #expect(machine.car == nil)
+    }
+
     @Test func retryOnlyMeansSomethingAfterAFailedPairing() {
         var machine = connected()
         #expect(machine.handle(.retry) == [])
