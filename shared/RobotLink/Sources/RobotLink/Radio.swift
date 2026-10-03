@@ -99,7 +99,7 @@ final class Radio: NSObject, @unchecked Sendable {
         case .verify(let id):
             // A stop command, with response: see LinkMachine on pairing.
             guard let car = peripherals[id], let drive else { return handle(.verifyFailed(id)) }
-            car.writeValue(DriveProtocol.encode(.stop, seq: 0), for: drive, type: .withResponse)
+            car.writeValue(DriveProtocol.encode(.stop, seq: DriveProtocol.verifySeq), for: drive, type: .withResponse)
         case .startStream:
             startStream()
         case .stopStream:

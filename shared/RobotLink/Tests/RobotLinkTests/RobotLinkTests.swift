@@ -47,6 +47,11 @@ import Testing
         #expect(Array(data) == [7, 100, UInt8(bitPattern: -50)])
     }
 
+    @Test func verifyWriteRunsStraightIntoTheStream() {
+        // The stream's first tick is seq 0.
+        #expect(DriveProtocol.verifySeq &+ 1 == 0)
+    }
+
     @Test func clampsToTheByteRange() {
         let data = DriveProtocol.encode(WheelSpeeds(left: 4, right: -4).scaled(by: 2), seq: 255)
         #expect(Array(data) == [255, 100, UInt8(bitPattern: -100)])

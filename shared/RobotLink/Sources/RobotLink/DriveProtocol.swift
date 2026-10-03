@@ -15,6 +15,10 @@ public enum DriveProtocol {
     public static let serviceUUID = CBUUID(string: "0BF63E73-EDAC-4F6D-B68E-D6B8F42E2E47")
     public static let driveUUID = CBUUID(string: "93F818BE-A53D-4AEB-B292-BF122D178473")
     public static let rate: Double = 20
+    /// The verifying write's sequence number. The stream starts at 0, so 255
+    /// keeps the numbering contiguous and the Pi doesn't count the wrap from
+    /// one to the other as 255 skipped ticks.
+    public static let verifySeq: UInt8 = .max
 
     public static func encode(_ wheels: WheelSpeeds, seq: UInt8) -> Data {
         Data([seq, byte(wheels.left), byte(wheels.right)])

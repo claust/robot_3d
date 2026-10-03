@@ -158,6 +158,13 @@ class CarTests(MockPins):
             self.car.command(cmd(seq, 0, 0), PHONE, t)
         self.assertEqual(self.car.skipped, 2)
 
+    def test_verify_write_then_stream_counts_no_skips(self):
+        # The app's verifying write is seq 255; its stream starts at 0.
+        self.car.command(cmd(255, 0, 0), PHONE, 0.0)
+        self.car.command(cmd(0, 0, 0), PHONE, 0.05)
+        self.car.command(cmd(1, 0, 0), PHONE, 0.10)
+        self.assertEqual(self.car.skipped, 0)
+
     def test_restarted_stream_does_not_count_as_skipped(self):
         self.car.command(cmd(200, 0, 0), PHONE, 0.0)
         self.run_ticks(0.0, WATCHDOG_S + 0.1)
