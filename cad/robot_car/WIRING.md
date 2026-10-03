@@ -60,37 +60,15 @@ Board features worth knowing, from the back-side photo
 
 ## Connections
 
-```
-                B2 2S LiPo 7.4 V  (XT60)
-                  +                      -
-                  |                      |
-             [2 A fuse]                  |
-                  |                      |
-              [switch]                   |
-                  |                      |
-        +---------+----------+           |
-        |                    |           |
-   +----+-----+        +-----+----+      |
-   | P1 buck 1|        | P1 buck 2|      |
-   |  5.1 V   |        |  6.0 V   |      |
-   +--+----+--+        +--+----+--+      |
-      |    |              |    |         |
-    5V1  GND1           VCC2  GND2       |
-      |    +---------------+----+--------+---- one common ground
-      |                    |                   (star at the pack minus)
-      |                    |
- C1 Pi Zero 2 W       D2 DRV8833            M2 N20 gearmotors
- ┌──────────────┐     ┌──────────┐
- │ hdr 2   5V   │◄────┤          │
- │ hdr 6   GND  │     │ VCC  GND │
- │              │     │          │
- │ hdr 32 GPIO12├────►│ IN1 OUT1 ├───────────► left  (+)
- │ hdr 33 GPIO13├────►│ IN2 OUT2 ├───────────► left  (−)
- │ hdr 35 GPIO19├────►│ IN3 OUT3 ├───────────► right (+)
- │ hdr 36 GPIO16├────►│ IN4 OUT4 ├───────────► right (−)
- │ hdr 34 GND   ├──┐  └──────────┘
- └──────────────┘  └──────────────► P1 #2 second OUT− pin
-```
+![robot_car schematic](robot_car_schematic.png)
+
+The schematic's source is [robot_car.fzz](robot_car.fzz). Edit it in Fritzing
+or with the fritzing-format skill, then re-render the PNG. The Pi symbol is
+Fritzing's Pi Zero V1.1; the Zero 2 W has the same 40-pin header. The MP1584
+and DRV8833 symbols are hand-made and bundled in the sketch. Each MP1584 net
+has two header pins, and the part ties IN− and OUT− together, as the board
+does. The DRV8833's pin order follows this wiring, not the board; the board's
+own order is on [parts/d2.html](../../parts/d2.html).
 
 ### Pi Zero 2 W → D2 (4 signals + ground)
 

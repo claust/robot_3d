@@ -5,6 +5,8 @@ __pycache__/
 *.stl
 *.step
 *.png
+# except Fritzing schematic renders, kept next to their .fzz source
+!*_schematic.png
 *.jpg
 *.gcode
 *.gcode.3mf
