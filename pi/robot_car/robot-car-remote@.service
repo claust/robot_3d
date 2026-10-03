@@ -1,0 +1,39 @@
+# Runs remote.py as the Pi user named after the @. It starts together with
+# the Bluetooth daemon instead of waiting for the network, so the car can
+# be driven from the phone shortly after switch-on. Install it with:
+#   sudo cp robot_car/robot-car-remote@.service /etc/systemd/system/
+#   sudo systemctl daemon-reload
+#   sudo systemctl enable --now robot-car-remote@$USER
+[Unit]
+Description=robot_car Bluetooth LE remote control
+# Started by bluetooth.service and stopped with it: a restarted bluetoothd
+# forgets the GATT service and the advert, so this restarts with it.
+BindsTo=bluetooth.service
+After=bluetooth.service
+# Restart=always must never give up.
+StartLimitIntervalSec=0
+
+[Service]
+# remote.py says READY=1 once it advertises, then WATCHDOG=1 from the same
+# 50 Hz tick that runs the motor watchdog. If that loop stalls for a second,
+# systemd kills it outright, and ExecStopPost drives the motor pins low.
+Type=notify
+WatchdogSec=1
+WatchdogSignal=SIGKILL
+User=%i
+# lgpio keeps its notification pipe in the working directory.
+WorkingDirectory=/home/%i/robot_car
+# Raspberry Pi OS can boot with Bluetooth soft-blocked. "+" runs this as root.
+ExecStartPre=+/usr/sbin/rfkill unblock bluetooth
+ExecStart=/home/%i/robot_car/.venv/bin/python remote.py
+# After any exit, clean or not: claim the four motor pins low and let go.
+ExecStopPost=/home/%i/robot_car/.venv/bin/python motor_test.py --check
+# remote.py stops the motors on SIGTERM before it exits.
+KillSignal=SIGTERM
+TimeoutStopSec=5
+Restart=always
+RestartSec=1
+Environment=PYTHONUNBUFFERED=1
+
+[Install]
+WantedBy=bluetooth.service

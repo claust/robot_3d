@@ -1,10 +1,10 @@
 #!/usr/bin/env python3
 """Drivetrain bring-up for robot_car: Pi Zero 2 W -> DRV8833 -> two N20s.
 
-Pins and drive scheme follow cad/robot_car/WIRING.md: fast decay (PWM the
-forward pin, hold the other low) at 2 kHz, software PWM through gpiozero's
-lgpio backend. "Forward" means the car's forward: the top of the wheel rolls
-toward the nose.
+Pins and PWM come from drivetrain.py; the duty here is raw, without the
+minimum-duty jump or the slew limit. "Forward" means the car's forward: the
+top of the wheel rolls toward the nose. Stop remote.py first, since both
+claim the motor pins.
 
     motor_test.py               each motor forward, then reverse, one at a time
     motor_test.py --creep left  ramp one motor 0-100 % to find where it starts
@@ -20,22 +20,7 @@ import argparse
 import signal
 import time
 
-from gpiozero import Motor
-
-PWM_HZ = 2000
-# (forward, backward). On the built car both motors run backward with IN1/IN3
-# high, so forward is IN2 on the left and IN4 on the right.
-PINS = {
-    "left": (13, 12),   # IN2, IN1
-    "right": (16, 19),  # IN4, IN3
-}
-
-
-def make_motor(name):
-    motor = Motor(*PINS[name], pwm=True)
-    motor.forward_device.frequency = PWM_HZ
-    motor.backward_device.frequency = PWM_HZ
-    return motor
+from drivetrain import PINS, PWM_HZ, make_motor
 
 
 def run(motor, name, direction, percent, seconds):

@@ -35,6 +35,9 @@ uv project — run everything with `uv run` from inside `cad/`.
 - macOS app is read-only (never sends print commands). `swift run PrinterStatus`
   with `--simulate`, `--dump`, `--discover`, or `--snapshot out.png` to verify UI.
 - iOS app: `xcodegen generate`, then xcodebuild — see its README.
+- `shared/RobotLink` + `ios/RobotRemote`: the robot car's Bluetooth LE remote.
+  The Simulator has no Bluetooth (the app simulates the car there); real
+  tests build for the phone and install with `xcrun devicectl`.
 - Protocol and camera notes: `macos/RESEARCH.md`.
 
 ## ESP32-C5 firmware (esp32-c5/)
@@ -67,10 +70,15 @@ Mac's `~/.ssh/config` — keep LAN addresses and hostnames out of the repo.
 
 - GPIO goes through `gpiozero` on its `lgpio` backend; trixie doesn't package
   the `pigpio` daemon.
-- Deploy by piping over ssh:
-  `ssh robot-pi 'mkdir -p robot_car && cat > robot_car/motor_test.py && chmod +x robot_car/motor_test.py' < pi/robot_car/motor_test.py`.
-  Give remote paths relative to the Pi's home; a bare `~` is expanded by the
-  Mac's shell first.
+- Deploy a project folder by piping tar over ssh (its README has the exact
+  line). Give remote paths relative to the Pi's home; a bare `~` is
+  expanded by the Mac's shell first. Python deps beyond apt's go in a
+  `--system-site-packages` venv in the project folder on the Pi.
+- `pi/robot_car/remote.py` is the BLE server the iOS RobotRemote app drives;
+  stop it before running `motor_test.py`, since both claim the motor pins.
+  The Pi user has no passwordless sudo, so systemd installs are the user's.
+  `test_remote.py` runs on the Mac against gpiozero's mock pins (see the
+  folder's README).
 - Always get the user's go-ahead before running anything that turns a motor:
   wheels off the bench, a hand on the power switch.
 

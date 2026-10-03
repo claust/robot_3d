@@ -176,8 +176,11 @@ The commit messages for each step carry the measurements behind them.
 - [wheel.py](wheel.py) docstring: wheel, groove and bore.
 - [WIRING.md](WIRING.md): power tree, every connection, control logic,
   bring-up order and open electrical questions.
-- [pi/robot_car/](../../pi/robot_car/): the Pi's drive code, starting with
-  the `motor_test.py` bring-up script.
+- [pi/robot_car/](../../pi/robot_car/): the Pi's drive code: the motors,
+  the Bluetooth LE server the phone drives them through, and the
+  `motor_test.py` bring-up script.
+- [ios/RobotRemote/](../../ios/RobotRemote/): the iPhone app that drives the
+  car, one thumb on a floating stick.
 - [parts/index.html](../../parts/index.html): the bought parts, with photos,
   datasheets and test status.
 - [../README.md](../README.md): the slice, verify and print pipeline.
