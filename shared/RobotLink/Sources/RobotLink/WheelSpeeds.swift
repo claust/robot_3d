@@ -8,7 +8,15 @@ public struct WheelSpeeds: Equatable, Sendable {
 
     public static let stop = WheelSpeeds(left: 0, right: 0)
 
+    /// Clamps each speed to -1...1. A NaN or infinite speed means a bug
+    /// upstream, so it fails closed: both wheels stop. (NaN would otherwise
+    /// slip through the clamp and trap converting to the protocol's Int8.)
     public init(left: Double, right: Double) {
+        guard left.isFinite, right.isFinite else {
+            self.left = 0
+            self.right = 0
+            return
+        }
         self.left = left.clamped(to: -1...1)
         self.right = right.clamped(to: -1...1)
     }

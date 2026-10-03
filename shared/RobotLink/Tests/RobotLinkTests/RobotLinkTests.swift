@@ -36,6 +36,14 @@ import Testing
         #expect(WheelSpeeds(left: 10, right: -3) == WheelSpeeds(left: 1, right: -1))
     }
 
+    @Test func nonFiniteSpeedsStopBothWheels() {
+        #expect(WheelSpeeds(left: .nan, right: 0.5) == .stop)
+        #expect(WheelSpeeds(left: 0.5, right: .infinity) == .stop)
+        #expect(WheelSpeeds(left: 1, right: 1).scaled(by: .nan) == .stop)
+        // And it encodes without trapping.
+        #expect(Array(DriveProtocol.encode(WheelSpeeds(left: .nan, right: .nan), seq: 1)) == [1, 0, 0])
+    }
+
     @Test func pastTheRimIsFullThrow() {
         #expect(WheelSpeeds.arcade(x: 0, y: 3) == WheelSpeeds(left: 1, right: 1))
     }
