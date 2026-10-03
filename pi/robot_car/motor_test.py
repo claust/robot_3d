@@ -80,8 +80,11 @@ def main():
     parser.add_argument("--speed", type=float, default=60, help="sequence duty, %% (default 60)")
     parser.add_argument("--seconds", type=float, default=1.5, help="seconds per step (default 1.5)")
     args = parser.parse_args()
+    # Range checks, written so NaN fails them too, before any pin is claimed.
     if not 0 < args.speed <= 100:
         parser.error("--speed must be in (0, 100]")
+    if not 0 < args.seconds <= 10:
+        parser.error("--seconds must be in (0, 10]")
     if args.hold is not None and not 0 < args.hold <= 30:
         parser.error("--hold must be in (0, 30] seconds")
 

@@ -68,7 +68,7 @@ Mac's `~/.ssh/config` — keep LAN addresses and hostnames out of the repo.
 - GPIO goes through `gpiozero` on its `lgpio` backend; trixie doesn't package
   the `pigpio` daemon.
 - Deploy by piping over ssh:
-  `ssh robot-pi 'mkdir -p robot_car && cat > robot_car/motor_test.py' < pi/robot_car/motor_test.py`.
+  `ssh robot-pi 'mkdir -p robot_car && cat > robot_car/motor_test.py && chmod +x robot_car/motor_test.py' < pi/robot_car/motor_test.py`.
   Give remote paths relative to the Pi's home; a bare `~` is expanded by the
   Mac's shell first.
 - Always get the user's go-ahead before running anything that turns a motor:
