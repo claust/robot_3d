@@ -22,10 +22,30 @@ off the stick, so the stream is also the heartbeat. The UUIDs live in
 `remote.py` and in `DriveProtocol.swift` in
 [shared/RobotLink](../../shared/RobotLink); change both together.
 
-One phone drives at a time: the first device to send a command is the
-driver, and other devices' commands are ignored until the driver disconnects
-or has been silent for 2 s. There is no pairing, so while nobody is driving,
-any BLE central in range can take over, with the app or a generic BLE tool.
+Only a bonded phone can drive: the drive characteristic needs a link that
+was authenticated by passkey pairing, and BlueZ rejects writes over any
+other link. One bonded phone drives at a time: the first to send a command
+is the driver, and other devices' commands are ignored until the driver
+disconnects or has been silent for 2 s.
+
+### Pairing a phone
+
+Once per phone. The Pi has no screen, so `remote.py` registers itself as
+BlueZ's pairing agent and logs the passkey. Follow the log:
+
+```bash
+ssh robot-pi 'journalctl -u robot-car-remote@$USER -f'
+```
+
+then open the app near the car. iOS asks for a Bluetooth pairing code;
+type the six digits from the `pairing dev_…: passkey 123456` line. The
+dialog names the Pi by its Bluetooth name, which is its hostname. If you
+cancel or mistype, the app shows "Couldn't pair" with a Try again button.
+Pairing without a passkey (Just Works) is refused.
+
+If the Pi loses its bonds (a new SD card, or `bluetoothctl remove`), the
+phone's old bond no longer works: forget the Pi under Settings › Bluetooth
+on the phone, then pair again.
 
 The car stops by itself when the driver's commands stop for 300 ms, when the
 driver disconnects, and when `remote.py` exits. The 300 ms watchdog does the

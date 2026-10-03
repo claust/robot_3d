@@ -13,13 +13,14 @@ import tempfile
 import unittest
 from unittest import mock
 
+from bluez_peripheral.gatt.characteristic import CharacteristicFlags
 from dbus_next.errors import DBusError
 from gpiozero import Device
 from gpiozero.pins.mock import MockFactory, MockPWMPin
 
 import drivetrain
 from drivetrain import Drivetrain, duty
-from remote import HANDOVER_S, WATCHDOG_S, Car, Systemd, wait_for_adapter
+from remote import HANDOVER_S, WATCHDOG_S, Car, DriveService, Systemd, passkey_text, wait_for_adapter
 
 PHONE = "/org/bluez/hci0/dev_AA"
 OTHER = "/org/bluez/hci0/dev_BB"
@@ -174,6 +175,19 @@ class CarTests(MockPins):
         self.car.command(cmd(1, 0, 0), PHONE, 0.05)
         self.car.command(cmd(2, 0, 0), PHONE, 0.25)
         self.assertIn("max gap 200 ms", self.car.report())
+
+
+class PairingTests(unittest.TestCase):
+    def test_drive_writes_need_an_authenticated_link(self):
+        flags = DriveService.drive.flags
+        self.assertTrue(flags & CharacteristicFlags.ENCRYPT_AUTHENTICATED_WRITE)
+        self.assertTrue(flags & CharacteristicFlags.WRITE)
+        self.assertTrue(flags & CharacteristicFlags.WRITE_WITHOUT_RESPONSE)
+        self.assertFalse(flags & CharacteristicFlags.READ)
+
+    def test_passkey_keeps_its_leading_zeros(self):
+        self.assertEqual(passkey_text(42), "000042")
+        self.assertEqual(passkey_text(987654), "987654")
 
 
 class SystemdTests(unittest.TestCase):

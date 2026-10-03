@@ -23,6 +23,8 @@ public final class CarLink {
         case searching
         case connecting(name: String)
         case connected(name: String)
+        /// Pairing was cancelled or the passkey was wrong; waits for `retry()`.
+        case pairingFailed(name: String)
     }
 
     public private(set) var state: State = .idle
@@ -65,6 +67,12 @@ public final class CarLink {
         }
         radio?.setWheels(wheels)
         radio?.start()
+    }
+
+    /// Look for the car again after `.pairingFailed`.
+    public func retry() {
+        guard running, !simulated else { return }
+        radio?.retry()
     }
 
     /// Stop the wheels and let go of the car, e.g. when the app leaves the

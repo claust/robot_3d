@@ -11,7 +11,7 @@ struct DriveView: View {
 
     var body: some View {
         VStack(spacing: 20) {
-            StatusBadge(state: link.state, rssi: link.rssi)
+            StatusBadge(state: link.state, rssi: link.rssi, retry: link.retry)
             HStack(spacing: 48) {
                 WheelBar(label: "L", speed: link.wheels.left)
                 WheelBar(label: "R", speed: link.wheels.right)
@@ -52,6 +52,7 @@ struct DriveView: View {
 private struct StatusBadge: View {
     let state: CarLink.State
     let rssi: Int?
+    let retry: () -> Void
 
     var body: some View {
         HStack(spacing: 8) {
@@ -65,6 +66,10 @@ private struct StatusBadge: View {
                     }
                 }
                 .font(.subheadline)
+            }
+            if case .pairingFailed = state {
+                Button("Try again", action: retry)
+                    .font(.subheadline)
             }
         }
         .padding(.horizontal, 16)
@@ -82,6 +87,7 @@ private struct StatusBadge: View {
         case .connecting(let name): "Connecting to \(name)…"
         case .connected(let name):
             if let rssi { "\(name) · \(rssi) dBm" } else { name }
+        case .pairingFailed(let name): "Couldn't pair with \(name)"
         }
     }
 

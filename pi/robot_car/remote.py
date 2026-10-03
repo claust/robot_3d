@@ -7,11 +7,17 @@ about 20 times a second, without response: a sequence number, then the left
 and right wheel speeds as signed bytes, -100..100. It keeps sending while
 connected, zeros included, so the stream doubles as a heartbeat.
 
-One phone drives at a time. The first device to write a command becomes
-the driver, and commands from any other device are ignored until the driver
-disconnects or has been silent for HANDOVER_S. There is no pairing, so
-while nobody is driving, any BLE central in range can take over, the app or
-a generic BLE tool.
+Only a bonded phone can drive. The drive characteristic needs an
+authenticated, encrypted link, so BlueZ rejects writes from anything that
+hasn't paired with the passkey. The Pi has no screen, so the pairing agent
+logs that passkey ("pairing dev_..: passkey 123456") for the user to type
+on the phone, once per phone. The app's first write on each connection goes
+with response, which is what makes iOS pair, or re-encrypt with its bond,
+before the 20 Hz stream starts.
+
+One phone drives at a time. The first bonded device to write a command
+becomes the driver, and commands from any other device are ignored until
+the driver disconnects or has been silent for HANDOVER_S.
 
 The car stops by itself:
 
@@ -47,6 +53,7 @@ import struct
 import sys
 import time
 
+from bluez_peripheral.agent import AgentCapability, BaseAgent
 from bluez_peripheral.gatt.characteristic import CharacteristicFlags, characteristic
 from bluez_peripheral.gatt.service import Service
 from bluez_peripheral.util import Adapter, get_message_bus
@@ -196,9 +203,66 @@ class DriveService(Service):
         self._car = car
         super().__init__(SERVICE_UUID, True)
 
-    @characteristic(DRIVE_UUID, CharacteristicFlags.WRITE_WITHOUT_RESPONSE).setter
+    # Without response for the stream, with response for the app's first
+    # write; both only over a link authenticated by passkey pairing.
+    @characteristic(DRIVE_UUID, CharacteristicFlags.WRITE_WITHOUT_RESPONSE
+                    | CharacteristicFlags.WRITE
+                    | CharacteristicFlags.ENCRYPT_AUTHENTICATED_WRITE).setter
     def drive(self, value, options):
         self._car.command(value, options.device, time.monotonic())
+
+
+class PairingAgent(BaseAgent):
+    """BlueZ's default agent, with DisplayOnly capability.
+
+    A phone that can type gets Passkey Entry, which authenticates the bond.
+    The passkey goes to the log, the Pi's only display. Anything that would
+    pair without a passkey (Just Works) is refused, so no unauthenticated
+    bond is made either.
+    """
+
+    PATH = "/robot_car_agent"
+
+    def __init__(self):
+        super().__init__(AgentCapability.DISPLAY_ONLY)
+
+    @method()
+    def DisplayPasskey(self, device: "o", passkey: "u", entered: "q"):
+        if entered == 0:
+            log.warning("pairing %s: passkey %s", device_name(device), passkey_text(passkey))
+
+    @method()
+    def RequestPinCode(self, device: "o") -> "s":
+        raise refused("PIN pairing")
+
+    @method()
+    def RequestPasskey(self, device: "o") -> "u":
+        raise refused("typing a passkey")
+
+    @method()
+    def RequestConfirmation(self, device: "o", passkey: "u"):
+        raise refused("numeric comparison")
+
+    @method()
+    def RequestAuthorization(self, device: "o"):
+        raise refused("pairing without a passkey")
+
+    @method()
+    def AuthorizeService(self, device: "o", uuid: "s"):
+        raise refused(f"service {uuid}")
+
+    @method()
+    def Cancel(self):
+        log.info("pairing cancelled")
+
+
+def passkey_text(passkey):
+    return f"{passkey:06d}"
+
+
+def refused(what):
+    log.warning("refused %s", what)
+    return DBusError("org.bluez.Error.Rejected", f"robot_car refuses {what}")
 
 
 class Advertisement(ServiceInterface):
@@ -325,6 +389,10 @@ async def serve(car, stopping):
     if adapter is None:
         bus.disconnect()
         return None
+    await PairingAgent().register(bus, default=True, path=PairingAgent.PATH)
+    adapter_props = adapter.get_interface("org.bluez.Adapter1")
+    await adapter_props.set_pairable(True)
+    await adapter_props.set_pairable_timeout(0)
     await DriveService(car).register(bus, path="/robot_car", adapter=Adapter(adapter))
     bus.export(Advertisement.PATH, Advertisement(on_lost))
     await adapter.get_interface("org.bluez.LEAdvertisingManager1") \

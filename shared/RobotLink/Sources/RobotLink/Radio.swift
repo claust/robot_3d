@@ -51,6 +51,10 @@ final class Radio: NSObject, @unchecked Sendable {
         }
     }
 
+    func retry() {
+        queue.async { [self] in handle(.retry) }
+    }
+
     /// Send the current wheels once more (the owner sets them to stop
     /// first), then let go of the car.
     func stop() {
@@ -82,14 +86,18 @@ final class Radio: NSObject, @unchecked Sendable {
         case .discoverDrive(let id):
             drive = nil
             peripherals[id]?.discoverServices([DriveProtocol.serviceUUID])
+        case .verify(let id):
+            // A stop command, with response: see LinkMachine on pairing.
+            guard let car = peripherals[id], let drive else { return handle(.verifyFailed(id)) }
+            car.writeValue(DriveProtocol.encode(.stop, seq: 0), for: drive, type: .withResponse)
         case .startStream:
             startStream()
         case .stopStream:
             stream?.cancel()
             stream = nil
             drive = nil
-        case .armTimeout(let token):
-            queue.asyncAfter(deadline: .now() + LinkMachine.timeout) { [weak self] in
+        case .armTimeout(let token, let seconds):
+            queue.asyncAfter(deadline: .now() + seconds) { [weak self] in
                 self?.handle(.timedOut(token: token))
             }
         case .report(let state):
@@ -165,6 +173,12 @@ extension Radio: CBPeripheralDelegate {
         }
         if id == machine.car { drive = found }
         handle(.driveFound(id))
+    }
+
+    /// Only the verifying write expects a response.
+    func peripheral(_ peripheral: CBPeripheral, didWriteValueFor characteristic: CBCharacteristic, error: Error?) {
+        guard characteristic.uuid == DriveProtocol.driveUUID else { return }
+        handle(error == nil ? .verified(peripheral.identifier) : .verifyFailed(peripheral.identifier))
     }
 
     /// Restarting remote.py on the Pi unregisters the drive service but

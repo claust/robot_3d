@@ -7,9 +7,18 @@ import Foundation
 ///
 /// It follows one car at a time, `car`. Events about any other peripheral
 /// are left over from an earlier attempt and are ignored. Every step that
-/// waits on the car (connecting, finding its drive service again) arms a
+/// waits on the car (connecting, finding its drive service, pairing) arms a
 /// timeout, so no step can hang; a timeout that fires after its step
 /// finished carries an old token and is ignored too.
+///
+/// The car only takes drive writes over a link authenticated by pairing,
+/// so once the drive characteristic is found the link verifies it with one
+/// write that expects a response. iOS answers the car's "insufficient
+/// authentication" by pairing (the system dialog asks for the passkey the
+/// Pi logs) or, once bonded, by encrypting the link, and then retries the
+/// write. Only a successful write starts the stream. A failed one, usually
+/// a cancelled or mistyped passkey, parks the link at `.pairingFailed`
+/// until `retry`, so the phone doesn't ask again and again on its own.
 struct LinkMachine {
     enum Event: Equatable {
         case started
@@ -21,8 +30,11 @@ struct LinkMachine {
         case disconnected(UUID)
         case driveFound(UUID)
         case driveMissing(UUID)
+        case verified(UUID)
+        case verifyFailed(UUID)
         case servicesInvalidated(UUID)
         case timedOut(token: Int)
+        case retry
     }
 
     enum Effect: Equatable {
@@ -31,14 +43,18 @@ struct LinkMachine {
         case connect(UUID)
         case cancel(UUID)
         case discoverDrive(UUID)
+        case verify(UUID)
         case startStream
         case stopStream
-        case armTimeout(token: Int)
+        case armTimeout(token: Int, seconds: TimeInterval)
         case report(CarLink.State)
     }
 
     /// How long connecting, or finding the drive service again, may take.
     static let timeout: TimeInterval = 6
+    /// How long the verifying write may take, which includes someone
+    /// fetching the passkey from the Pi's log and typing it in.
+    static let pairingTimeout: TimeInterval = 90
 
     private(set) var car: UUID?
     private var carName = ""
@@ -65,21 +81,32 @@ struct LinkMachine {
             guard running, car == nil, bluetooth == .poweredOn else { return [] }
             car = id
             carName = name
-            return [.stopScan, .connect(id), arm()] + report(.connecting(name: name))
+            return [.stopScan, .connect(id), arm(Self.timeout)] + report(.connecting(name: name))
         case .connected(let id):
             guard id == car else { return [] }
             return [.discoverDrive(id)]
         case .driveFound(let id):
             guard id == car else { return [] }
+            return [.verify(id), arm(Self.pairingTimeout)]
+        case .verified(let id):
+            guard id == car else { return [] }
             token += 1  // the pending timeout is stale now
             return [.startStream] + report(.connected(name: carName))
+        case .verifyFailed(let id):
+            guard id == car else { return [] }
+            let name = carName
+            forget()
+            return [.stopStream, .cancel(id)] + report(.pairingFailed(name: name))
+        case .retry:
+            guard running, case .pairingFailed = state else { return [] }
+            return search()
         case .driveMissing(let id):
             guard id == car else { return [] }
             // Its disconnect starts the next search.
             return [.stopStream, .cancel(id)]
         case .servicesInvalidated(let id):
             guard id == car else { return [] }
-            return [.stopStream, .discoverDrive(id), arm()] + report(.connecting(name: carName))
+            return [.stopStream, .discoverDrive(id), arm(Self.timeout)] + report(.connecting(name: carName))
         case .failedToConnect(let id), .disconnected(let id):
             guard id == car else { return [] }
             return [.stopStream] + search()
@@ -118,9 +145,9 @@ struct LinkMachine {
         token += 1
     }
 
-    private mutating func arm() -> Effect {
+    private mutating func arm(_ seconds: TimeInterval) -> Effect {
         token += 1
-        return .armTimeout(token: token)
+        return .armTimeout(token: token, seconds: seconds)
     }
 
     private mutating func report(_ new: CarLink.State) -> [Effect] {
