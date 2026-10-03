@@ -202,15 +202,19 @@ Two ground wires meet at buck #2, because they do different jobs:
 
 The pin-34 lead is not signal-only. Pins 6 and 34 share the Pi's ground
 plane, so the Pi's two ground leads, both bucks and their pack-minus wires
-form a loop, and every return current in it splits by resistance. With the
-pin 6 and pin 34 leads at 15–20 cm of 22 AWG and 10 cm of 20 AWG from each
-buck to the pack minus, about a third of the Pi's supply current comes back
-through pin 34 and buck #2 rather than pin 6 (up to ~0.3 A at the Pi's 1 A
-peak), and about an eighth of buck #2's input current crosses the Pi's
-ground plane on its way to the pack (~45 mA at a double stall). That is why
-the lead is 22 AWG, like the Pi's power leads. By those numbers the Pi–D2
-ground offset stays under ~10 mV, with motor switching spikes on top, far
-inside the 0.7 V / 2 V input thresholds. Bring-up step 7 measures it rather
+form a loop, and every return current in it splits by resistance. The Pi's
+return current comes in at its ground plane; the pack takes back the bucks'
+*input* current at the pack minus, and buck #1 takes the difference. Solving
+that network with the pin 6 lead at 15 cm and the pin 34 lead at 20 cm of
+22 AWG, 10 cm of 20 AWG from each buck to the pack minus and a 7.4 V pack,
+pin 34 carries ~0.4 A at the Pi's 1 A peak and ~0.15 A at a typical 0.4 A.
+Running motors lower it slightly, because buck #2's input return flows the
+other way through the loop. That is why the lead is 22 AWG, like the Pi's
+power leads. The same solve puts the Pi–D2 ground offset under ~10 mV (≤5 mV
+across the loop plus ~4 mV on D2's own ground lead at a double stall), with
+motor switching spikes on top, far inside the 0.7 V / 2 V input
+thresholds. The wire lengths are estimates, so treat the figures as a scale,
+not a spec. Bring-up step 7 measures it rather
 than trusting the estimate. Short, thick pack-minus wires keep the shares
 small: they are the low-resistance side of the loop.
 

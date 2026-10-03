@@ -36,8 +36,11 @@
               independently checked.</li>
           <li>Visible components: the MP1584EN itself, a shielded power inductor marked
               <code>4R7</code> (4.7 &micro;H), an <code>SS34</code> Schottky diode (3 A/40 V
-              class), a few ceramic caps, and the blue multi-turn trimpot that sets the
-              feedback divider (and so the output voltage).</li>
+              class), a few ceramic caps, and the trimpot that sets the feedback divider
+              (and so the output voltage): on the board checked up close, a 3&nbsp;mm open-frame
+              single-turn trimmer, about 270&deg; end to end, with a 1.7&nbsp;mm cross slot
+              (a PH000 tip fits). A few degrees moves the output a lot; don't force it past
+              its end stop.</li>
           <li>No obvious reverse-polarity protection on the input &mdash; wire it carefully.</li>
           <li>Likely use here: stepping a higher-voltage source (e.g. the B1/B2 packs, or the
               M1 motors' 22 V rail) down to a clean logic rail (5 V, 3.3 V) for boards like the
