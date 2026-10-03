@@ -150,7 +150,7 @@ so the two motors point in opposite directions and the same tab order turns
 them opposite ways. Direction is therefore set in software, not at the
 terminals. On the car as wired, `IN1` or `IN3` high rolls its wheel
 backward, so forward is `IN2` on the left and `IN4` on the right (the Pi
-table above, and `PINS` in [motor_test.py](../../pi/robot_car/motor_test.py)).
+table above, and `PINS` in [drivetrain.py](../../pi/robot_car/drivetrain.py)).
 "Forward" means the top of the wheel rolls toward the nose. If a motor is
 rewired, re-run `motor_test.py` and watch rather than trusting the tab marks.
 
@@ -457,12 +457,14 @@ In this order. Steps 1–4 need no battery.
    `motor_test.py --hold 5` runs both motors at 100 % for 5 s while you hold
    the wheels.
 
-`motor_test.py` runs on the Pi; its docstring lists the modes. Every mode
-ends by itself and stops the motors on SIGTERM or SIGHUP, but a SIGKILL can
-leave a pin mid-PWM, so keep a hand near the switch while it runs. Over SSH,
-give the path relative to the Pi's home (`ssh -t robot-pi
-robot_car/motor_test.py --creep left`): a bare `~` is expanded by the Mac's
-shell first.
+`motor_test.py` runs on the Pi; its docstring lists the modes. The phone
+remote's service holds the motor pins from boot, so stop it first
+(`ssh -t robot-pi 'sudo systemctl stop robot-car-remote@$USER'`) and start
+it again afterwards. Every mode ends by itself and stops the motors on
+SIGTERM or SIGHUP, but a SIGKILL can leave a pin mid-PWM, so keep a hand
+near the switch while it runs. Over SSH, give the path relative to the Pi's
+home (`ssh -t robot-pi robot_car/motor_test.py --creep left`): a bare `~` is
+expanded by the Mac's shell first.
 
 D2 is `ok` in [parts/index.html](../../parts/index.html). Its brake state
 and the other four boards are untested.

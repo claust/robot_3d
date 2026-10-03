@@ -1,0 +1,47 @@
+name: RobotRemote
+options:
+  bundleIdPrefix: dk.delectosoft
+  deploymentTarget:
+    iOS: "17.0"
+  createIntermediateGroups: true
+settings:
+  base:
+    SWIFT_VERSION: "5.0"
+    TARGETED_DEVICE_FAMILY: "1"
+    MARKETING_VERSION: "0.1"
+    CURRENT_PROJECT_VERSION: "1"
+packages:
+  # Drive protocol, thumbstick mix and the CoreBluetooth link. UI-free, so
+  # it unit-tests on the Mac.
+  RobotLink:
+    path: ../../shared/RobotLink
+targets:
+  RobotRemote:
+    type: application
+    platform: iOS
+    sources:
+      - path: Sources
+    dependencies:
+      - package: RobotLink
+        product: RobotLink
+    info:
+      path: Sources/Info.plist
+      properties:
+        CFBundleDisplayName: Robot Remote
+        CFBundleShortVersionString: $(MARKETING_VERSION)
+        CFBundleVersion: $(CURRENT_PROJECT_VERSION)
+        # Without it the first CBCentralManager kills the app.
+        NSBluetoothAlwaysUsageDescription: >-
+          Robot Remote connects to your robot car over Bluetooth to drive it.
+        ITSAppUsesNonExemptEncryption: false
+        UILaunchScreen: {}
+        # Portrait only: the thumbstick sits where a one-handed thumb reaches.
+        UIRequiresFullScreen: true
+        UISupportedInterfaceOrientations:
+          - UIInterfaceOrientationPortrait
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: dk.delectosoft.robotremote
+        # DEVELOPMENT_TEAM comes from the command line or Xcode's own signing
+        # UI; simulator builds need neither.
+        CODE_SIGN_STYLE: Automatic
