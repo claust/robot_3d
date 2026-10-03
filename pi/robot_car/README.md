@@ -65,8 +65,11 @@ If `remote.py` itself stalls, systemd's watchdog kills it (below).
 ssh robot-pi 'cd robot_car && python3 -m venv --system-site-packages .venv && .venv/bin/pip install bluez-peripheral'
 ```
 
-No root is needed: BlueZ's D-Bus policy lets any user register a GATT
-service and an advert, and the Pi user is in the `gpio` group.
+No root is needed. BlueZ's D-Bus policy lets any user register a GATT
+service, an advert and the default pairing agent, and the Pi user is in the
+`gpio` group. bluez-peripheral's docs say the default agent needs root, but
+on BlueZ 5.82 it doesn't: the service runs as the Pi user and gets the
+pairing calls.
 
 ## Running at boot
 

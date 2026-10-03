@@ -389,6 +389,11 @@ async def serve(car, stopping):
     if adapter is None:
         bus.disconnect()
         return None
+    # bluez-peripheral's docstring says default=True needs root. BlueZ's own
+    # D-Bus policy (/usr/share/dbus-1/system.d/bluetooth.conf) lets any user
+    # send to org.bluez, RequestDefaultAgent included, and on the car this
+    # service gets DisplayPasskey calls while running as the Pi user. If a
+    # later BlueZ tightens that, startup fails right here with AccessDenied.
     await PairingAgent().register(bus, default=True, path=PairingAgent.PATH)
     adapter_props = adapter.get_interface("org.bluez.Adapter1")
     await adapter_props.set_pairable(True)
