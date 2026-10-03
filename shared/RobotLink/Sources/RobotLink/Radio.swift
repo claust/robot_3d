@@ -35,6 +35,14 @@ final class Radio: NSObject, @unchecked Sendable {
     private var central: CBCentralManager?
     private var peripherals: [UUID: CBPeripheral] = [:]
     private var drive: CBCharacteristic?
+    /// The drive service the current discovery found, and how many
+    /// discoverServices calls on this connection are still unanswered.
+    /// CoreBluetooth answers them in order, so while a newer one is out an
+    /// answer belongs to an older one, from before the service was
+    /// invalidated, and is ignored, as is a characteristic callback for any
+    /// service but this one.
+    private var driveService: CBService?
+    private var serviceDiscoveries = 0
     private var stream: DispatchSourceTimer?
     private var seq: UInt8 = 0
 
@@ -89,13 +97,18 @@ final class Radio: NSObject, @unchecked Sendable {
             if poweredOn { central?.stopScan() }
         case .connect(let id):
             guard let car = peripherals[id] else { return }
+            serviceDiscoveries = 0
+            driveService = nil
             car.delegate = self
             central?.connect(car)
         case .cancel(let id):
             if poweredOn, let car = peripherals[id] { central?.cancelPeripheralConnection(car) }
         case .discoverDrive(let id):
             drive = nil
-            peripherals[id]?.discoverServices([DriveProtocol.serviceUUID])
+            driveService = nil
+            guard let car = peripherals[id] else { return }
+            serviceDiscoveries += 1
+            car.discoverServices([DriveProtocol.serviceUUID])
         case .verify(let id):
             // A stop command, with response: see LinkMachine on pairing.
             guard let car = peripherals[id], let drive else { return handle(.verifyFailed(id)) }
@@ -176,13 +189,18 @@ extension Radio: CBCentralManagerDelegate {
 
 extension Radio: CBPeripheralDelegate {
     func peripheral(_ peripheral: CBPeripheral, didDiscoverServices error: Error?) {
+        guard peripheral.identifier == machine.car else { return }
+        serviceDiscoveries = max(0, serviceDiscoveries - 1)
+        guard serviceDiscoveries == 0 else { return }
         guard let service = peripheral.services?.first(where: { $0.uuid == DriveProtocol.serviceUUID }) else {
             return handle(.driveMissing(peripheral.identifier))
         }
+        driveService = service
         peripheral.discoverCharacteristics([DriveProtocol.driveUUID], for: service)
     }
 
     func peripheral(_ peripheral: CBPeripheral, didDiscoverCharacteristicsFor service: CBService, error: Error?) {
+        guard service === driveService else { return }
         let id = peripheral.identifier
         guard let found = service.characteristics?.first(where: { $0.uuid == DriveProtocol.driveUUID }) else {
             return handle(.driveMissing(id))
@@ -204,6 +222,7 @@ extension Radio: CBPeripheralDelegate {
     /// connection.
     func peripheral(_ peripheral: CBPeripheral, didModifyServices invalidatedServices: [CBService]) {
         if invalidatedServices.contains(where: { $0.uuid == DriveProtocol.serviceUUID }) {
+            driveService = nil
             handle(.servicesInvalidated(peripheral.identifier))
         }
     }
