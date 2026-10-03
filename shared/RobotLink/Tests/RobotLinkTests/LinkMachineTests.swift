@@ -155,7 +155,7 @@ import Testing
         let effects = machine.handle(.driveFound(car))
         #expect(effects.first == .verify(car))
         #expect(!effects.contains(.startStream))
-        // Long enough for someone to fetch the passkey and type it.
+        // Long enough for someone to answer the "Pair?" dialog.
         #expect(effects.contains { if case .armTimeout(_, LinkMachine.pairingTimeout) = $0 { true } else { false } })
     }
 
