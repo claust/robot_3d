@@ -18,8 +18,8 @@ Fritzing has neither, so `cad/robot_car/robot_car.fzz` carries hand-made ones
 (moduleIds `robot3d_mp1584_ModuleID` and `robot3d_drv8833_ModuleID`), with a
 **schematic view only**. The MP1584 has two pins per net, because the car's boards
 carry a 2-pin header on every pad pair. Internal buses tie each pair together and
-tie IN− to OUT−, as the board's copper does. The DRV8833's pin order follows the
-car's wiring, not the board. To reuse either part, `fzz.read_fzz()` that sketch
+tie IN− to OUT−, as the board's copper does. The DRV8833 keeps the board's pin
+order. To reuse either part, `fzz.read_fzz()` that sketch
 first.
 
 ## Seeed Studio XIAO ESP32C5

@@ -67,8 +67,10 @@ or with the fritzing-format skill, then re-render the PNG. The Pi symbol is
 Fritzing's Pi Zero V1.1; the Zero 2 W has the same 40-pin header. The MP1584
 and DRV8833 symbols are hand-made and bundled in the sketch. Each MP1584 net
 has two header pins, and the part ties IN− and OUT− together, as the board
-does. The DRV8833's pin order follows this wiring, not the board; the board's
-own order is on [parts/d2.html](../../parts/d2.html).
+does. The DRV8833 symbol keeps the board's pin order (see
+[parts/d2.html](../../parts/d2.html)). `GND` and `VCC` sit mid-row between the
+inputs, so `IN1`–`IN4` are drawn as net labels rather than wires that would
+cross the supply.
 
 ### Pi Zero 2 W → D2 (4 signals + ground)
 
