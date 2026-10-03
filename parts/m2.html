@@ -47,7 +47,11 @@
         one P1 buck (target 6.0&nbsp;V) &rarr; one D2, bridge A &rarr; one M2 on
         <code>OUT1</code>/<code>OUT2</code>. <code>IN1</code> pulled high through 10&nbsp;k&Omega;
         from <code>VCC</code>, the other input left floating. The motor ran, and reversed
-        with the resistor moved to <code>IN2</code>. The other four motors are untested.</p>
+        with the resistor moved to <code>IN2</code>.</p>
+        <p><strong>On the car, 2026-10-03:</strong> two motors, driven from the C1 Pi through
+        the D2 at 6.0&nbsp;V, ran forward and reverse; both start turning at
+        25&ndash;30&nbsp;% PWM duty (2&nbsp;kHz, fast decay) with the wheels off the
+        ground. The other three are untested.</p>
         <p>To verify:</p>
         <ul class="checklist">
           <li>No-load current and speed at 6 V against the spec above</li>

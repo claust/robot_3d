@@ -21,8 +21,8 @@
         powered up yet.</p>
         <p>The interesting role is as the robot's <em>motor-side</em> MCU: it has real hardware
         PWM, which the Pi Zero 2 W (<a href="c1.html">C1</a>) does not &mdash; the Pi has two
-        PWM channels shared across pins, so the four DRV8833 inputs run on DMA-timed software
-        PWM. A C5 can own the driver and the timing loop while the Pi keeps the WiFi UI, or
+        PWM channels shared across pins, so the four DRV8833 inputs run on thread-timed software
+        PWM (<code>lgpio</code>). A C5 can own the driver and the timing loop while the Pi keeps the WiFi UI, or
         replace it outright on a smaller build.</p>
         <ul>
           <li>32-bit single-core RISC-V up to 240&nbsp;MHz, 384&nbsp;KB SRAM, 320&nbsp;KB ROM.

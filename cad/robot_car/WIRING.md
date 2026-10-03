@@ -4,18 +4,20 @@ How the prototype's electronics hang together: B2 LiPo → two P1 bucks → C1
 (Pi Zero 2 W) for logic and D2 (DRV8833) for power, driving two M2 N20
 gearmotors. Part IDs are the ones in [parts/index.html](../../parts/index.html).
 
-Status (2026-09-26): one link of the chain has run. One B2 pack → a 10 A
-fuse → one P1 buck at 6.0 V → bridge A of one D2 → one M2, with `IN1` pulled high
-through 10 kΩ: the motor ran, and reversed with the resistor moved to `IN2`.
-That is bring-up step 4 for bridge A, powered from the pack instead of a bench
-supply, and it is why M2, D2, P1 and B2 read `ok` in the parts library. D2's
-bridge B, the Pi (C1, still `verify`) and steps 5–7 are not done yet, so the
-rest of this page is still the plan to bring up, in the order given under
-[Bring-up](#bring-up), not a tested circuit.
+Status (2026-10-03): the whole chain has run on the pack, wired as on this
+page: B2 → fuse → switch → both P1s, buck #1 at 5.1 V feeding C1 on header
+pins 2 and 6, buck #2 at 6.0 V feeding D2, and D2 driving both M2s from the
+Pi's GPIOs. [pi/robot_car/motor_test.py](../../pi/robot_car/motor_test.py)
+ran each motor forward and reverse at 60 %, then a 0–100 % ramp on each.
+The Pi reported no undervoltage at any point (`vcgencmd get_throttled`
+stayed `0x0`), motors running included. With the wheels off the ground both
+start turning at 25–30 % duty. Still open from [Bring-up](#bring-up) step 7:
+the pack voltage and the Pi–D2 ground offset with both motors stalled.
 
-The 10 A fuse was what was on the bench for that test. The car's harness
-takes the **2 A** fuse specified under [Power](#power); don't copy the test
-rating.
+The harness still carries a **10 A** fuse; no 2 A was on hand. It opens on a
+hard short, but a 3–10 A fault that heats the Dupont leads won't blow it, so
+run the car only while someone is watching until the **2 A** fuse specified
+under [Power](#power) is in.
 
 ## What the D2 pins actually are
 
@@ -76,10 +78,10 @@ cross the supply.
 
 | Pi header pin | BCM | D2 pin | Note |
 | --- | --- | --- | --- |
-| 32 | GPIO12 | `IN1` | left motor, forward |
-| 33 | GPIO13 | `IN2` | left motor, reverse |
-| 35 | GPIO19 | `IN3` | right motor, forward |
-| 36 | GPIO16 | `IN4` | right motor, reverse |
+| 32 | GPIO12 | `IN1` | left motor, reverse |
+| 33 | GPIO13 | `IN2` | left motor, forward |
+| 35 | GPIO19 | `IN3` | right motor, reverse |
+| 36 | GPIO16 | `IN4` | right motor, forward |
 | 34 | — | P1 #2 second `OUT−` pin | signal ground; **not optional** — see [Grounds](#grounds) |
 
 Why these four GPIOs: they sit in one block at the far end of the header (one
@@ -139,17 +141,18 @@ Orientation, then, with the header along the far edge and the connector edge
 
 | D2 pin | Motor |
 | --- | --- |
-| `OUT1` | left motor tab (+) |
-| `OUT2` | left motor tab (−) |
-| `OUT3` | right motor tab (+) |
-| `OUT4` | right motor tab (−) |
+| `OUT1`, `OUT2` | left motor, one per tab |
+| `OUT3`, `OUT4` | right motor, one per tab |
 
-The (+)/(−) marks on the N20 can only fix which way "forward" comes out; they
-carry no polarity requirement, so if a wheel turns the wrong way, swap the pair
-in software rather than resoldering. `chassis.py` mirrors the motor cradle for
-±Y, so the two motors point in opposite directions and one side's sense is
-inverted by construction — handle that in the motor object, not at the
-terminals.
+The (+)/(−) marks on the N20 carry no polarity requirement; they only decide
+which way "forward" comes out. `chassis.py` mirrors the motor cradle for ±Y,
+so the two motors point in opposite directions and the same tab order turns
+them opposite ways. Direction is therefore set in software, not at the
+terminals. On the car as wired, `IN1` or `IN3` high rolls its wheel
+backward, so forward is `IN2` on the left and `IN4` on the right (the Pi
+table above, and `PINS` in [motor_test.py](../../pi/robot_car/motor_test.py)).
+"Forward" means the top of the wheel rolls toward the nose. If a motor is
+rewired, re-run `motor_test.py` and watch rather than trusting the tab marks.
 
 Solder a 100 nF ceramic across each motor's two tabs, as close to the can as
 you can get it, and twist each motor pair. Brushed motors are broadband noise
@@ -314,6 +317,11 @@ Set both trimpots and measure the output with a meter **before** either board
 is connected. The P1 ships at an arbitrary trimpot position, and the Pi's 5 V
 header pins go straight to the SoC's regulators with no input protection.
 
+Feed the Pi from one source at a time: no USB cable in `PWR IN` while the
+buck lead is on pin 2. With the switch off, USB 5 V on the header back-feeds
+buck #1's output, through the body diode of its internal high-side switch,
+onto the input junction and from there into buck #2.
+
 `EEP` and `ULT` need no wires. Once you know which is nFAULT, a 10 kΩ pull-up
 to the Pi's *3.3 V* (pin 1 or 17) plus a spare GPIO gets you fault reporting —
 it's open-drain, low on overcurrent or thermal shutdown, and it retries by
@@ -339,36 +347,40 @@ For speed control you PWM one input and hold the other:
 | 0 | PWM | reverse, fast decay |
 | PWM | 1 | reverse, slow decay |
 
+Forward and reverse in these two tables are the datasheet's (`OUT1` high).
+On the car that turns the wheel backward; see [D2 → M2 motors](#d2--m2-motors-4-wires).
+
 Fast decay is the simpler scheme and what `gpiozero`'s `Motor` does: PWM the
 "forward" pin, hold "backward" low. Slow decay gives a more linear
 duty→speed curve at low duty, at the cost of inverted logic (duty *D* forward
 means driving the PWM pin at 1−*D*). Start with fast decay; only reach for
-slow decay if the motors won't creep smoothly.
+slow decay if the motors won't creep smoothly. With fast decay at 2 kHz both
+wheels start turning at 25–30 % duty off the ground, and later on the floor,
+so drive code should map small speed commands onto that threshold rather
+than scale from 0 %.
 
 No maximum input PWM frequency is specified, but the input deglitch is 450 ns
 and INx→OUTx propagation is 1.1 µs, so keep the period well clear of those:
-2 kHz is a good starting point, and gives 100 duty steps under pigpio's
-default 5 µs sampling.
+2 kHz is a good starting point.
 
 Software PWM on the Pi is fine here — these are brushed gearmotors, not a
-servo loop. `pigpio`'s DMA-timed PWM works on any pin:
+servo loop. Raspberry Pi OS 13 (trixie) doesn't package the `pigpio` daemon,
+so PWM goes through `gpiozero` on its `lgpio` backend, both preinstalled.
+[pi/robot_car/motor_test.py](../../pi/robot_car/motor_test.py) is the
+bring-up script; its core:
 
 ```python
-import pigpio
+from gpiozero import Motor
 
-pi = pigpio.pi()
-LEFT = (12, 13)   # (forward, reverse) → IN1, IN2
-RIGHT = (19, 16)  # → IN3, IN4
+left = Motor(forward=13, backward=12)    # IN2, IN1
+right = Motor(forward=16, backward=19)   # IN4, IN3
+for motor in (left, right):
+    motor.forward_device.frequency = 2000
+    motor.backward_device.frequency = 2000
 
-for gpio in LEFT + RIGHT:
-    pi.set_mode(gpio, pigpio.OUTPUT)
-    pi.set_PWM_frequency(gpio, 2000)
-    pi.set_PWM_range(gpio, 100)      # duty in percent
-
-def drive(motor, percent):           # -100..100, fast decay
-    fwd, rev = motor if percent >= 0 else motor[::-1]
-    pi.set_PWM_dutycycle(rev, 0)
-    pi.set_PWM_dutycycle(fwd, min(abs(percent), 100))
+left.forward(0.6)    # 60 % duty, fast decay
+right.backward(0.6)
+left.stop()          # both inputs low: coast
 ```
 
 The Pi's two hardware PWM channels are not worth chasing: PWM0 is GPIO12
@@ -376,7 +388,7 @@ The Pi's two hardware PWM channels are not worth chasing: PWM0 is GPIO12
 per motor across both directions forces the pairs to be
 (GPIO12, GPIO18) and (GPIO13, GPIO19) — and then the pin that carries PWM
 changes with direction, which means re-muxing a pin between PWM and plain
-output on every reversal. DMA-timed software PWM avoids the whole problem.
+output on every reversal. Software PWM avoids the whole problem.
 
 ## Bring-up
 
@@ -418,30 +430,42 @@ In this order. Steps 1–4 need no battery.
    should run. Swap to `IN2`: it should run the other way. Both inputs high:
    it should brake. Repeat on `IN3`/`IN4` with `OUT3`/`OUT4`. This is the
    step that confirms the `en` jumper really does leave the chip awake.
-   Done for bridge A on 2026-09-26 (see the status at the top), which
-   confirmed the jumper; bridge B is still to test.
+   Done for bridge A, which confirmed the jumper. Bridge B has run both ways
+   from the Pi (step 7); the brake state is untried on both bridges.
 5. **Pi first, motors on the bench supply.** Pi on its normal USB power (the
    jack silkscreened `PWR IN`, not the `USB` one next to it), D2
    on the bench supply, grounds tied together, `IN1`–`IN4` on the four GPIOs.
-   Run the snippet above. Check both wheels for direction and creep
-   threshold before either buck is in the picture.
+   Run `motor_test.py` (below). Check both wheels for direction and creep
+   threshold before either buck is in the picture. Skipped on the car: the
+   direction and creep checks were done on the pack in step 7 instead.
 6. **Set the bucks.** Both P1s fed from the pack, outputs unloaded, meter
    on the output pins: #1 to 5.1 V, #2 to 6.0 V. Leave them a minute and
    re-check. The trimpot is single-turn, about 270° end to end, so a few
    degrees moves the output a lot. It has a 1.7 mm cross slot: use a PH000
-   tip, press lightly, and don't force it past its end stop.
+   tip, press lightly, and don't force it past its end stop. Done.
 7. **Battery power.** Build the harness above first — pigtail, fuse, switch,
    junction — and meter it end to end with the pack unplugged: continuity
    through the fuse with the switch on, open with it off, and no continuity
-   between + and −. Then buck #2 to the driver first, motors running from it,
-   then buck #1 to the Pi. Connect the XT60 last, every time. Watch the pack
-   voltage under a stall; the 2S pack must not go below 6.4 V. With both
-   motors stalled and the Pi busy, meter Pi pin 34 to D2 `GND` (DC, then
-   min/max if the meter has it): tens of mV at most.
+   between + and −. Then power up with the loads unplugged and re-measure
+   each buck at the far end of its lead, which also catches swapped leads.
+   Plug in D2, then the Pi, switching off for each. Connect the XT60 last
+   and unplug it first, every time. Done up to here, with the motors driven
+   from the Pi (status at the top). Still to do: watch the pack voltage
+   under a stall (the 2S pack must not go below 6.4 V), and with both
+   motors stalled and the Pi busy, meter a Pi ground pin to D2 `GND` (DC,
+   then min/max if the meter has it): tens of mV at most.
+   `motor_test.py --hold 5` runs both motors at 100 % for 5 s while you hold
+   the wheels.
 
-D2 went to `ok` in [parts/index.html](../../parts/index.html) after bridge A passed step 4, with a
-note that bridge B is untested. Keep that note until bridge B has passed step
-4 and the whole chain has run on the pack in step 7.
+`motor_test.py` runs on the Pi; its docstring lists the modes. Every mode
+ends by itself and stops the motors on SIGTERM or SIGHUP, but a SIGKILL can
+leave a pin mid-PWM, so keep a hand near the switch while it runs. Over SSH,
+give the path relative to the Pi's home (`ssh -t robot-pi
+robot_car/motor_test.py --creep left`): a bare `~` is expanded by the Mac's
+shell first.
+
+D2 is `ok` in [parts/index.html](../../parts/index.html). Its brake state
+and the other four boards are untested.
 
 ## Open questions
 

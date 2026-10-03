@@ -1,7 +1,7 @@
 # robot_3d
 
 3D-printed robot platform: build123d CAD, Bambu Lab X2D printer over LAN,
-Swift printer-status apps, ESP32-C5 firmware.
+Swift printer-status apps, ESP32-C5 firmware, Raspberry Pi drive code.
 
 ## CAD and printing (cad/)
 
@@ -58,6 +58,21 @@ project folder: `source ~/.espressif/tools/activate_idf_v6.1.sh`, then
   without it the extension configures the plain ESP32.
   Keep IntelliSense mode `linux-gcc-x86`, and keep `idf.port`, `idf.currentSetup`,
   OpenOCD and clangd paths out of tracked settings files.
+
+## Raspberry Pi (pi/)
+
+Python for the car's Pi Zero 2 W (C1), one folder per project. It runs
+Raspberry Pi OS 13 (trixie) and is reached as `ssh robot-pi`, an alias in the
+Mac's `~/.ssh/config` — keep LAN addresses and hostnames out of the repo.
+
+- GPIO goes through `gpiozero` on its `lgpio` backend; trixie doesn't package
+  the `pigpio` daemon.
+- Deploy by piping over ssh:
+  `ssh robot-pi 'mkdir -p robot_car && cat > robot_car/motor_test.py && chmod +x robot_car/motor_test.py' < pi/robot_car/motor_test.py`.
+  Give remote paths relative to the Pi's home; a bare `~` is expanded by the
+  Mac's shell first.
+- Always get the user's go-ahead before running anything that turns a motor:
+  wheels off the bench, a hand on the power switch.
 
 ## Conventions
 
