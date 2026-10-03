@@ -8,8 +8,9 @@ and so does losing the link: after a reconnect the car waits for the thumb to
 move again rather than resuming the old command.
 The two bars show what each wheel is being told, and "Top speed" caps both.
 
-The first time, iOS asks for a pairing code: the car only takes commands
-from a phone that has paired with the passkey its Pi logs. See
+The first time, switch the car on and open the app within two minutes:
+iOS asks to pair, and you tap Pair. The car only takes commands from a
+paired phone, and only pairs new phones just after power-on. See
 [Pairing a phone](../../pi/robot_car/README.md#pairing-a-phone).
 
 With VoiceOver, Voice Control or Switch Control the stick is one

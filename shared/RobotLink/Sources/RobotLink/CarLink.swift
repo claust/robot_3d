@@ -24,9 +24,10 @@ public final class CarLink {
         case connecting(name: String)
         case connected(name: String)
         /// Checking the link is paired: instant once bonded, otherwise the
-        /// system's pairing dialog is up, waiting for the passkey.
+        /// system's "Pair?" dialog is up.
         case pairing(name: String)
-        /// Pairing was cancelled or the passkey was wrong; waits for `retry()`.
+        /// Pairing was cancelled, or refused because the car only pairs in
+        /// the first two minutes after it's switched on; waits for `retry()`.
         case pairingFailed(name: String)
     }
 

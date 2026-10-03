@@ -24,10 +24,9 @@ struct RobotRemoteApp: App {
         .onChange(of: scenePhase) { _, phase in
             // In the background the app can't keep its 20 Hz stream going,
             // so let go of the car outright rather than leave the Pi's
-            // watchdog to notice. Except while pairing: the passkey is read
-            // off the Pi's log, often in another app, and letting go would
-            // cancel the pairing. Nothing streams until it completes, so
-            // the car can't move meanwhile.
+            // watchdog to notice. Except while pairing, so a pairing that is
+            // under way isn't cut off. Nothing streams until it completes,
+            // so the car can't move meanwhile.
             switch phase {
             case .active: link.start()
             case .background: if !link.isPairing { link.stop() }

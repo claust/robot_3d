@@ -8,12 +8,18 @@ and right wheel speeds as signed bytes, -100..100. It keeps sending while
 connected, zeros included, so the stream doubles as a heartbeat.
 
 Only a bonded phone can drive. The drive characteristic needs an
-authenticated, encrypted link, so BlueZ rejects writes from anything that
-hasn't paired with the passkey. The Pi has no screen, so the pairing agent
-logs that passkey ("pairing dev_..: passkey 123456") for the user to type
-on the phone, once per phone. The app's first write on each connection goes
+encrypted link, so BlueZ rejects writes from anything that hasn't bonded.
+New bonds are only made in the first PAIRING_WINDOW_S after boot, like
+headphones' pairing mode: switch the car on, open the app, tap Pair in the
+iOS dialog. After that the agent refuses to pair, and phones already
+bonded reconnect any time. The app's first write on each connection goes
 with response, which is what makes iOS pair, or re-encrypt with its bond,
 before the 20 Hz stream starts.
+
+There is no passkey: the Pi has no screen to show one, and the iOS dialog
+closes if the user leaves the app to look one up. The trade is that a
+bond is unauthenticated (Just Works), so the pairing window, which needs
+someone at the power switch, is what decides who may drive.
 
 One phone drives at a time. The first bonded device to write a command
 becomes the driver, and commands from any other device are ignored until
@@ -71,6 +77,7 @@ TICK_S = 0.02
 # A report line goes out while the car moves, or when the link degrades.
 SLOW_GAP_S = 0.15
 ADAPTER = "/org/bluez/hci0"
+PAIRING_WINDOW_S = 120
 
 log = logging.getLogger("remote")
 STOP = {"left": 0.0, "right": 0.0}
@@ -204,32 +211,45 @@ class DriveService(Service):
         super().__init__(SERVICE_UUID, True)
 
     # Without response for the stream, with response for the app's first
-    # write; both only over a link authenticated by passkey pairing.
+    # write; both only over a link encrypted with a bond.
     @characteristic(DRIVE_UUID, CharacteristicFlags.WRITE_WITHOUT_RESPONSE
                     | CharacteristicFlags.WRITE
-                    | CharacteristicFlags.ENCRYPT_AUTHENTICATED_WRITE).setter
+                    | CharacteristicFlags.ENCRYPT_WRITE).setter
     def drive(self, value, options):
         self._car.command(value, options.device, time.monotonic())
 
 
 class PairingAgent(BaseAgent):
-    """BlueZ's default agent, with DisplayOnly capability.
+    """BlueZ's default agent: no input, no output, and a pairing window.
 
-    A phone that can type gets Passkey Entry, which authenticates the bond.
-    The passkey goes to the log, the Pi's only display. Anything that would
-    pair without a passkey (Just Works) is refused, so no unauthenticated
-    bond is made either.
+    With nothing to show or type a code on, every pairing is Just Works,
+    which BlueZ puts to the agent as RequestAuthorization (or, for some
+    peers, RequestConfirmation). Both are allowed only while the system has
+    been up for less than PAIRING_WINDOW_S. `uptime` returns seconds since
+    boot; tests pass their own.
     """
 
     PATH = "/robot_car_agent"
 
-    def __init__(self):
-        super().__init__(AgentCapability.DISPLAY_ONLY)
+    def __init__(self, uptime=None):
+        self._uptime = uptime or read_uptime
+        super().__init__(AgentCapability.NO_INPUT_NO_OUTPUT)
+
+    def allow(self, device):
+        up = self._uptime()
+        if up >= PAIRING_WINDOW_S:
+            raise refused(f"pairing {device_name(device)}: the window closed "
+                          f"{up - PAIRING_WINDOW_S:.0f} s ago; switch the car off and on")
+        log.info("paired %s, %.0f s left in the pairing window",
+                 device_name(device), PAIRING_WINDOW_S - up)
 
     @method()
-    def DisplayPasskey(self, device: "o", passkey: "u", entered: "q"):
-        if entered == 0:
-            log.warning("pairing %s: passkey %s", device_name(device), passkey_text(passkey))
+    def RequestAuthorization(self, device: "o"):
+        self.allow(device)
+
+    @method()
+    def RequestConfirmation(self, device: "o", passkey: "u"):
+        self.allow(device)
 
     @method()
     def RequestPinCode(self, device: "o") -> "s":
@@ -240,12 +260,8 @@ class PairingAgent(BaseAgent):
         raise refused("typing a passkey")
 
     @method()
-    def RequestConfirmation(self, device: "o", passkey: "u"):
-        raise refused("numeric comparison")
-
-    @method()
-    def RequestAuthorization(self, device: "o"):
-        raise refused("pairing without a passkey")
+    def DisplayPasskey(self, device: "o", passkey: "u", entered: "q"):
+        raise refused("showing a passkey")
 
     @method()
     def AuthorizeService(self, device: "o", uuid: "s"):
@@ -256,8 +272,9 @@ class PairingAgent(BaseAgent):
         log.info("pairing cancelled")
 
 
-def passkey_text(passkey):
-    return f"{passkey:06d}"
+def read_uptime():
+    with open("/proc/uptime") as f:
+        return float(f.read().split()[0])
 
 
 def refused(what):
@@ -404,6 +421,9 @@ async def serve(car, stopping):
         .call_register_advertisement(Advertisement.PATH, {})
     registered = True
     log.info("advertising as %s, service %s", NAME, SERVICE_UUID)
+    left = PAIRING_WINDOW_S - read_uptime()
+    if left > 0:
+        log.info("new phones can pair for %.0f s more", left)
     systemd.notify("READY=1")
 
     last = time.monotonic()

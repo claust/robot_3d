@@ -8,8 +8,8 @@ import CoreBluetooth
 /// signed bytes, -100...100. Zeros are sent too, because the stream is also
 /// the heartbeat: the Pi stops the wheels when it goes quiet for 300 ms.
 ///
-/// The characteristic only accepts writes over a link authenticated by
-/// passkey pairing; `LinkMachine` describes how the first write gets iOS to
+/// The characteristic only accepts writes over an encrypted link from a
+/// bonded phone; `LinkMachine` describes how the first write gets iOS to
 /// pair.
 public enum DriveProtocol {
     public static let serviceUUID = CBUUID(string: "0BF63E73-EDAC-4F6D-B68E-D6B8F42E2E47")

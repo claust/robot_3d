@@ -12,6 +12,12 @@ struct DriveView: View {
     var body: some View {
         VStack(spacing: 20) {
             StatusBadge(state: link.state, rssi: link.rssi, retry: link.retry)
+            if case .pairingFailed = link.state {
+                Text("New phones can pair in the first two minutes after the car is switched on.")
+                    .font(.footnote)
+                    .foregroundStyle(.secondary)
+                    .multilineTextAlignment(.center)
+            }
             HStack(spacing: 48) {
                 WheelBar(label: "L", speed: link.wheels.left)
                 WheelBar(label: "R", speed: link.wheels.right)

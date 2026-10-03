@@ -20,7 +20,8 @@ from gpiozero.pins.mock import MockFactory, MockPWMPin
 
 import drivetrain
 from drivetrain import Drivetrain, duty
-from remote import HANDOVER_S, WATCHDOG_S, Car, DriveService, Systemd, passkey_text, wait_for_adapter
+from remote import (HANDOVER_S, PAIRING_WINDOW_S, WATCHDOG_S, Car, DriveService, PairingAgent,
+                    Systemd, wait_for_adapter)
 
 PHONE = "/org/bluez/hci0/dev_AA"
 OTHER = "/org/bluez/hci0/dev_BB"
@@ -185,16 +186,26 @@ class CarTests(MockPins):
 
 
 class PairingTests(unittest.TestCase):
-    def test_drive_writes_need_an_authenticated_link(self):
+    def setUp(self):
+        logging.disable(logging.CRITICAL)
+
+    def tearDown(self):
+        logging.disable(logging.NOTSET)
+
+    def test_drive_writes_need_an_encrypted_link(self):
         flags = DriveService.drive.flags
-        self.assertTrue(flags & CharacteristicFlags.ENCRYPT_AUTHENTICATED_WRITE)
+        self.assertTrue(flags & CharacteristicFlags.ENCRYPT_WRITE)
         self.assertTrue(flags & CharacteristicFlags.WRITE)
         self.assertTrue(flags & CharacteristicFlags.WRITE_WITHOUT_RESPONSE)
         self.assertFalse(flags & CharacteristicFlags.READ)
 
-    def test_passkey_keeps_its_leading_zeros(self):
-        self.assertEqual(passkey_text(42), "000042")
-        self.assertEqual(passkey_text(987654), "987654")
+    def test_pairs_inside_the_window_after_boot(self):
+        PairingAgent(uptime=lambda: PAIRING_WINDOW_S - 1).allow(PHONE)
+
+    def test_refuses_to_pair_once_the_window_closed(self):
+        agent = PairingAgent(uptime=lambda: PAIRING_WINDOW_S + 600)
+        with self.assertRaises(DBusError):
+            agent.allow(PHONE)
 
 
 class SystemdTests(unittest.TestCase):

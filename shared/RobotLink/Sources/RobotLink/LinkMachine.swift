@@ -14,14 +14,14 @@ import Foundation
 /// timeout that fires after its phase ended carries an old token and is
 /// ignored too.
 ///
-/// The car only takes drive writes over a link authenticated by pairing,
-/// so once the drive characteristic is found the link verifies it with one
-/// write that expects a response. iOS answers the car's "insufficient
-/// authentication" by pairing (the system dialog asks for the passkey the
-/// Pi logs) or, once bonded, by encrypting the link, and then retries the
-/// write. Only a successful write starts the stream. A failed one, usually
-/// a cancelled or mistyped passkey, parks the link at `.pairingFailed`
-/// until `retry`, so the phone doesn't ask again and again on its own.
+/// The car only takes drive writes over an encrypted link from a bonded
+/// phone, so once the drive characteristic is found the link verifies it
+/// with one write that expects a response. iOS answers the car's "insufficient
+/// encryption" by pairing (the system asks "Pair?") or, once bonded, by
+/// encrypting the link, and then retries the write. Only a successful write
+/// starts the stream. A failed one (pairing cancelled, or refused because
+/// the car's pairing window after power-on has closed) parks the link at
+/// `.pairingFailed` until `retry`, so the phone doesn't ask again and again.
 struct LinkMachine {
     enum Event: Equatable {
         case started
@@ -60,7 +60,7 @@ struct LinkMachine {
     /// How long connecting, or finding the drive service, may take.
     static let timeout: TimeInterval = 6
     /// How long the verifying write may take, which includes someone
-    /// fetching the passkey from the Pi's log and typing it in.
+    /// answering the pairing dialog.
     static let pairingTimeout: TimeInterval = 90
 
     private(set) var car: UUID?
