@@ -204,6 +204,12 @@ def grid() -> list[tuple[str, MountDims]]:
     return [(next(letters), MountDims(slot_h=h, side_fit=f)) for h in SLOT_HS for f in SIDE_FITS]
 
 
+def settled() -> tuple[str, MountDims]:
+    """The coupon whose numbers are MountDims' defaults: the pocket the
+    chassis builds."""
+    return next((letter, m) for letter, m in grid() if m == MountDims())
+
+
 def coupon(m: MountDims, c: CasterDims, letter: str) -> Part:
     part = make_pocket(m, c)
     text = Text(letter, font_size=FONT_SIZE, font=FONT, font_style=FontStyle.BOLD)
@@ -332,7 +338,7 @@ STILLS = {
 }
 
 
-def usd_stills(c: CasterDims, m: MountDims, out_dir: Path) -> dict:
+def usd_stills(c: CasterDims, m: MountDims, letter: str, out_dir: Path) -> dict:
     """Render STILLS with macOS usdrecord (Hydra/Storm: z-buffered, so no
     painter's-algorithm see-through). Returns name -> png path."""
     import subprocess
@@ -341,7 +347,7 @@ def usd_stills(c: CasterDims, m: MountDims, out_dir: Path) -> dict:
     from lid_twin import camera_prim, fmt, mesh_of, srgb_to_linear
 
     s = seated(m, c, loaded=True)
-    groups = [("printed", "pocket", coupon(m, c, grid()[0][0]))]
+    groups = [("printed", "pocket", coupon(m, c, letter))]
     groups += [("below", "pocket", make_pocket(m, c))]
     groups += [("below", k, s[k]) for k in ("plate", "ring", "fork", "wheel")]
 
@@ -394,7 +400,7 @@ def render(c: CasterDims, out: Path) -> None:
     from matplotlib.collections import PolyCollection
     from matplotlib.patches import Patch
 
-    letter, m = grid()[0]
+    letter, m = settled()
     s = seated(m, c, loaded=True)
     groups = [("pocket", make_pocket(m, c)), ("plate", s["plate"]), ("ring", s["ring"]),
               ("fork", s["fork"]), ("wheel", s["wheel"])]
@@ -404,7 +410,7 @@ def render(c: CasterDims, out: Path) -> None:
             p = Path(tmp) / f"{i}.stl"
             export_stl(part, p)
             meshes.append((name, trimesh.load_mesh(p)))
-        stills = {k: mpimg.imread(v) for k, v in usd_stills(c, m, Path(tmp)).items()}
+        stills = {k: mpimg.imread(v) for k, v in usd_stills(c, m, letter, Path(tmp)).items()}
 
     fig = plt.figure(figsize=(16, 11))
     fig.suptitle(f"robot car -- slide-in caster mount, coupon {letter} (slot {m.slot_h:g}, "
