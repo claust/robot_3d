@@ -272,7 +272,9 @@ def fmt(a):
 
 def mesh_prim(name, verts, faces, look, indent, smooth_normals=False, anim_points=None):
     pad = " " * indent
-    lo, hi = verts.min(axis=0), verts.max(axis=0)
+    # the bound has to hold every time sample, or a renderer culls the mesh
+    allv = np.vstack([v for _, v in anim_points]) if anim_points else verts
+    lo, hi = allv.min(axis=0), allv.max(axis=0)
     L = [f'{pad}def Mesh "{name}" (', f'{pad}    prepend apiSchemas = ["MaterialBindingAPI"]',
          f"{pad})", f"{pad}{{", f'{pad}    uniform token subdivisionScheme = "none"',
          f"{pad}    float3[] extent = [({lo[0]:.4g}, {lo[1]:.4g}, {lo[2]:.4g}), ({hi[0]:.4g}, {hi[1]:.4g}, {hi[2]:.4g})]",
@@ -412,12 +414,12 @@ def record(usdz: Path, cam: str, out_pattern: str, frames: str, width: int) -> s
 def car_statics(cd: ChassisDims, h: HolderDims):
     from render_assembly import assembly_parts
     _, parts = assembly_parts()
-    statics, lids = [], 0
+    statics = []
     for name, part in parts:
-        if name == "motor lid":
-            lids += 1
-            if lids == 1:  # the left lid stays a plain lid
-                statics.append(("lid_left", mesh_of(part), "lid"))
+        if name == "motor lid":  # the left one, plain
+            statics.append(("lid_left", mesh_of(part), "lid"))
+            continue
+        if name == "XT60 holder lid":  # built below, its arm animated apart
             continue
         if name == "LiPo pack":
             continue

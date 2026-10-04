@@ -130,7 +130,8 @@ def main() -> None:
     export_stl(plate, HERE / "xt60_coupons.stl")
     print("Exported xt60_coupons.stl")
     render(cd, plate)
-    print("ALL PASS" if ok and len(plate.solids()) == len(FITS) else "SOME CHECKS FAILED")
+    ok &= len(plate.solids()) == len(FITS)
+    print("ALL PASS" if ok else "SOME CHECKS FAILED")
     sys.exit(0 if ok else 1)
 
 

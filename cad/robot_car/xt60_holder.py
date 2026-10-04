@@ -327,6 +327,11 @@ def make_holder_lid(h: HolderDims, cd: ChassisDims, ld: LidDims | None = None) -
     return make_lid(ld or lid_dims(cd)) + to_lid(frame + arm, cd)
 
 
+def right_lid(cd: ChassisDims) -> Part:
+    """The car's right (-Y) motor lid, holder and all, seated on its cradle."""
+    return _to_side(make_holder_lid(HolderDims(), cd), cd, -1)
+
+
 def male_seated(h: HolderDims) -> Part:
     return Pos(h.x_rim, 0, h.z_plug) * make_male(XT)
 
@@ -427,7 +432,7 @@ def checks(h: HolderDims, cd: ChassisDims, car: list | None = None) -> bool:
         plain = _to_side(make_lid(ld), cd, -1)
         m, s, f = (to_car(p, cd) for p in (male, shrink, female))
         for name, part in car:
-            if name == "motor lid":
+            if name in ("motor lid", "XT60 holder lid"):
                 continue
             v_lid = ivol(placed, part)
             if name == "N20 gearmotor" and v_lid > 0:
@@ -442,8 +447,8 @@ def checks(h: HolderDims, cd: ChassisDims, car: list | None = None) -> bool:
 
 
 def car_parts():
-    """Every part on the car, from render_assembly, minus both lids (the
-    checks place their own)."""
+    """Every part on the car, from render_assembly, the lids included;
+    checks() skips both lids, since it places its own."""
     from render_assembly import assembly_parts
     _, parts = assembly_parts()
     return parts

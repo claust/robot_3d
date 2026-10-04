@@ -48,6 +48,7 @@ from pi_zero_2w import PiZero2WDims, make_pi_zero_2w
 from d2_drv8833 import Drv8833Dims, make_drv8833
 from p1_mp1584 import Mp1584Dims, make_mp1584
 from b2_lipo import LipoDims, make_lipo
+from xt60_holder import right_lid
 
 WALL_CLEARANCE_MM = 1.0  # design target: web-face-to-wall-outer-face gap
 
@@ -214,9 +215,9 @@ def main():
 
     battery, ldims, batt_z = battery_placement(d)
 
-    # the plate plus both seated lids: everything printed that the wheels
-    # and the electronics must clear
-    chassis_all = c.plate + c.lids[0] + c.lids[1]
+    # the plate plus both seated lids, the right one carrying the XT60
+    # holder: everything printed that the wheels and the electronics must clear
+    chassis_all = c.plate + c.lids[0] + right_lid(d)
 
     assembly = Part() + chassis_all
     assembly += motor_p + motor_m

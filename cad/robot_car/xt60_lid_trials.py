@@ -81,7 +81,8 @@ def main() -> None:
     export_stl(plate, HERE / "xt60_lid_trials.stl")
     print("Exported xt60_lid_trials.stl")
     render(plate)
-    print("ALL PASS" if ok and len(plate.solids()) == len(TRIALS) else "SOME CHECKS FAILED")
+    ok &= len(plate.solids()) == len(TRIALS)
+    print("ALL PASS" if ok else "SOME CHECKS FAILED")
     sys.exit(0 if ok else 1)
 
 
