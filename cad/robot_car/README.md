@@ -34,7 +34,8 @@ an old wooden toy wheel, and the printed wheel copies that wheel's groove.
 | Part | Qty | Made by | Notes |
 |------|-----|---------|-------|
 | Chassis plate | 1 | [chassis.py](chassis.py) | about 139 x 94 x 3 mm (the nose is the caster pocket's mouth, `ChassisDims.nose_x`), prints flat, no supports |
-| Motor lid | 2 | [chassis.py](chassis.py), exports `motor_lid.stl` | geometry from [lid_coupons.py](lid_coupons.py) |
+| Motor lid | 1, left motor | [chassis.py](chassis.py), exports `motor_lid.stl` | geometry from [lid_coupons.py](lid_coupons.py) |
+| Motor lid with XT60 holder | 1, right motor | [xt60_holder.py](xt60_holder.py), exports `xt60_lid.stl` | holds the harness's male XT60 for the pack to plug into; channel fit from [xt60_coupons.py](xt60_coupons.py), preload from [xt60_lid_trials.py](xt60_lid_trials.py) |
 | Skid | 1 | [chassis.py](chassis.py), exports `skid.stl` | fits the rear hole; not needed with the caster. Print it as its own job, with a brim |
 | Drive wheel | 2 | [wheel.py](wheel.py) | spoked web outboard, hub reaches in to the shaft |
 | Stand-in dummies | as needed | [dummies.py](dummies.py) | white stand-ins for motors and boards, for dry fits |
@@ -65,7 +66,13 @@ anything on the plate.
   under the panel, and presses down until the clips catch.
 - **Pi** screws onto four bosses with self-tapping M2.5 screws.
 - **Battery** sits between four corner guides and is held by one
-  hook-and-loop strap through a pair of slots.
+  hook-and-loop strap through a pair of slots. Its lead leaves the rear
+  end.
+- **XT60** ([xt60_holder.py](xt60_holder.py)): the harness's male plug
+  lies in a channel on the right motor's lid, facing the rear. It slides
+  in from the front until a latch arm on top clicks behind it, and the
+  pack's female plugs into it from behind. Only friction holds it the
+  other way, so hold the lid when unplugging the pack.
 - **Caster** slides in from the nose, fork turned so the wheel trails
   forward, until its plate meets the stop. Ledges in the plate's bottom
   layers carry it when the car is lifted, and the car's weight presses its
@@ -97,6 +104,8 @@ changes.
 | Switch in its well | 3.0 mm panel under the flange | `WellDims.panel_t` | [switch_well.py](switch_well.py), coupon C | best of 2.0 / 2.5 / 3.0 |
 | O-ring groove | copy of the ring's wooden wheel: root Ø39, shoulder Ø46 | root: `WheelDims.oring_id` x `STRETCH` (wheel.py); shoulder: root + 2 x `WheelDims.groove_depth_factor` x cord | printed wheels P7 and P8 | rings mount by hand and stay seated; the coupon rounds before it were too tight to mount |
 | Caster plate in its pocket | slot 1.8 over the 1.5 plate, 0.20 mm per side, 2.0 mm lands | `MountDims.slot_h`, `side_fit`, `lip_land` | [caster_mount_coupons.py](caster_mount_coupons.py), coupon J | slides in by hand and stays put; 0.10 per side was snug, zero spread the walls |
+| XT60 in its holder | 0.15 mm per side, 0.30 mm on top; the plug stands on edge ledges | `HolderDims.side_fit`, `top_fit` | [xt60_coupons.py](xt60_coupons.py), round 2 coupon Z | snug, latch clicks; round 1 showed the floor's bridge sag bending the hollow shroud, hence the ledges |
+| XT60 holder lid on its motor | 0.30 mm pad preload, lid E's | `ChassisDims.lid_pad_preload` (shared) | [xt60_lid_trials.py](xt60_lid_trials.py), lid K | slides on by hand and holds the motor; 0.20 (lid L) held it less well |
 | Running fit, general | 0.2 mm radial | project-wide | `demo_04` fit test | moves freely; use for anything that turns |
 
 ## Checks to run before printing
@@ -143,6 +152,16 @@ uv run robot_car/caster_mount_coupons.py
 Builds the caster pocket's fit coupons and checks the caster in each: its
 clearances, the bearing ring clear of the ledges, sliding out of the mouth,
 and swivelling a full turn. Writes `caster_mount_render.png`.
+
+```bash
+uv run robot_car/xt60_holder.py
+```
+
+Checks the XT60 holder lid: the plug seats and slides in clear of the
+frame, the latch barb stands behind it, the lid still slides onto its
+cradle and presses the motor as the plain lid does, and the plugs clear
+everything on the car. [xt60_twin.py](xt60_twin.py) renders its movie,
+cutaways and a Quick Look USDZ.
 
 Then look at the result before slicing. [render_assembly.py](render_assembly.py)
 draws a colour-coded plan and elevations, and [twin.py](twin.py) writes a

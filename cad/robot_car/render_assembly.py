@@ -34,6 +34,7 @@ from assembly import (
     battery_placement, buck_placement, pi_placement, tray_placement, wheel_placement,
 )
 from chassis import ChassisDims, build, caster_placement, motor_placement, switch_placement
+from xt60_holder import right_lid
 from d2_drv8833 import Drv8833Dims, make_drv8833
 from p1_mp1584 import Mp1584Dims, make_mp1584
 from wheel import WheelDims
@@ -46,6 +47,7 @@ COLOURS = {
     "drive wheel": "#7d5ba6",
     "caster": "#c9b458",
     "motor lid": "#8a94a3",
+    "XT60 holder lid": "#c2185b",
     "Pi Zero 2 W": "#2e9e5b",
     "DRV8833 driver": "#d64550",
     "MP1584EN buck": "#39a8c4",
@@ -66,7 +68,7 @@ PLAN_CALLOUTS = {
 PLAN_INLINE = ("LiPo pack", "Pi Zero 2 W")  # big enough to label in place
 
 # draw order, back to front
-ORDER = ["chassis plate", "drive wheel", "N20 gearmotor", "motor lid", "caster",
+ORDER = ["chassis plate", "drive wheel", "N20 gearmotor", "motor lid", "XT60 holder lid", "caster",
          "LiPo pack", "Pi Zero 2 W", "DRV8833 driver", "MP1584EN buck", "power switch"]
 
 
@@ -89,9 +91,10 @@ def assembly_parts():
         ("LiPo pack", battery_placement(d)[0]),
         ("power switch", switch_placement(d, clips=True)),
     ]
-    for i, side in enumerate((+1, -1)):
+    for side in (+1, -1):
         parts.append(("N20 gearmotor", motor_placement(side, d)))
-        parts.append(("motor lid", c.lids[i]))
+        # the left lid is chassis.py's plain one, the right carries the XT60
+        parts.append(("motor lid", c.lids[0]) if side > 0 else ("XT60 holder lid", right_lid(d)))
         parts.append(("drive wheel", wheel_placement(side, d, wd)[0]))
     return d, parts
 
