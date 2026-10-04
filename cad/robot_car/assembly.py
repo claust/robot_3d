@@ -173,10 +173,10 @@ def buck_placement(d: ChassisDims, side: int, mp_dims: Mp1584Dims, board: Part) 
 
 
 def battery_placement(d: ChassisDims):
-    """Resting on the plate top; native +X (the XT60 lead-exit end) is
-    already front-facing, so no rotation is needed."""
+    """Resting on the plate top, turned so that native +X (the XT60
+    lead-exit end) faces the rear."""
     ldims = LipoDims()
-    pack = make_lipo(ldims)
+    pack = make_lipo(ldims).rotate(Axis.Z, 180)
     z_center = d.plate_thickness + ldims.height / 2
     pack = Pos(d.battery_x, 0, z_center) * pack
     return pack, ldims, z_center

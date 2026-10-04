@@ -13,11 +13,13 @@ LAYOUT
   and can, both sitting directly on the plate; an end wall at the plate
   edge, slotted for the Ø4 boss, takes the axial load where the gearbox
   face lands. A separately printed lid (motor_lid, exported as
-  motor_lid.stl -- print two) slides on from inboard along dovetail rails
-  on the outside of the channel walls, stops on the end wall, and clicks
-  into a detent recess in each rail. Its centre pad presses 0.30 mm down
-  on the motor's top, so the motor is clamped, not just fenced in. The lid
-  ends before the can's rear face, leaving the solder tabs and wires free.
+  motor_lid.stl -- print one, for the left motor; the right motor's lid
+  carries the XT60 holder, xt60_holder.py) slides on from inboard along
+  dovetail rails on the outside of the channel walls, stops on the end
+  wall, and clicks into a detent recess in each rail. Its centre pad
+  presses 0.30 mm down on the motor's top, so the motor is clamped, not
+  just fenced in. The lid ends before the can's rear face, leaving the
+  solder tabs and wires free.
   The geometry is lid_coupons.py's (lid E: rail clearance 0.10, preload
   0.30). The motor's M1.6 bracket holes are not used.
 - Raspberry Pi Zero 2 W (C1), front area: four bosses with Ø2.2 pilots for
@@ -36,8 +38,9 @@ LAYOUT
   car, its bent terminals pointing forward toward the motor buck.
 - Battery (B2 2S LiPo, 93 x 35.2 mm calipered), centre: four L-shaped guide
   nubs hug its corners at 0.5 mm clearance, and one pair of 25 x 3 mm slots
-  takes the 21 mm hook-and-loop strap. The XT60 lead exits at +X, toward
-  the bucks and the Pi.
+  takes the 21 mm hook-and-loop strap. The XT60 lead exits at -X, the
+  rear, and plugs into the harness's male XT60 held on the right motor lid
+  (xt60_holder.py).
 - Skid: a Ø10 hole on the centreline at the front (X=55) and another at the
   rear (X=-58). The skid is a separate part that push-snaps up through
   either hole from underneath, on four slit prongs. The front hole also
@@ -987,7 +990,7 @@ if __name__ == "__main__":
     export_step(c.plate, here / "chassis.step")
     export_stl(c.skid, here / "skid.stl")
     export_step(c.skid, here / "skid.step")
-    # the two lids are identical; print two of this one, ceiling down
+    # the left motor's lid, ceiling down; the right one is xt60_holder.py's
     lid = lid_for_print(make_lid(lid_dims(d)), lid_dims(d))
     export_stl(lid, here / "motor_lid.stl")
     export_step(lid, here / "motor_lid.step")
@@ -1019,5 +1022,5 @@ if __name__ == "__main__":
     print(f"  rear skid hole     : X={d.skid_rear_x:g}  Y=0")
 
     print("\nExported chassis.stl/.step, skid.stl/.step, motor_lid.stl/.step "
-          "(print two), chassis_assembly.stl")
+          "(left motor; the right lid is xt60_holder.py's), chassis_assembly.stl")
     sys.exit(0 if ok else 1)
