@@ -9,8 +9,9 @@ import SwiftUI
 /// also one adjustable element: swipe up or down to step the speed, and
 /// actions to turn, go straight or stop (as do the escape and magic-tap
 /// gestures). That command holds until it is changed, instead of lasting
-/// as long as a touch, and it resets when the app leaves the screen, the
-/// link drops (`active` goes false) or a real drag takes over.
+/// as long as a touch, and it resets when the app leaves the screen,
+/// `active` goes false (the link drops, or a pattern takes the wheels) or a
+/// real drag takes over.
 struct Thumbstick: View {
     var active: Bool
     var radius: CGFloat = 80
