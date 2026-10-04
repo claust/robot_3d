@@ -46,8 +46,8 @@ out of the chassis, in a 2 x 2 grid, land 2.0:
   from the side wall. 2.0 printed cleaner and fit better than 1.0.
 
 A coupon's side walls are wall_t thick, so they don't spread more than
-the chassis plate around a pocket would. A coupon that gives sideways
-judges a fit looser than the car will have it.
+the chassis plate around a pocket would. If a coupon's walls give
+sideways, a fit feels looser on the coupon than it will be on the car.
 
 RESULT (dark blue PLA Basic, X2D): J fits best -- the caster slides in
 by hand and stays put. J's numbers are MountDims' defaults.

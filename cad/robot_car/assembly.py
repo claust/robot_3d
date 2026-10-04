@@ -236,25 +236,34 @@ def main():
     rolling_radius = wd.rolling_diameter / 2  # O-ring not in the STL -- analytical
     wheel_x = d.cradle_x
     wheel_bottom_z = wg_p["axis_z"] - rolling_radius
-    caster_bottom_z = caster["wheel"].bounding_box().min.Z
+    # The caster touches the floor under its wheel, a trail away from the
+    # swivel axis: behind it driving forward, ahead of it in reverse.
+    contacts = {}
+    for way, heading in (("driving forward", 180), ("reversing", 0)):
+        bb = caster_placement(d, heading)["wheel"].bounding_box()
+        contacts[way] = ((bb.min.X + bb.max.X) / 2, bb.min.Z)
+    caster_bottom_z = contacts["driving forward"][1]
     lift = wheel_bottom_z - caster_bottom_z
-    run = d.caster_x - wheel_x
-    tilt = math.degrees(math.atan2(lift, run))
     level_d = 2 * (rolling_radius + lift)
     print(f"    drive wheels touch at Z={wheel_bottom_z:.2f}, the caster at "
-          f"Z={caster_bottom_z:.2f}: the caster lifts the nose {lift:.1f} mm, "
-          f"{tilt:.1f} deg over the {run:.1f} mm wheelbase")
+          f"Z={caster_bottom_z:.2f}: the caster lifts the nose {lift:.1f} mm")
+    rear_gaps = {}
+    for way, (cx, cz) in contacts.items():
+        run = cx - wheel_x
+        # resting on the three contacts, the floor rises toward the rear in
+        # the car's frame; the plate's rear edge is where it comes closest
+        rear_gaps[way] = -(wheel_bottom_z + (d.plate_tail_x - wheel_x) * (cz - wheel_bottom_z) / run)
+        print(f"    {way}: caster contact X={cx:.1f}, {run:.1f} mm from the "
+              f"drive axle -> tilt {math.degrees(math.atan2(lift, run)):.1f} deg "
+              f"(trail est. {d.caster.trail:g} mm)")
     print(f"    drive wheels of Ø{level_d:.1f} would level the plate")
-    # resting on the three contacts, the floor rises toward the rear in the
-    # car's frame; the plate's rear edge is where it comes closest
-    def floor_z(x):
-        return wheel_bottom_z + (x - wheel_x) * (caster_bottom_z - wheel_bottom_z) / run
-    rear_gap = 0.0 - floor_z(d.plate_tail_x)
+    rear_gap = min(rear_gaps.values())
     check(
         "only the wheels and the caster reach the floor",
         lift >= 0 and rear_gap >= 5.0,
         f"the caster stands {lift:.1f} mm below the drive wheels' contact, and "
-        f"tilted onto it the plate's rear edge clears the floor by {rear_gap:.1f} mm (>= 5)",
+        f"tilted onto it either way the plate's rear edge clears the floor by "
+        f"{rear_gap:.1f} mm or more (>= 5)",
     )
     print(f"    ground clearance under the plate, level: {-wheel_bottom_z:.2f} mm")
 

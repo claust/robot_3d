@@ -204,7 +204,8 @@ The commit messages for each step carry the measurements behind them.
   runs only while someone is watching.
 - WIRING.md bring-up step 7 still needs its stall checks: pack voltage and
   the Pi–D2 ground offset with both motors held.
-- Drive wheels: the caster lifts the nose about 10.5 mm (7 deg) on the
-  Ø59 wheels, and wheels of about Ø80 would level the car (assembly.py,
-  check 1). Bigger wheels need new tyres: the O-rings fit only the Ø59
+- Drive wheels: the caster lifts the nose about 10.5 mm on the Ø59
+  wheels, a tilt of about 8 deg driving forward (the caster trails behind
+  its swivel) and 6 deg in reverse. Wheels of about Ø80 would level the
+  car (assembly.py, check 1). Bigger wheels need new tyres: the O-rings fit only the Ø59
   groove.
