@@ -48,6 +48,7 @@ from pi_zero_2w import PiZero2WDims, make_pi_zero_2w
 from d2_drv8833 import Drv8833Dims, make_drv8833
 from p1_mp1584 import Mp1584Dims, make_mp1584
 from b2_lipo import LipoDims, make_lipo
+from xt60_holder import right_lid
 
 WALL_CLEARANCE_MM = 1.0  # design target: web-face-to-wall-outer-face gap
 
@@ -173,10 +174,10 @@ def buck_placement(d: ChassisDims, side: int, mp_dims: Mp1584Dims, board: Part) 
 
 
 def battery_placement(d: ChassisDims):
-    """Resting on the plate top; native +X (the XT60 lead-exit end) is
-    already front-facing, so no rotation is needed."""
+    """Resting on the plate top, turned so that native +X (the XT60
+    lead-exit end) faces the rear."""
     ldims = LipoDims()
-    pack = make_lipo(ldims)
+    pack = make_lipo(ldims).rotate(Axis.Z, 180)
     z_center = d.plate_thickness + ldims.height / 2
     pack = Pos(d.battery_x, 0, z_center) * pack
     return pack, ldims, z_center
@@ -214,9 +215,9 @@ def main():
 
     battery, ldims, batt_z = battery_placement(d)
 
-    # the plate plus both seated lids: everything printed that the wheels
-    # and the electronics must clear
-    chassis_all = c.plate + c.lids[0] + c.lids[1]
+    # the plate plus both seated lids, the right one carrying the XT60
+    # holder: everything printed that the wheels and the electronics must clear
+    chassis_all = c.plate + c.lids[0] + right_lid(d)
 
     assembly = Part() + chassis_all
     assembly += motor_p + motor_m
