@@ -25,7 +25,7 @@ sys.path.insert(0, str(HERE.parent / "parts"))
 import matplotlib.pyplot as plt
 import numpy as np
 import trimesh
-from build123d import Pos, export_stl
+from build123d import Part, Pos, export_stl
 from matplotlib.patches import Patch, Polygon
 from mpl_toolkits.mplot3d.art3d import Poly3DCollection
 from scipy.spatial import ConvexHull
@@ -33,7 +33,7 @@ from scipy.spatial import ConvexHull
 from assembly import (
     battery_placement, buck_placement, pi_placement, tray_placement, wheel_placement,
 )
-from chassis import ChassisDims, build, motor_placement, switch_placement
+from chassis import ChassisDims, build, caster_placement, motor_placement, switch_placement
 from d2_drv8833 import Drv8833Dims, make_drv8833
 from p1_mp1584 import Mp1584Dims, make_mp1584
 from wheel import WheelDims
@@ -44,7 +44,7 @@ COLOURS = {
     "chassis plate": "#5a6472",
     "N20 gearmotor": "#e07b39",
     "drive wheel": "#7d5ba6",
-    "front skid": "#c9b458",
+    "caster": "#c9b458",
     "motor lid": "#8a94a3",
     "Pi Zero 2 W": "#2e9e5b",
     "DRV8833 driver": "#d64550",
@@ -60,13 +60,13 @@ PLAN_CALLOUTS = {
     "MP1584EN buck": (10, -54),
     "N20 gearmotor": (-92, 26),
     "drive wheel": (-24, 54),
-    "front skid": (86, -26),
+    "caster": (98, -40),
     "power switch": (16, 58),
 }
 PLAN_INLINE = ("LiPo pack", "Pi Zero 2 W")  # big enough to label in place
 
 # draw order, back to front
-ORDER = ["chassis plate", "drive wheel", "N20 gearmotor", "motor lid", "front skid",
+ORDER = ["chassis plate", "drive wheel", "N20 gearmotor", "motor lid", "caster",
          "LiPo pack", "Pi Zero 2 W", "DRV8833 driver", "MP1584EN buck", "power switch"]
 
 
@@ -79,7 +79,7 @@ def assembly_parts():
 
     parts = [
         ("chassis plate", c.plate),
-        ("front skid", Pos(d.skid_front_x, 0, -c.skid_below) * c.skid),
+        ("caster", sum(caster_placement(d).values(), Part())),
         ("Pi Zero 2 W", pi_placement(d)[0]),
         ("DRV8833 driver", tray_placement(
             d.drv_x, d.drv_y - d.drv_lead_slack, drv_dims.board_thickness,
@@ -175,13 +175,13 @@ def plan_2d(ax, clouds, d: ChassisDims):
             arrowprops=dict(arrowstyle="-", color=COLOURS[module], lw=1.4),
         )
 
-    nose = d.plate_length / 2
+    nose = d.nose_x
     ax.annotate("", xy=(nose + 34, 0), xytext=(nose + 12, 0),
                 arrowprops=dict(arrowstyle="-|>", color="#333333", lw=2))
     ax.text(nose + 23, 5, "FRONT", fontsize=10, fontweight="bold",
             ha="center", color="#333333")
     finish_2d(ax, f"top plan -- plate {d.plate_length:g} x {d.plate_width:g} mm",
-              "X (mm)", "Y (mm)", (-105, 105), (-62, 62))
+              "X (mm)", "Y (mm)", (-105, 115), (-62, 62))
 
 
 def side_2d(ax, clouds, d: ChassisDims):
@@ -203,7 +203,7 @@ def side_2d(ax, clouds, d: ChassisDims):
     ax.text(-84, bottom / 2, f"{-bottom:.1f} mm\nclearance", fontsize=9,
             ha="left", va="center")
     finish_2d(ax, "side elevation -- from the +Y wheel, front to the right",
-              "X (mm)", "Z (mm)", (-105, 105), (bottom - 8, top + 8))
+              "X (mm)", "Z (mm)", (-105, 115), (bottom - 8, top + 8))
 
 
 def front_2d(ax, clouds, d: ChassisDims):

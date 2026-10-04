@@ -1,14 +1,14 @@
 """robot_car/assembly.py: full-car verification assembly (visualization + checks
 only -- not meant to print). Places the chassis plate, two N20 motors in
 their cradles under seated lids, two drive wheels on the motor shafts, the
-front skid, and the electronics (Pi Zero 2 W, DRV8833, two MP1584EN bucks,
+caster in its pocket, and the electronics (Pi Zero 2 W, DRV8833, two MP1584EN bucks,
 LiPo pack) at their documented chassis positions, then runs a battery of
 programmatic PASS/FAIL checks against the assembled geometry.
 
 Every placement is derived from chassis.py's own ChassisDims constants
 (cradle_x, endwall_t, tray_standoff, pi_x, drv_x/y, buck_x/y, motor_buck_y, battery_x,
 switch_x/y,
-skid_front_x, ...) and the parts library dataclasses -- nothing here
+caster_x, ...) and the parts library dataclasses -- nothing here
 re-derives a number chassis.py or wheel.py already owns.
 
 Wheel axial placement is the one non-trivial derivation: the gearbox's
@@ -26,6 +26,7 @@ design-check table. Then render for a visual check:
     uv run demo_01/render.py robot_car/car_assembly.stl
 """
 
+import math
 import sys
 import tempfile
 from pathlib import Path
@@ -39,7 +40,8 @@ from build123d import Axis, Part, Pos, export_stl
 from scipy.spatial import cKDTree
 
 from chassis import (
-    ChassisDims, N20, buck_board_pose, buck_tray, build, drv_tray, switch_placement,
+    ChassisDims, N20, buck_board_pose, buck_tray, build, caster_placement, drv_tray,
+    switch_placement,
     tray_latch_geometry,
     motor_placement, plate as chassis_plate,
 )
@@ -196,7 +198,7 @@ def main():
     wheel_m, wg_m = wheel_placement(-1, d, wd)
     motor_p = motor_placement(+1, d)
     motor_m = motor_placement(-1, d)
-    installed_skid = Pos(d.skid_front_x, 0, -c.skid_below) * c.skid
+    caster = caster_placement(d)
 
     pi_board, pdims, pi_z = pi_placement(d)
 
@@ -221,29 +223,40 @@ def main():
     assembly = Part() + chassis_all
     assembly += motor_p + motor_m
     assembly += wheel_p + wheel_m
-    assembly += installed_skid
+    assembly += sum(caster.values(), Part())
     assembly += pi_board + drv_placed + mp_placed + mp_motor_placed + battery + switch
 
     export_stl(assembly, HERE / "car_assembly.stl")
     print(f"Exported {HERE / 'car_assembly.stl'}")
 
     # -----------------------------------------------------------------
-    # check 1: ground plane consistency (skid tip vs. wheel bottom)
+    # check 1: ground contact -- the drive wheels and the caster
     # -----------------------------------------------------------------
-    print("\n-- 1. ground plane consistency --")
+    print("\n-- 1. ground contact --")
     rolling_radius = wd.rolling_diameter / 2  # O-ring not in the STL -- analytical
+    wheel_x = d.cradle_x
     wheel_bottom_z = wg_p["axis_z"] - rolling_radius
-    skid_tip_z = -c.skid_below
-    ground_delta = abs(wheel_bottom_z - skid_tip_z)
-    plate_bottom_clearance = -min(wheel_bottom_z, skid_tip_z)
+    caster_bottom_z = caster["wheel"].bounding_box().min.Z
+    lift = wheel_bottom_z - caster_bottom_z
+    run = d.caster_x - wheel_x
+    tilt = math.degrees(math.atan2(lift, run))
+    level_d = 2 * (rolling_radius + lift)
+    print(f"    drive wheels touch at Z={wheel_bottom_z:.2f}, the caster at "
+          f"Z={caster_bottom_z:.2f}: the caster lifts the nose {lift:.1f} mm, "
+          f"{tilt:.1f} deg over the {run:.1f} mm wheelbase")
+    print(f"    drive wheels of Ø{level_d:.1f} would level the plate")
+    # resting on the three contacts, the floor rises toward the rear in the
+    # car's frame; the plate's rear edge is where it comes closest
+    def floor_z(x):
+        return wheel_bottom_z + (x - wheel_x) * (caster_bottom_z - wheel_bottom_z) / run
+    rear_gap = 0.0 - floor_z(d.plate_tail_x)
     check(
-        "wheel-bottom vs skid-tip Z",
-        ground_delta <= 0.5,
-        f"wheel bottom Z={wheel_bottom_z:.2f} (axis {wg_p['axis_z']:.2f} - "
-        f"rolling r{rolling_radius:.2f}), skid tip Z={skid_tip_z:.2f} "
-        f"-> delta {ground_delta:.2f} mm (<= 0.5)",
+        "only the wheels and the caster reach the floor",
+        lift >= 0 and rear_gap >= 5.0,
+        f"the caster stands {lift:.1f} mm below the drive wheels' contact, and "
+        f"tilted onto it the plate's rear edge clears the floor by {rear_gap:.1f} mm (>= 5)",
     )
-    print(f"    ground clearance under the plate bottom: {plate_bottom_clearance:.2f} mm")
+    print(f"    ground clearance under the plate, level: {-wheel_bottom_z:.2f} mm")
 
     # -----------------------------------------------------------------
     # check 2: wheel/wall axial clearance + real mesh interference
@@ -438,24 +451,23 @@ def main():
     bbox = assembly.bounding_box()
     # outer web (spoked) face to outer web face
     track_width = wg_p["rim_outer_y"] - wg_m["rim_outer_y"]
-    wheelbase = abs(d.skid_front_x - d.cradle_x)
+    wheelbase = abs(d.caster_x - d.cradle_x)
     print(
         f"    bounding box (mm): {bbox.size.X:.2f} x {bbox.size.Y:.2f} x {bbox.size.Z:.2f}"
     )
     print(f"    track width (outer wheel face to outer wheel face): {track_width:.2f} mm")
-    print(f"    wheelbase equivalent (motor axis X to front-skid X): {wheelbase:.2f} mm")
+    print(f"    wheelbase (motor axis X to caster swivel axis X): {wheelbase:.2f} mm")
 
     vol_plate = c.plate.volume
     vol_wheels = wheel_p.volume + wheel_m.volume
-    vol_skid = c.skid.volume
-    total_vol_mm3 = vol_plate + vol_wheels + vol_skid
+    total_vol_mm3 = vol_plate + vol_wheels
     total_vol_cm3 = total_vol_mm3 / 1000
     PLA_DENSITY = 1.24  # g/cm^3
     INFILL_FACTOR = 0.85  # assumption: solid-ish small parts print near-solid; light discount
     mass_g = total_vol_cm3 * PLA_DENSITY * INFILL_FACTOR
     print(
-        f"    plastic volume: chassis {vol_plate:.0f} + 2 wheels {vol_wheels:.0f} + "
-        f"skid {vol_skid:.0f} = {total_vol_mm3:.0f} mm^3 ({total_vol_cm3:.1f} cm^3)"
+        f"    plastic volume: chassis {vol_plate:.0f} + 2 wheels {vol_wheels:.0f} "
+        f"= {total_vol_mm3:.0f} mm^3 ({total_vol_cm3:.1f} cm^3)"
     )
     print(
         f"    PLA mass estimate: {total_vol_cm3:.1f} cm^3 x {PLA_DENSITY:g} g/cm^3 x "
