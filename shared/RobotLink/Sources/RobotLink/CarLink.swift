@@ -5,9 +5,11 @@ import Observation
 /// connected, and streams `wheels` to it `DriveProtocol.rate` times a second.
 ///
 /// Set `wheels` whenever the thumb moves; the next tick sends the latest
-/// value. The Bluetooth work happens on `Radio`'s own queue, off the main
-/// thread, and the connection logic is `LinkMachine`; this class only
-/// mirrors their state for SwiftUI.
+/// value. Or hand it a `DrivePattern` to drive, which sets `wheels` move by
+/// move until it ends, is stopped, or the thumb takes over. The Bluetooth
+/// work happens on `Radio`'s own queue, off the main thread, and the
+/// connection logic is `LinkMachine`; this class only mirrors their state
+/// for SwiftUI.
 ///
 /// It connects to the first car advertising `DriveProtocol.serviceUUID` and
 /// goes back to scanning whenever the connection drops or a step stalls.
@@ -34,18 +36,33 @@ public final class CarLink {
     public private(set) var state: State = .idle
     /// Signal strength of the connection, refreshed once a second.
     public private(set) var rssi: Int?
-    /// What the wheels should do now. Only counts while connected: it goes
-    /// back to stop whenever the link isn't, and a reconnected car waits
-    /// for a fresh value.
-    public var wheels: WheelSpeeds = .stop {
-        didSet { radio?.setWheels(wheels) }
+    /// What the wheels should do now. Setting it drives by hand and ends any
+    /// pattern. Only counts while connected: it goes back to stop whenever
+    /// the link isn't, and a reconnected car waits for a fresh value.
+    public var wheels: WheelSpeeds {
+        get { commanded }
+        set {
+            endPattern()
+            command(newValue)
+        }
     }
+
+    /// A pattern being driven, and when it started and will end.
+    public struct PatternRun: Equatable, Sendable {
+        public let pattern: DrivePattern
+        public let period: ClosedRange<Date>
+    }
+
+    /// The pattern the car is driving, if any.
+    public private(set) var pattern: PatternRun?
 
     public let simulated: Bool
 
     @ObservationIgnored private var radio: Radio?
     @ObservationIgnored private var running = false
     @ObservationIgnored private var simulation: Task<Void, Never>?
+    @ObservationIgnored private var player: Task<Void, Never>?
+    private var commanded = WheelSpeeds.stop
 
     public init(simulated: Bool = false) {
         self.simulated = simulated
@@ -96,6 +113,54 @@ public final class CarLink {
             return update(.idle)
         }
         radio?.stop()
+    }
+
+    /// Drive `pattern`, taking over from whatever the wheels were doing. Only
+    /// while connected; losing the link ends it, and a reconnect doesn't
+    /// pick it up again.
+    public func drive(_ pattern: DrivePattern, calibration: DrivePattern.Calibration = .init()) {
+        play(pattern.steps(calibration), as: pattern)
+    }
+
+    /// End the pattern and stop the wheels.
+    public func stopPattern() {
+        wheels = .stop
+    }
+
+    func play(_ steps: [DriveStep], as pattern: DrivePattern) {
+        guard isConnected else { return }
+        endPattern()
+        let seconds = steps.reduce(0) { $0 + $1.seconds }
+        let now = Date()
+        self.pattern = PatternRun(pattern: pattern, period: now...now.addingTimeInterval(seconds))
+        // Each step ends at a deadline counted from the start, so a late
+        // wake-up shortens the next step instead of delaying the rest.
+        let start = ContinuousClock.now
+        // The checks matter before the first step too: the task may only get
+        // to run after something has already ended the pattern.
+        player = Task { [weak self] in
+            var deadline = start
+            for step in steps {
+                guard !Task.isCancelled else { return }
+                self?.command(step.wheels)
+                deadline += .seconds(step.seconds)
+                try? await Task.sleep(until: deadline, clock: .continuous)
+            }
+            guard !Task.isCancelled else { return }
+            self?.endPattern()
+            self?.command(.stop)
+        }
+    }
+
+    private func endPattern() {
+        player?.cancel()
+        player = nil
+        if pattern != nil { pattern = nil }
+    }
+
+    private func command(_ new: WheelSpeeds) {
+        commanded = new
+        radio?.setWheels(new)
     }
 
     private func update(_ new: State) {
