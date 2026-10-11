@@ -90,7 +90,7 @@ import Testing
         let steps = DrivePattern.figureEight.steps()
         let ends = Self.ends(steps)
         #expect(at(ends[0], 0, 0, heading: .pi / 2 + 2 * .pi))
-        #expect(at(ends[1], 0, 0, heading: .pi / 2))
+        #expect(at(ends[2], 0, 0, heading: .pi / 2))
         let box = Self.bounds(Self.path(steps))
         #expect(near(box.x.lowerBound, -40) && near(box.x.upperBound, 40))
         #expect(near(box.y.lowerBound, -20) && near(box.y.upperBound, 20))
@@ -111,7 +111,7 @@ import Testing
     }
 
     @Test func circlesInnerWheelStaysWellClearOfZero() {
-        for step in DrivePattern.figureEight.steps().dropLast() {
+        for step in DrivePattern.figureEight.steps() where step.wheels != .stop {
             #expect(min(step.wheels.left, step.wheels.right) > 0.15)
         }
     }
@@ -128,7 +128,7 @@ import Testing
         let eight = DrivePattern.figureEight.steps()
         let longer8 = DrivePattern.figureEight.steps(.init(straight: 2, corners: 2, circleLength: 1.1))
         #expect(near(longer8[0].seconds, eight[0].seconds * 1.1, 1e-9))
-        #expect(near(longer8[1].seconds, eight[1].seconds * 1.1, 1e-9))
+        #expect(near(longer8[2].seconds, eight[2].seconds * 1.1, 1e-9))
         #expect(longer8[0].wheels == eight[0].wheels)
     }
 

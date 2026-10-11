@@ -21,7 +21,11 @@ public enum DrivePattern: String, CaseIterable, Identifiable, Sendable {
     /// One 40 cm circle to the left, back to the start.
     case circle
     /// A 40 cm circle to the left, then one to the right: an eight lying
-    /// across the car's path, its loops meeting where the car started.
+    /// across the car's path, its loops meeting where the car started. It
+    /// pauses between the loops, so each ramps up from rest and down to it
+    /// like the circle on its own. Swapping the wheels' speeds straight
+    /// from one loop to the next would turn it on past the crossing while
+    /// they ramp, tilting the second loop by several degrees.
     case figureEight
 
     public var id: Self { self }
@@ -71,7 +75,7 @@ public enum DrivePattern: String, CaseIterable, Identifiable, Sendable {
         case .circle:
             return [circle(.left), Self.rest]
         case .figureEight:
-            return [circle(.left), circle(.right), Self.rest]
+            return [circle(.left), Self.rest, circle(.right), Self.rest]
         }
     }
 
@@ -81,9 +85,10 @@ public enum DrivePattern: String, CaseIterable, Identifiable, Sendable {
     /// 55.6 mm either side of the car's centre line (cad/robot_car,
     /// `wheel_geometry` in assembly.py).
     static let track = 11.1
-    /// The track the car turns on the spot as if it had, in cm. Fitted to
-    /// floor runs of the square: spinning, it turns faster than its real
-    /// track says.
+    /// The track the car turns on the spot as if it had, in cm. An
+    /// estimate, not yet checked on the floor: on the real track the
+    /// square's corners turned a little past 90°, so spinning, the car
+    /// turns faster than its track says.
     static let spinTrack = 10.0
     /// A wheel's ground speed in cm/s just above zero command, and at full
     /// command. The Pi lifts any command above zero to the motors' 25 %

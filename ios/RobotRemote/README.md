@@ -12,9 +12,10 @@ The two bars show what each wheel is being told, and "Top speed" caps both.
 
 Above the stick, three buttons drive a preset route on their own: **Square**
 (40 cm sides, turning left on the spot at each corner), **Circle** (40 cm
-across, to the left) and **Eight** (a 40 cm loop to the left, then one to the
-right, meeting where the car started). Each ends where it began. Give it a
-clear patch of floor about a metre across, with the car in the middle. While a pattern runs, the row shows its progress and a Stop button.
+across, to the left) and **Eight** (a 40 cm loop to the left, a short pause,
+then one to the right, meeting where the car started). Each ends where it
+began. Give it a clear patch of floor about a metre across, with the car in
+the middle. While a pattern runs, the row shows its progress and a Stop button.
 Dragging the stick also takes over. Losing the link ends the pattern, and it
 doesn't resume after a reconnect. Patterns run at their own fixed speeds,
 whatever "Top speed" says, so a calibration stays valid.
