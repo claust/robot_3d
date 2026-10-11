@@ -1,10 +1,12 @@
 """robot_car: the chassis plate for the two-motor robot car.
 
-One flat part, 130 x 94 x 3 mm (X x Y x Z), corner radius 6 mm, printed flat
-side down with no supports. +X is FRONT, -X is REAR. The plate is centred
-on the origin in X and Y; the bottom face is Z=0, the top face is Z =
-plate_thickness (3 mm) and every feature grows up from there. ChassisDims
-holds every number; this docstring says what each feature is and why.
+One flat part, about 139 x 94 x 3 mm (X x Y x Z), corner radius 6 mm,
+printed flat side down with no supports. +X is FRONT, -X is REAR. The
+plate is centred on Y=0; its rear edge is plate_tail_x and its nose is
+where the caster pocket's mouth is (ChassisDims.nose_x). The bottom face
+is Z=0, the top face is Z = plate_thickness (3 mm) and every feature grows
+up from there. ChassisDims holds every number; this docstring says what
+each feature is and why.
 
 LAYOUT
 
@@ -41,10 +43,19 @@ LAYOUT
   takes the 21 mm hook-and-loop strap. The XT60 lead exits at -X, the
   rear, and plugs into the harness's male XT60 held on the right motor lid
   (xt60_holder.py).
-- Skid: a Ø10 hole on the centreline at the front (X=55) and another at the
-  rear (X=-58). The skid is a separate part that push-snaps up through
-  either hole from underneath, on four slit prongs. The front hole also
-  anchors the nose caster's arm (caster.py) in the skid's place.
+- Caster (bought swivel caster, cad/parts/swivel_caster.py), front, under
+  the Pi: its square steel plate slides into a pocket in the plate's
+  underside from the nose and stops on a face just ahead of the battery
+  guide nubs. No bolts. The pocket's cross-section is coupon J of
+  caster_mount_coupons.py, which owns its geometry: ledges in the plate's
+  bottom layers, the slot above them, and two lips standing on the plate
+  beside it that the caster presses up against. Over the middle the plate
+  is open, a window under the Pi. The caster stands taller than the
+  space under the plate, so it lifts the nose (assembly.py reports by how
+  much).
+- Skid: a Ø10 hole on the centreline at the rear (X=-58). The skid is a
+  separate part that push-snaps up through it from underneath, on four
+  slit prongs.
 - Identity text engraved, mirrored, into the underside.
 
 DESIGN RULES
@@ -63,7 +74,12 @@ DESIGN RULES
   the inside of the end wall, so the wall stands fully on the plate.
 - The driver and bucks sit off the centreline because the battery and the
   cradles leave no room there; the Pi sits at X=48 so the 93 mm pack fits
-  behind it. The bucks sit as far forward as the Pi allows, to make room
+  behind it.
+- The caster pocket can't reach back past the battery's guide nubs or the
+  buck trays, so the plate grows forward to hold it: the nose is where
+  the pocket's mouth has to be. Over the pocket the plate keeps only its
+  ledges, so nothing may stand on it there. The lips stand under the Pi
+  board, below its microSD slot and the header's solder tails. The bucks sit as far forward as the Pi allows, to make room
   for the switch behind the motor buck, and level with each other.
 - Nothing may stick out past the plate edge: build() clips every added
   feature to the plate outline. A Ø10 hole placed exactly tangent to the
@@ -135,10 +151,11 @@ reaches. A board can't be mirrored, so the two bucks sit rotated 180 deg
 to each other: the motor buck has IN at the rear, toward the switch, and
 OUT at the front; the Pi's buck has IN at the front and OUT at the rear.
 
-Run with:  uv run chassis.py [plate_length] [plate_width] [wheel_diameter]
+Run with:  uv run chassis.py [plate_width] [wheel_diameter]
 Exports (gitignored): chassis.stl/.step, skid.stl/.step, and
-chassis_assembly.stl (chassis + two reference N20 motors + the skid, all in
-installed position, for visual verification only -- not meant to print).
+chassis_assembly.stl (chassis + two reference N20 motors + the caster, all
+in installed position, for visual verification only -- not meant to
+print).
 """
 
 import sys
@@ -169,6 +186,9 @@ from build123d import (
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "parts"))
 from kcd1_rocker import make_kcd1  # noqa: E402
 from n20_motor import N20Dims, make_motor  # noqa: E402
+from swivel_caster import CasterDims, make_caster  # noqa: E402
+
+from caster_mount_coupons import MountDims, lip_rails, make_pocket, pocket_cut  # noqa: E402
 
 from lid_coupons import LidDims, lid_for_print, make_cradle, make_lid  # noqa: E402
 from switch_well import WellDims, make_well  # noqa: E402
@@ -180,7 +200,7 @@ ALIGN_TOP = (Align.CENTER, Align.CENTER, Align.MAX)
 @dataclass
 class ChassisDims:
     # ---- plate ---------------------------------------------------------
-    plate_length: float = 130.0  # X
+    plate_tail_x: float = -65.0  # rear edge; the DRV8833 tray reaches it
     plate_width: float = 94.0  # Y -- keeps the motors clear of the battery
     plate_thickness: float = 3.0
     corner_radius: float = 6.0
@@ -210,6 +230,15 @@ class ChassisDims:
     pi_boss_d: float = 5.5
     pi_boss_h: float = 5.0
     pi_pilot_d: float = 2.2
+
+    # ---- caster pocket (caster_mount_coupons.py, coupon J) ----------------
+    # The stop face sits 1 mm ahead of the battery guide nubs' front; the
+    # pocket's length from there sets the nose (nose_x).
+    caster_stop_x: float = 34.0
+    caster_rail_w: float = 4.0  # each lip rail's footing on the plate, beside the slot
+    caster_rail_back: float = 0.5  # rails start this far behind the stop face
+    mount: MountDims = field(default_factory=MountDims)
+    caster: CasterDims = field(default_factory=CasterDims)
 
     # ---- tilt-and-slide PCB trays (D2 DRV8833, P1 MP1584EN x2) ----------
     # One tray for all three boards, header_tray (module docstring, PCB
@@ -302,7 +331,7 @@ class ChassisDims:
     # Mirrored text cut into the bottom face, centred between the two skid
     # sockets and inboard of the strap slots;
     # readable when the robot is flipped over.
-    label_lines: tuple = ("DELECTOSOFT", "© 2026  PROTO-04")
+    label_lines: tuple = ("DELECTOSOFT", "© 2026  PROTO-05")
     # It prints against the textured PEI sheet, which stipples the plate
     # face and the letter floors with the same grain, so legibility comes
     # from stroke width and depth: Arial Black's strokes are ~1.7 mm wide at
@@ -311,14 +340,13 @@ class ChassisDims:
     label_font_size: float = 8.0
     label_line_spacing: float = 11.0
     label_depth: float = 0.9  # of 3.0 mm plate -> 2.1 mm left under the text
-    # Centred: the widest line spans X +-39.5,
-    # which clears both skid-hole rims (X -63..-53 and 50..60) and sits
-    # well inside the strap slots at |Y| >= 20.1.
-    label_x: float = 0.0
+    # The widest line spans 79 mm: centred at X=-10 it runs -49.5..29.5,
+    # between the rear skid hole's rim (-53) and the caster pocket's
+    # opening, and well inside the strap slots at |Y| >= 20.1.
+    label_x: float = -10.0
     label_y: float = 0.0
 
-    # ---- skid mounting holes + skid part ---------------------------------
-    skid_front_x: float = 55.0
+    # ---- skid mounting hole + skid part ----------------------------------
     skid_rear_x: float = -58.0  # at -60 the Ø10 hole would be tangent to
     # the plate edge, a degenerate boolean OCCT meshes as a non-manifold STL
     skid_hole_d: float = 10.0
@@ -336,6 +364,20 @@ class ChassisDims:
 
     # ---- misc -------------------------------------------------------------
     zip_tie_hole_d: float = 4.0
+
+    @property
+    def caster_x(self) -> float:
+        """The caster's swivel axis: its plate centred in the pocket."""
+        return self.caster_stop_x + self.mount.end_fit + self.caster.plate / 2
+
+    @property
+    def nose_x(self) -> float:
+        """The front edge: the caster pocket's mouth."""
+        return self.caster_x + self.caster.plate / 2
+
+    @property
+    def plate_length(self) -> float:
+        return self.nose_x - self.plate_tail_x
 
 
 N20 = N20Dims()
@@ -362,8 +404,8 @@ def ivol(a: Part, b: Part) -> float:
 
 
 def plate_plan(d: ChassisDims):
-    plan = Rectangle(d.plate_length, d.plate_width)
-    return fillet(plan.vertices(), d.corner_radius)
+    plan = fillet(Rectangle(d.plate_length, d.plate_width).vertices(), d.corner_radius)
+    return Pos((d.plate_tail_x + d.nose_x) / 2, 0) * plan
 
 
 def plate(d: ChassisDims) -> Part:
@@ -706,6 +748,27 @@ def strap_slots(d: ChassisDims) -> Part:
 
 
 # ---------------------------------------------------------------------------
+# caster pocket: caster_mount_coupons.py's geometry, placed at caster_x
+# ---------------------------------------------------------------------------
+
+
+def caster_rails(d: ChassisDims) -> Part:
+    x0 = d.caster_stop_x - d.caster_rail_back - d.caster_x
+    return Pos(d.caster_x, 0, 0) * lip_rails(d.mount, d.caster, x0, d.caster_rail_w)
+
+
+def caster_pocket_cut(d: ChassisDims) -> Part:
+    return Pos(d.caster_x, 0, 0) * pocket_cut(d.mount, d.caster)
+
+
+def caster_placement(d: ChassisDims, heading: float = 0.0) -> dict:
+    """The caster in its pocket with the car's weight on it: plate pressed
+    up against the lips' lands. name -> Part."""
+    return {k: Pos(d.caster_x, 0, d.mount.ceiling()) * p
+            for k, p in make_caster(d.caster, heading).items()}
+
+
+# ---------------------------------------------------------------------------
 # skid: separate part, printed dome-down, snaps up through a plate hole
 # ---------------------------------------------------------------------------
 
@@ -847,16 +910,17 @@ def build(d: ChassisDims) -> Chassis:
         body += t
     body += well
     body += nubs
+    body += caster_rails(d)
 
     # safety net: nothing added above may stick out past the plate's own
     # edge, however tight an individual placement margin is
     body &= plate_footprint_prism(d)
 
     body -= strap_slots(d)
-    for x in (d.skid_front_x, d.skid_rear_x):
-        body -= Pos(x, 0, -0.5) * Cylinder(
-            radius=d.skid_hole_d / 2, height=d.plate_thickness + 1, align=ALIGN_BOTTOM
-        )
+    body -= Pos(d.skid_rear_x, 0, -0.5) * Cylinder(
+        radius=d.skid_hole_d / 2, height=d.plate_thickness + 1, align=ALIGN_BOTTOM
+    )
+    body -= caster_pocket_cut(d)
     # zip-tie hole past each MP1584 board's front short edge, away from the
     # battery bay, keeping >=4 mm of plate on every side (between the long
     # edge and the plate edge there is only 0.2 mm, which prints as an open
@@ -912,6 +976,8 @@ def build(d: ChassisDims) -> Chassis:
         "switch_well": well,
         "switch": switch_placement(d),
         "battery": battery_env,
+        "caster_rails": caster_rails(d),
+        "caster": sum(caster_placement(d).values(), Part()),
         # a cut, not a feature: nothing may stand over the strap's path
         "strap_slots": strap_slots(d),
     }
@@ -974,14 +1040,64 @@ def overlap_check(footprints: dict) -> bool:
     return all_ok
 
 
+def caster_check(d: ChassisDims, body: Part) -> bool:
+    """The pocket on the car is coupon J's, and the caster goes in, sits,
+    and swivels without touching the plate."""
+    m, c = d.mount, d.caster
+    tol = 0.01  # mm^3
+    ok = True
+
+    def report(good: bool, text: str) -> bool:
+        print(f"[{'PASS' if good else 'FAIL'}] {text}")
+        return good
+
+    print("\n-- caster pocket --")
+    ok &= report(abs(m.ceiling() - d.plate_thickness) < 1e-9,
+                 f"slot ceiling {m.ceiling():g} = plate top {d.plate_thickness:g}: "
+                 f"the slot opens into the window between the lips")
+
+    # the slot zone of the car's plate, against the printed coupon J
+    a = c.plate / 2 + m.side_fit
+    x_stop = -c.plate / 2 - m.end_fit
+    probe = rbox(x_stop + 1, c.plate / 2 - 1, -(a + 2), a + 2, -1, m.top() + 1)
+    car = (Pos(-d.caster_x, 0, 0) * body) & probe
+    coupon = make_pocket(m, c) & probe
+    diff = (car - coupon).volume + (coupon - car).volume
+    ok &= report(diff < tol, f"the pocket is coupon J's: {diff:.4f} mm^3 different "
+                             f"in the slot zone")
+
+    loaded = caster_placement(d)
+    for k in ("plate", "ring"):
+        v = ivol(loaded[k], body)
+        ok &= report(v < tol, f"caster {k}, pressed up to the lands: no overlap ({v:.4f} mm^3)")
+    ledges = body & rbox(d.caster_x - 30, d.nose_x + 1, -30, 30, -1, m.ledge_top())
+    gap = loaded["ring"].distance_to(ledges)
+    ok &= report(gap >= 2.0, f"bearing ring clears the ledges by {gap:.2f} mm (>= 2)")
+
+    worst = 0.0
+    for heading in range(0, 360, 30):
+        s = caster_placement(d, heading)
+        worst = max(worst, ivol(s["fork"] + s["wheel"], body))
+    ok &= report(worst < tol, f"swivels a full turn clear of the plate "
+                              f"({worst:.4f} mm^3, 30 deg steps)")
+
+    worst = 0.0
+    lifted = d.mount.ledge_top() + c.plate_t - d.mount.ceiling()  # resting on the ledges
+    for dx in range(0, int(c.plate) + 3, 2):
+        s = caster_placement(d)
+        moving = Pos(dx, 0, lifted) * (s["plate"] + s["ring"] + s["fork"])
+        worst = max(worst, ivol(moving, body))
+    ok &= report(worst < tol, f"slides out the nose without touching "
+                              f"({worst:.4f} mm^3, 2 mm steps)")
+    return ok
+
+
 if __name__ == "__main__":
     d = ChassisDims()
     if len(sys.argv) > 1:
-        d.plate_length = float(sys.argv[1])
+        d.plate_width = float(sys.argv[1])
     if len(sys.argv) > 2:
-        d.plate_width = float(sys.argv[2])
-    if len(sys.argv) > 3:
-        d.wheel_diameter = float(sys.argv[3])
+        d.wheel_diameter = float(sys.argv[2])
 
     here = Path(__file__).parent
     c = build(d)
@@ -999,15 +1115,15 @@ if __name__ == "__main__":
     assembly += motor_placement(+1, d)
     assembly += motor_placement(-1, d)
     assembly += c.lids[0] + c.lids[1]
-    installed_skid = Pos(d.skid_front_x, 0, -c.skid_below) * c.skid
-    assembly += installed_skid
+    assembly += sum(caster_placement(d).values(), Part())
     export_stl(assembly, here / "chassis_assembly.stl")
 
     ok = overlap_check(c.footprints)
     ok &= connectivity_check(c.plate)
+    ok &= caster_check(d, c.plate)
 
     print(f"\nPlate: {d.plate_length:g} x {d.plate_width:g} x {d.plate_thickness:g} mm, "
-          f"corner r{d.corner_radius:g}")
+          f"corner r{d.corner_radius:g}, X {d.plate_tail_x:g}..{d.nose_x:g}")
     print(f"Wheel diameter {d.wheel_diameter:g} mm -> skid reaches {c.skid_below:.2f} mm "
           f"below the plate bottom")
     print("\nLayout (center X, center Y):")
@@ -1018,7 +1134,7 @@ if __name__ == "__main__":
     print(f"  MP1584EN tray, mot.: X={d.buck_x:g}  Y={d.motor_buck_y:g}")
     print(f"  power switch well  : X={d.switch_x:g}  Y={d.switch_y:g}")
     print(f"  battery bay        : X={d.battery_x:g}  Y=0")
-    print(f"  front skid hole    : X={d.skid_front_x:g}  Y=0")
+    print(f"  caster swivel axis : X={d.caster_x:g}  Y=0 (stop face X={d.caster_stop_x:g})")
     print(f"  rear skid hole     : X={d.skid_rear_x:g}  Y=0")
 
     print("\nExported chassis.stl/.step, skid.stl/.step, motor_lid.stl/.step "

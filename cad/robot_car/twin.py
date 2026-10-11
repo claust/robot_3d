@@ -39,7 +39,7 @@ from render_assembly import COLOURS, assembly_parts
 # wheels are not.
 FINISH = {
     "chassis plate": (0.75, 0.0),
-    "front skid": (0.75, 0.0),
+    "caster": (0.5, 0.4),
     "motor lid": (0.75, 0.0),
     "XT60 holder lid": (0.75, 0.0),
     "N20 gearmotor": (0.35, 0.9),

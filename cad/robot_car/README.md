@@ -1,10 +1,10 @@
 # robot_car — design overview
 
 A small two-wheel robot car: two N20 gearmotors drive O-ring-tyred wheels at
-the rear corners, a skid carries the front, and a Raspberry Pi Zero 2 W
-drives the motors through a DRV8833, all on one 3D-printed plate powered by
-a 2S LiPo. The current design is **PROTO-04**, the text engraved on the
-plate's underside.
+the rear corners, a bought swivel caster carries the front, and a Raspberry
+Pi Zero 2 W drives the motors through a DRV8833, all on one 3D-printed plate
+powered by a 2S LiPo. The current design is **PROTO-05**, the text engraved
+on the plate's underside.
 
 This page is the map. It says what the car is made of, which script owns
 each part, what has been settled on the printer, and where the details
@@ -24,6 +24,7 @@ IDs and status come from the parts library, [parts/index.html](../../parts/index
 | P1 | MP1584EN buck converter | two: 5.1 V for the Pi, 6.0 V for the motor driver | ok |
 | B2 | 2S LiPo 7.4 V 2200 mAh, XT60 | one, centre | ok |
 | — | KCD1-style mini rocker switch, 3 bent terminals ([kcd1_rocker.py](../parts/kcd1_rocker.py)) | one, left, between the motor and the motor buck | not yet in the parts library |
+| — | Swivel caster: 40.2 mm square steel plate, Ø24.7 wheel, 34 mm tall ([swivel_caster.py](../parts/swivel_caster.py)) | one, front, under the Pi | not yet in the parts library |
 
 Two O-rings, OD 60 / ID 40 with a 10 mm cord, serve as tyres. They came off
 an old wooden toy wheel, and the printed wheel copies that wheel's groove.
@@ -32,11 +33,10 @@ an old wooden toy wheel, and the printed wheel copies that wheel's groove.
 
 | Part | Qty | Made by | Notes |
 |------|-----|---------|-------|
-| Chassis plate | 1 | [chassis.py](chassis.py) | 130 x 94 x 3 mm, prints flat, no supports |
+| Chassis plate | 1 | [chassis.py](chassis.py) | about 139 x 94 x 3 mm (the nose is the caster pocket's mouth, `ChassisDims.nose_x`), prints flat, no supports |
 | Motor lid | 1, left motor | [chassis.py](chassis.py), exports `motor_lid.stl` | geometry from [lid_coupons.py](lid_coupons.py) |
 | Motor lid with XT60 holder | 1, right motor | [xt60_holder.py](xt60_holder.py), exports `xt60_lid.stl` | holds the harness's male XT60 for the pack to plug into; channel fit from [xt60_coupons.py](xt60_coupons.py), preload from [xt60_lid_trials.py](xt60_lid_trials.py) |
-| Skid | 1 | [chassis.py](chassis.py), exports `skid.stl` | print it as its own job, with a brim |
-| Nose caster | 6 pieces | [caster.py](caster.py), exports `caster_plate.stl` | arm, anchor rivet, fork, wheel and two pins, one plate; in place of the front skid. First iteration, tested: wobbles and drags, see Open items |
+| Skid | 1 | [chassis.py](chassis.py), exports `skid.stl` | fits the rear hole; not needed with the caster. Print it as its own job, with a brim |
 | Drive wheel | 2 | [wheel.py](wheel.py) | spoked web outboard, hub reaches in to the shaft |
 | Stand-in dummies | as needed | [dummies.py](dummies.py) | white stand-ins for motors and boards, for dry fits |
 
@@ -73,14 +73,14 @@ anything on the plate.
   in from the front until a latch arm on top clicks behind it, and the
   pack's female plugs into it from behind. Only friction holds it the
   other way, so hold the lid when unplugging the pack.
-- **Skid** push-snaps up from underneath through the hole at the front.
-  An identical hole at the rear takes it too.
-- **Nose caster** ([caster.py](caster.py)) replaces the skid at the front: a
-  Ø40 wheel on a 10 mm trail, swivelling on an arm whose foot an anchor
-  rivet clamps up through the front skid hole. The wheel is taller than
-  the space under the plate, so the pivot sits 39 mm ahead of the nose,
-  far enough that the wheel's swing circle clears the arm. The pivot and
-  the axle are the same Ø5 snap pin.
+- **Caster** slides in from the nose, fork turned so the wheel trails
+  forward, until its plate meets the stop. Ledges in the plate's bottom
+  layers carry it when the car is lifted, and the car's weight presses its
+  plate up against two lips beside the slot. The fit alone holds it, no
+  bolts ([caster_mount_coupons.py](caster_mount_coupons.py)). The caster is
+  taller than the space under the plate, so it lifts the nose.
+- **Skid** push-snaps up from underneath through the hole at the rear. The
+  car runs without it now that the caster carries the front.
 
 ### Assembly order
 
@@ -103,6 +103,7 @@ changes.
 | MP1584 in its tray | 0.15 mm end fit (latch as the DRV8833's) | `ChassisDims.buck_end_fit` | [buck_coupons.py](buck_coupons.py), coupon N | sits flat, holds well; 0.05 was tight |
 | Switch in its well | 3.0 mm panel under the flange | `WellDims.panel_t` | [switch_well.py](switch_well.py), coupon C | best of 2.0 / 2.5 / 3.0 |
 | O-ring groove | copy of the ring's wooden wheel: root Ø39, shoulder Ø46 | root: `WheelDims.oring_id` x `STRETCH` (wheel.py); shoulder: root + 2 x `WheelDims.groove_depth_factor` x cord | printed wheels P7 and P8 | rings mount by hand and stay seated; the coupon rounds before it were too tight to mount |
+| Caster plate in its pocket | slot 1.8 over the 1.5 plate, 0.20 mm per side, 2.0 mm lands | `MountDims.slot_h`, `side_fit`, `lip_land` | [caster_mount_coupons.py](caster_mount_coupons.py), coupon J | slides in by hand and stays put; 0.10 per side was snug, zero spread the walls |
 | XT60 in its holder | 0.15 mm per side, 0.30 mm on top; the plug stands on edge ledges | `HolderDims.side_fit`, `top_fit` | [xt60_coupons.py](xt60_coupons.py), round 2 coupon Z | snug, latch clicks; round 1 showed the floor's bridge sag bending the hollow shroud, hence the ledges |
 | XT60 holder lid on its motor | 0.30 mm pad preload, lid E's | `ChassisDims.lid_pad_preload` (shared) | [xt60_lid_trials.py](xt60_lid_trials.py), lid K | slides on by hand and holds the motor; 0.20 (lid L) held it less well |
 | Running fit, general | 0.2 mm radial | project-wide | `demo_04` fit test | moves freely; use for anything that turns |
@@ -116,14 +117,17 @@ uv run robot_car/chassis.py
 Builds the plate, lids and skid, then checks every pair of parts on the
 plate for overlap on the real geometry and confirms the plate is one solid.
 The only allowed overlap is each lid's pad pressing on its motor, which is
-checked against a range.
+checked against a range. It also checks the caster pocket: it matches the
+coupon that fit, and the caster slides in, sits, and swivels a full turn
+clear of the plate.
 
 ```bash
 uv run robot_car/assembly.py
 ```
 
-Places everything on the car, wheels and electronics included, and runs the
-full-car PASS/FAIL table.
+Places everything on the car, wheels, caster and electronics included, and
+runs the full-car PASS/FAIL table. It reports how far the caster lifts the
+nose and the drive-wheel size that would level it.
 
 ```bash
 uv run robot_car/lid_coupons.py
@@ -142,13 +146,12 @@ panel, the cradle and the motor buck, with room left to solder the
 terminals.
 
 ```bash
-uv run robot_car/caster.py
+uv run robot_car/caster_mount_coupons.py
 ```
 
-Checks the nose caster: the wheel meets the floor with the drive wheels,
-it swings a full turn clear of the arm, anchor and chassis, the arm clears
-the Pi's connectors, and every moving fit has its gap. Writes
-`caster_render.png`.
+Builds the caster pocket's fit coupons and checks the caster in each: its
+clearances, the bearing ring clear of the ledges, sliding out of the mouth,
+and swivelling a full turn. Writes `caster_mount_render.png`.
 
 ```bash
 uv run robot_car/xt60_holder.py
@@ -186,6 +189,14 @@ USDZ of the whole car that macOS Quick Look opens.
   hole, so it fits PROTO-04 as printed. In use the arm wobbles on its
   single rivet and lets the nose sag, and the pivot has so much friction
   that the wheel doesn't turn to follow the car. It drags like the skid.
+- **PROTO-05** takes a bought swivel caster in place of the skid and the
+  printed caster. Its plate slides into a pocket in the chassis underside,
+  under the Pi. The pocket can't reach back past the battery's guide nubs,
+  so the plate grew 9.3 mm forward. Three coupon rounds settled it: a roof
+  bridged over the slot sagged into it and jammed the plate, a lip across
+  the back sagged into spaghetti, and a slot drawn at the plate's nominal
+  40.0 bound once the plate measured 40.2. On the printed plate the caster
+  slides in by hand and stays put.
 
 The commit messages for each step carry the measurements behind them.
 
@@ -212,8 +223,8 @@ The commit messages for each step carry the measurements behind them.
   runs only while someone is watching.
 - WIRING.md bring-up step 7 still needs its stall checks: pack voltage and
   the Pi–D2 ground offset with both motors held.
-- Caster, second iteration. The mount has to be part of the chassis:
-  one rivet through the skid hole can't hold the arm rigid. The pivot has
-  to turn far more freely, for example with a metal washer as the thrust
-  face in place of the PLA crown rubbing on the PLA housing. The arm also
-  covers the Pi's centre USB port.
+- Drive wheels: the caster lifts the nose about 10.5 mm on the Ø59
+  wheels, a tilt of about 8 deg driving forward (the caster trails behind
+  its swivel) and 6 deg in reverse. Wheels of about Ø80 would level the
+  car (assembly.py, check 1). Bigger wheels need new tyres: the O-rings fit only the Ø59
+  groove.

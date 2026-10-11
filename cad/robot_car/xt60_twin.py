@@ -58,7 +58,7 @@ LOOKS = {
     "buck": ("#39a8c4", 0.55, 0.0),
     "switch": ("#2a2a2a", 0.6, 0.0),
     "battery": ("#3b6fd4", 0.45, 0.0),
-    "skid": ("#c9b458", 0.8, 0.0),
+    "caster": ("#c9b458", 0.5, 0.4),
     "xt60": ("#f3c316", 0.45, 0.0),
     "amber": ("#d9901a", 0.45, 0.0),
     "shrink": ("#1c1c1f", 0.7, 0.0),
@@ -67,7 +67,7 @@ LOOKS = {
     "floor": ("#e4e4e0", 1.0, 0.0),
 }
 MODULE_LOOK = {
-    "chassis plate": "plate", "front skid": "skid", "Pi Zero 2 W": "pi",
+    "chassis plate": "plate", "caster": "caster", "Pi Zero 2 W": "pi",
     "DRV8833 driver": "drv", "MP1584EN buck": "buck", "power switch": "switch",
     "N20 gearmotor": "motor", "drive wheel": "wheel",
 }
