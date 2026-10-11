@@ -2,8 +2,8 @@ import RobotLink
 import SwiftUI
 
 /// The one screen: link status at the top, what each wheel is being told in
-/// the middle, the top-speed cap, and the thumbstick filling the bottom half
-/// where a thumb reaches it.
+/// the middle, the top-speed cap, the preset patterns, and the thumbstick
+/// filling the bottom half where a thumb reaches it.
 struct DriveView: View {
     @Bindable var link: CarLink
     @AppStorage("topSpeed") private var topSpeed = 0.6
@@ -34,7 +34,10 @@ struct DriveView: View {
                 Slider(value: $topSpeed, in: 0.3...1, step: 0.05)
                     .accessibilityLabel("Top speed")
             }
-            Thumbstick(active: link.isConnected) { x, y in
+            PatternBar(link: link)
+            // A running pattern resets the stick's held command, but a drag
+            // still takes over.
+            Thumbstick(active: link.isConnected && link.pattern == nil) { x, y in
                 stick = (x, y)
                 drive()
             }
@@ -57,6 +60,8 @@ struct DriveView: View {
 
     private func drive() {
         guard link.isConnected else { return }
+        // A pattern keeps the wheels until the stick moves off centre.
+        if link.pattern != nil, stick.x == 0, stick.y == 0 { return }
         link.wheels = WheelSpeeds.arcade(x: stick.x, y: stick.y).scaled(by: topSpeed)
     }
 }
