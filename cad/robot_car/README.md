@@ -106,6 +106,11 @@ changes.
 | Caster plate in its pocket | slot 1.8 over the 1.5 plate, 0.20 mm per side, 2.0 mm lands | `MountDims.slot_h`, `side_fit`, `lip_land` | [caster_mount_coupons.py](caster_mount_coupons.py), coupon J | slides in by hand and stays put; 0.10 per side was snug, zero spread the walls |
 | XT60 in its holder | 0.15 mm per side, 0.30 mm on top; the plug stands on edge ledges | `HolderDims.side_fit`, `top_fit` | [xt60_coupons.py](xt60_coupons.py), round 2 coupon Z | snug, latch clicks; round 1 showed the floor's bridge sag bending the hollow shroud, hence the ledges |
 | XT60 holder lid on its motor | 0.30 mm pad preload, lid E's | `ChassisDims.lid_pad_preload` (shared) | [xt60_lid_trials.py](xt60_lid_trials.py), lid K | slides on by hand and holds the motor; 0.20 (lid L) held it less well |
+| 6000 bearing in its seat (mower spindle) | 0.05 mm radial | `SpindleDims.seat_clearance` | [spindle_coupons.py](spindle_coupons.py), ring B | nice tight press; 0.00 to 0.15 tested |
+| 6000 bearing on the printed axle | 0.00 mm radial in the lower bearing (press), 0.015 above it (slides through) | `SpindleDims.press_clearance`, `axle_clearance` | [spindle_coupons.py](spindle_coupons.py), pins A and E | A a tight push, E a bit loose; 0.05 and up rattle |
+| Canon cap over the spindle tower | 0.05 mm radial over the Ø32.1 tube | `MountDims.cap_fit` | [cap_coupons.py](cap_coupons.py), ring A | snug by hand, no rocking; 0.10 to 0.20 looser |
+| Canon can in its cup | 0.05 mm radial over Ø34.3 | `MountDims.cup_fit` | [cap_coupons.py](cap_coupons.py), cup F | best of 0.00 to 0.15 |
+| Hub on the Canon's Ø2 shaft | 0.15 mm radial (Ø2.30 drawn) | `MountDims.shaft_fit` | [cap_coupons.py](cap_coupons.py), hub L | a bit tight; 0.00 to 0.10 would not go on |
 | Running fit, general | 0.2 mm radial | project-wide | `demo_04` fit test | moves freely; use for anything that turns |
 
 ## Checks to run before printing
@@ -199,6 +204,20 @@ USDZ of the whole car that macOS Quick Look opens.
   slides in by hand and stays put.
 
 The commit messages for each step carry the measurements behind them.
+
+## Next: PROTO-06, the mower
+
+PROTO-06 turns the car into a small test mower: four-wheel drive on Ø80
+lawn wheels, no caster, and a cutter spindle in the middle. None of it is
+in [chassis.py](chassis.py) yet.
+
+| Script | What it is | State |
+|--------|------------|-------|
+| [light_wheel.py](light_wheel.py) | Ø80 x 30 mm lawn wheels, four tread variants | chevron (B) chosen; four printed |
+| [spindle_coupons.py](spindle_coupons.py) | the spindle: a tower holding two 6000 bearings ([bearing_6000.py](../parts/bearing_6000.py)), a printed rotor with an Ø80 disc, and the fit coupons that settled them | tower and rotor printed |
+| [cap_coupons.py](cap_coupons.py) | fit coupons for mounting the Canon motor (M1) without screws | printed, settled |
+| [canon_mount.py](canon_mount.py) | the cap that holds the Canon on the tower, and the hub that drives the axle through the rotor's filament pin | printing |
+| [proto06.py](proto06.py) | the four-wheel-drive layout: plate, four motor cradles, trays, battery and Pi round the spindle, checked part against part | layout for discussion |
 
 ## Where the details live
 
