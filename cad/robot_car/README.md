@@ -111,6 +111,7 @@ changes.
 | Canon cap over the spindle tower | 0.05 mm radial over the Ø32.1 tube | `MountDims.cap_fit` | [cap_coupons.py](cap_coupons.py), ring A | snug by hand, no rocking; 0.10 to 0.20 looser |
 | Canon can in its cup | 0.05 mm radial over Ø34.3 | `MountDims.cup_fit` | [cap_coupons.py](cap_coupons.py), cup F | best of 0.00 to 0.15 |
 | Hub on the Canon's Ø2 shaft | 0.15 mm radial (Ø2.30 drawn) | `MountDims.shaft_fit` | [cap_coupons.py](cap_coupons.py), hub L | a bit tight; 0.00 to 0.10 would not go on |
+| TB6612 in its tray (PROTO-06) | grips the 18.3 mm edges, tongues either side of the capacitor; fits and latch as the DRV8833's | `P6Dims.tb_tongue_ys`, `tb_corner_arm` | `proto06.py tb-coupon` | tongues miss the capacitor, sits flat, latch lets it out; ledges moved onto 5 mm corner walls after they printed as thin pillars |
 | Running fit, general | 0.2 mm radial | project-wide | `demo_04` fit test | moves freely; use for anything that turns |
 
 ## Checks to run before printing
@@ -214,10 +215,10 @@ in [chassis.py](chassis.py) yet.
 | Script | What it is | State |
 |--------|------------|-------|
 | [light_wheel.py](light_wheel.py) | Ø80 x 30 mm lawn wheels, four tread variants | chevron (B) chosen; four printed |
-| [spindle_coupons.py](spindle_coupons.py) | the spindle: a tower holding two 6000 bearings ([bearing_6000.py](../parts/bearing_6000.py)), a printed rotor with an Ø80 disc, and the fit coupons that settled them | tower and rotor printed |
+| [spindle_coupons.py](spindle_coupons.py) | the spindle: a tower holding two 6000 bearings ([bearing_6000.py](../parts/bearing_6000.py)), a printed rotor with an Ø80 disc, and the fit coupons that settled them | printed; on PROTO-06 the tower is part of the plate |
 | [cap_coupons.py](cap_coupons.py) | fit coupons for mounting the Canon motor (M1) without screws | printed, settled |
-| [canon_mount.py](canon_mount.py) | the cap that holds the Canon on the tower, and the hub that drives the axle through the rotor's filament pin | printing |
-| [proto06.py](proto06.py) | the four-wheel-drive layout: plate, four motor cradles, trays, battery and Pi round the spindle, checked part against part | layout for discussion |
+| [canon_mount.py](canon_mount.py) | the cap that holds the Canon on the tower, and the hub that drives the axle through the rotor's filament pin | printed, fits; spins the rotor |
+| [proto06.py](proto06.py) | the four-wheel-drive chassis: plate with the spindle tower built in, four motor cradles, trays, battery and Pi round it, checked part against part | first print |
 
 ## Where the details live
 

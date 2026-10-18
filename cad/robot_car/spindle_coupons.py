@@ -225,18 +225,25 @@ def make_tower(s: SpindleDims) -> Part:
     tower += Cylinder(s.tower_od / 2, s.span, align=ALIGN_BOTTOM)
     tower += raised(hundredths(s.seat_clearance), 7.0, 0,
                     (s.tower_od / 2 + s.flange / 2) / 2, s.flange_t)
+    return tower - tower_bore(s)
 
-    tower -= Cylinder(s.bore_d / 2, s.span, align=ALIGN_BOTTOM)
-    tower -= Cylinder(r_seat, b.width, align=ALIGN_BOTTOM)
+
+def tower_bore(s: SpindleDims) -> Part:
+    """Everything cut out of the tower: both bearing seats and the bore
+    between them, Z=0 at the lower seat's mouth."""
+    b = s.bearing
+    r_seat = s.seat_d / 2
+    bore = Cylinder(s.bore_d / 2, s.span, align=ALIGN_BOTTOM)
+    bore += Cylinder(r_seat, b.width, align=ALIGN_BOTTOM)
     # The lower seat's ceiling is a 45 deg cone, not a flat ledge: a flat
     # ceiling would print as rings hanging in the air. The bearing is
-    # pressed flush with the flange's underside and doesn't reach the cone.
-    tower -= Pos(0, 0, b.width) * Cone(r_seat, s.bore_d / 2, r_seat - s.bore_d / 2,
-                                       align=ALIGN_BOTTOM)
-    tower -= Pos(0, 0, s.span - b.width) * Cylinder(r_seat, b.width, align=ALIGN_BOTTOM)
-    tower -= mouth(r_seat, s.mouth_chamfer, 0, up=True)
-    tower -= mouth(r_seat, s.mouth_chamfer, s.span, up=False)
-    return tower
+    # pressed flush with the seat's mouth and doesn't reach the cone.
+    bore += Pos(0, 0, b.width) * Cone(r_seat, s.bore_d / 2, r_seat - s.bore_d / 2,
+                                      align=ALIGN_BOTTOM)
+    bore += Pos(0, 0, s.span - b.width) * Cylinder(r_seat, b.width, align=ALIGN_BOTTOM)
+    bore += mouth(r_seat, s.mouth_chamfer, 0, up=True)
+    bore += mouth(r_seat, s.mouth_chamfer, s.span, up=False)
+    return bore
 
 
 def make_rotor(s: SpindleDims) -> Part:

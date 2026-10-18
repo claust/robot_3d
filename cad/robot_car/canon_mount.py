@@ -66,10 +66,13 @@ class MountDims:
     hub_r: float = 8.0
     sleeve_play: float = 0.25  # radial, over the axle's top
     slot_w: float = 2.4  # for 1.75 filament
-    hub_gap: float = 0.6  # hub to washer below, hub top to the cap ceiling
+    hub_gap: float = 0.6  # hub to the washer below
     sleeve_gap: float = 1.0  # axle top to the sleeve's bridged ceiling, which may sag
-    ceiling_r: float = 5.0  # the cap's cone ends here: a Ø10 bridge
-    hub_top_r: float = 4.5  # hub top bevelled to match
+    # The cap's ceiling is a 45 deg cone all the way in to the shaft hole,
+    # so nothing there prints as a bridge (a flat Ø10 ceiling dropped a
+    # strand across the hole). The hub's top is a cone too, 0.5 mm inside it.
+    hub_top_r: float = 2.25  # the hub's tip; 1.1 mm of wall round the shaft
+    hub_top_gap: float = 1.0  # hub's tip below the cone's
     pin_len: float = 20.0
 
     @property
@@ -89,7 +92,7 @@ class MountDims:
     def floor_z(self) -> float:
         """Underside of the cup floor: the shaft (past the floor) must reach
         down into the hub's top, and the sleeve must clear the axle's top."""
-        return self.hub_top + self.hub_gap
+        return self.hub_top + self.hub_top_gap
 
     @property
     def hub_top(self) -> float:
@@ -98,7 +101,7 @@ class MountDims:
     @property
     def grip(self) -> float:
         """Shaft inside the hub."""
-        return self.shaft_below_face - self.floor_t - self.hub_gap - 0.4
+        return self.shaft_below_face - self.floor_t - self.hub_top_gap - 0.4
 
     @property
     def face_z(self) -> float:
@@ -114,11 +117,12 @@ def make_cap(m: MountDims) -> Part:
     lip_h = r_in - m.lip_d / 2
     cap += Pos(0, 0, s.span) * (Cylinder(r_in, lip_h, align=ALIGN_BOTTOM)
                                 - Cone(r_in, m.lip_d / 2, lip_h, align=ALIGN_BOTTOM))
-    # floor, with a 45 deg cone under it so the bridge is only Ø10
-    cone_h = r_in - m.ceiling_r
+    # floor, with a 45 deg cone under it right in to the shaft hole
+    tip_r = m.shaft_hole_d / 2
+    cone_h = r_in - tip_r
     cap += Pos(0, 0, m.floor_z - cone_h) * (
         Cylinder(r_in, cone_h, align=ALIGN_BOTTOM)
-        - Cone(r_in, m.ceiling_r, cone_h, align=ALIGN_BOTTOM))
+        - Cone(r_in, tip_r, cone_h, align=ALIGN_BOTTOM))
     cup_r = m.can_d / 2 + m.cup_fit
     cup_out = cup_r + m.wall
     # the cup is wider than the skirt: a 45 deg step out under the floor
@@ -204,8 +208,9 @@ def checks(m: MountDims) -> bool:
     v = ivol(motor, hub)
     ok &= check(v < 1e-3, f"the shaft goes {m.grip:.1f} mm into the hub, tip clear, {v:.3f} mm^3")
     v = ivol(cap, hub)
-    ok &= check(v < 1e-3 and m.hub_top_r < m.ceiling_r,
-                f"hub's bevelled top clears the cap's cone and ceiling, {v:.3f} mm^3")
+    radial = m.shaft_hole_d / 2 + m.hub_top_gap - m.hub_top_r
+    ok &= check(v < 1e-3 and radial >= 0.4,
+                f"hub's cone runs {radial:.2f} mm inside the cap's, {v:.3f} mm^3")
     print(f"  stack: cap floor at Z {m.floor_z:.1f}, Canon face at {m.face_z:.1f}, "
           f"cap {m.floor_z + m.floor_t + m.cup_h - (s.span - m.skirt_len):.1f} mm tall")
     return ok
