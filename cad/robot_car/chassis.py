@@ -586,6 +586,12 @@ def header_tray(d: ChassisDims, bx: float, by: float, tongue_ys, arm=None,
     board_bot = plate_top + d.tray_standoff
     board_top = board_bot + d.tray_board_t
     w, cap = d.tray_snap_hook_w, d.tray_hook_capture
+    arm_len = d.drv_corner_arm if arm is None else arm
+    reach = ledge_inset + (d.drv_corner_ledge if ledge_len is None else ledge_len)
+    if reach > arm_len:
+        raise ValueError(f"a ledge {ledge_inset:g}-{reach:g} mm in from the board's end would "
+                         f"stand apart from its {arm_len:g} mm corner wall as a thin pillar; "
+                         "make the wall at least as long")
 
     lead_face = bx / 2 + d.drv_lead_slack
     trail_face = -bx / 2 - d.drv_latch_fit

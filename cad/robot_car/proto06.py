@@ -10,23 +10,29 @@ built geometry, the way chassis.py does.
 - Four N20s, one per corner, in chassis.py's cradles and slide-on lids at
   X = +-cradle_x, each driving an Ø80 lawn wheel (light_wheel.py). No
   caster. The rear-right lid is xt60_holder.py's, as on PROTO-05.
-- The spindle tower (spindle_coupons.py, printed) stands in the middle:
-  four corner posts locate its 48 mm flange, four Ø2.5 pilots take
-  self-tapping M3s through its flange holes, and a Ø24 hole lets the
-  rotor's hub boss through. The disc turns 3 mm under the plate. The Canon
-  motor rides on a cap on the tower (not designed yet; shown as a stand-in).
+- The spindle tower is part of the plate: spindle_coupons.py's tower with
+  the plate as its flange, so nothing has to hold it down and it prints
+  the way the tested tower did, upright with the lower bearing seat
+  opening at the bed. The lower bearing presses in from underneath, flush
+  with the plate's underside, and the rotor goes in from below. Its disc
+  turns 6 mm under the plate. The Canon stands on canon_mount.py's cap.
 - Battery on the right of the tower, its lead out at the rear toward the
-  XT60 lid. Its strap never goes under the plate, where it would be 3 mm
-  from the spinning disc: it threads through two printed loops on the
-  plate, one each side of the pack, and round the pack.
+  XT60 lid. Its strap never goes under the plate, where it would run
+  just above the spinning disc: it threads through two printed loops on
+  the plate, one each side of the pack, and round the pack.
 - Pi Zero 2 W on the left, long axis along X, connectors facing out.
 - Front of the tower: the two MP1584 bucks. Behind it: the DRV8833, which
   drives all four motors (the two on a side in parallel on one channel),
   and the TB6612 for the Canon. The TB6612 carries its pin rows along its
-  21 mm edges, so its tray grips the 18.3 mm edges instead. Power switch
-  at the rear edge, terminals forward.
+  21 mm edges, so its tray grips the 18.3 mm edges instead, and a 10 uF
+  capacitor sits right at one of those: the two tongues stand either side
+  of it, so the board only goes in one way round. Power switch at the
+  rear edge, terminals forward.
 
-Run with:  uv run robot_car/proto06.py
+Run with `tb-coupon` to export the TB6612's tray alone, on a small base,
+as tb_tray_coupon.stl.
+
+Run with:  uv run robot_car/proto06.py [tb-coupon]
 Runs the PASS/FAIL checks, exports proto06_chassis.stl (gitignored) and
 renders proto06.png: from above, and from the front left.
 """
@@ -45,7 +51,8 @@ from build123d import (  # noqa: E402
 
 import chassis as ch  # noqa: E402
 from chassis import ChassisDims, header_tray, ivol, rbox  # noqa: E402
-from spindle_coupons import SpindleDims, bearings, make_rotor, make_tower  # noqa: E402
+from canon_mount import MountDims, canon, make_cap, make_hub, make_long_pin  # noqa: E402
+from spindle_coupons import bearings, make_rotor, make_washer, tower_bore  # noqa: E402
 
 ALIGN_BOTTOM = (Align.CENTER, Align.CENTER, Align.MIN)
 
@@ -56,17 +63,10 @@ class P6Dims:
     ChassisDims (`car`); these are the PROTO-06 positions."""
 
     car: ChassisDims = field(default_factory=lambda: ChassisDims(plate_width=136.0))
-    spindle: SpindleDims = field(default_factory=SpindleDims)
+    mount: MountDims = field(default_factory=MountDims)  # round 1's rotor and the Canon's cap
     plate_half_x: float = 77.0
     cradle_x: float = 62.0  # front cradles at +, rear at -
     wheel_gap: float = 1.0  # wheel's inner face to the plate edge
-
-    # tower: posts round the printed flange's corners, pilots in its holes
-    post_fit: float = 0.2  # per side, around the 48 mm flange
-    post_t: float = 2.0
-    post_arm: float = 9.0  # along each edge from the corner; the flange's straight edge starts 4 in
-    pilot_d: float = 2.5  # self-tapping M3
-    hub_hole_d: float = 24.0  # the boss is Ø18.5 where it passes the plate
 
     # battery, right of the tower; strap loops each side
     battery_y_in: float = 28.2  # pack's inner long side, |Y|
@@ -86,10 +86,22 @@ class P6Dims:
     tb_y: float = -13.4
     tb_board_x: float = 21.0  # pin rows along these edges (calipered)
     tb_board_y: float = 18.3  # calipered; the tray grips these
+    # Tongues either side of the 10 uF tantalum cap at the board's edge
+    # (from a photo: Y -0.85..+2.55 in the tray frame, 0.4 mm in from the
+    # edge); the header rows start 6.65 out. Coupon (2026-10-18): the
+    # tongues miss the cap, the board sits flat, the latch lets it out.
+    tb_tongue_ys: tuple = (4.6, -3.75)
+    # Corner walls as long as the bucks', so the ledges 3.2-4.7 mm in from
+    # the pin-row edges stand against them, not alone as thin pillars.
+    tb_corner_arm: float = 5.0
     switch_x: float = -66.0
 
     label_lines: tuple = ("DELECTOSOFT", "© 2026  PROTO-06")
     label_x: float = -50.0
+
+    @property
+    def spindle(self):
+        return self.mount.spindle
 
     @property
     def half_y(self) -> float:
@@ -123,28 +135,12 @@ def footprint_prism(p: P6Dims) -> Part:
     return Pos(0, 0, -20) * extrude(plan, amount=200)
 
 
-def tower_posts(p: P6Dims) -> Part:
-    c = p.car
-    top = c.plate_thickness + p.spindle.flange_t
-    a = p.spindle.flange / 2 + p.post_fit
-    posts = Part()
-    for sx in (-1, 1):
-        for sy in (-1, 1):
-            xo, yo = sx * (a + p.post_t), sy * (a + p.post_t)
-            xi, yi = sx * (a - p.post_arm), sy * (a - p.post_arm)
-            posts += rbox(*sorted((xi, xo)), *sorted((sy * a, yo)), c.plate_thickness, top)
-            posts += rbox(*sorted((sx * a, xo)), *sorted((yi, yo)), c.plate_thickness, top)
-    return posts
-
-
-def tower_cuts(p: P6Dims) -> Part:
-    c, s = p.car, p.spindle
-    cut = Pos(0, 0, -1) * Cylinder(p.hub_hole_d / 2, c.plate_thickness + 2, align=ALIGN_BOTTOM)
-    for sx in (-1, 1):
-        for sy in (-1, 1):
-            cut += Pos(sx * s.hole_pitch / 2, sy * s.hole_pitch / 2, -1) * Cylinder(
-                p.pilot_d / 2, c.plate_thickness + 2, align=ALIGN_BOTTOM)
-    return cut
+def tower_tube(p: P6Dims) -> Part:
+    """The tower's tube on the plate; tower_bore cuts both seats through
+    it and the plate. The spindle frame's Z=0, the seat's mouth, is the
+    plate's underside, where the tested tower had its flange's."""
+    s = p.spindle
+    return Cylinder(s.tower_od / 2, s.span, align=ALIGN_BOTTOM)
 
 
 def battery_nubs(p: P6Dims) -> Part:
@@ -213,8 +209,8 @@ def tb_tray(p: P6Dims) -> Part:
     """Grips the 18.3 mm edges: its pin rows run along the 21 mm ones. The
     ledges sit 3.2 mm in from the pin-row edges, past the rows' solder."""
     c = p.car
-    tray = header_tray(c, p.tb_board_x, p.tb_board_y, (3.0, -3.0),
-                       ledge_inset=3.2, ledge_len=1.5)
+    tray = header_tray(c, p.tb_board_x, p.tb_board_y, p.tb_tongue_ys,
+                       arm=p.tb_corner_arm, ledge_inset=3.2, ledge_len=1.5)
     return place_tray(tray, p.tb_x, p.tb_y, -1)
 
 
@@ -239,13 +235,13 @@ def build(p: P6Dims):
     well = ch.switch_well(switch_dims(p))
     nubs = battery_nubs(p)
     loops = strap_loops(p)
-    posts = tower_posts(p)
+    tube = tower_tube(p)
 
     body = plate(p)
-    for part in (*cradles.values(), *trays.values(), well, nubs, loops, posts, pi_bosses(p)):
+    for part in (*cradles.values(), *trays.values(), well, nubs, loops, tube, pi_bosses(p)):
         body += part
     body &= footprint_prism(p)
-    body -= tower_cuts(p)
+    body -= tower_bore(p.spindle)
     body -= ch.label_engraving(replace(c, label_lines=p.label_lines, label_x=p.label_x))
 
     pack = rbox(-c.battery_len / 2, c.battery_len / 2, p.battery_yc - c.battery_wid / 2,
@@ -258,30 +254,24 @@ def build(p: P6Dims):
     fp.update(trays)
     fp.update({"pi_board": pi_env(p), "switch_well": well,
                "switch": ch.switch_placement(switch_dims(p)),
-               "battery": pack + nubs, "strap_loops": loops, "tower_posts": posts})
+               "battery": pack + nubs, "strap_loops": loops, "tower": tube})
     return body, the_lids, fp
 
 
 def spindle_parts(p: P6Dims) -> dict:
-    """The printed tower, its bearings and the round-1 rotor, in car frame."""
-    s, z = p.spindle, p.car.plate_thickness
-    out = {"tower": Pos(0, 0, z) * make_tower(s), "rotor": Pos(0, 0, z) * make_rotor(s)}
+    """Bearings, round 1's rotor, washer and pin, and the hub: everything
+    in the tower. The spindle frame is the car's."""
+    s, m = p.spindle, p.mount
+    out = {"rotor": make_rotor(s), "washer": make_washer(s), "pin": make_long_pin(m),
+           "hub": make_hub(m)}
     for i, (outer, inner) in enumerate(bearings(s)):
-        out[f"bearing{i}"] = Pos(0, 0, z) * (outer + inner)
+        out[f"bearing{i}"] = outer + inner
     return out
 
 
-def canon_stand_in(p: P6Dims) -> dict:
-    """The cap (a plain tube and lid for now) and the Canon motor on it."""
-    from ck35_motor import MEASURED_DIMS, Ck35Dims, make_motor
-    s, z = p.spindle, p.car.plate_thickness
-    r_in = s.tower_od / 2 + 0.2
-    skirt0, top = z + s.span - 12, z + 68.0
-    cap = Pos(0, 0, skirt0) * (Cylinder(r_in + 2.5, top - skirt0, align=ALIGN_BOTTOM)
-                               - Cylinder(r_in, top - skirt0, align=ALIGN_BOTTOM))
-    cap += Pos(0, 0, top) * Cylinder(r_in + 2.5, 3.0, align=ALIGN_BOTTOM)
-    canon = Pos(0, 0, top + 3.0) * make_motor(Ck35Dims(**MEASURED_DIMS))
-    return {"cap": cap, "canon": canon}
+def canon_on_top(p: P6Dims) -> dict:
+    """canon_mount.py's cap and the Canon standing in it."""
+    return {"cap": make_cap(p.mount), "canon": canon(p.mount)}
 
 
 def wheels(p: P6Dims) -> dict:
@@ -324,9 +314,9 @@ def checks(p: P6Dims, body: Part, fp: dict) -> bool:
     ok = overlap_check(fp)
     ok &= check(len(body.solids()) == 1, f"plate is one solid ({len(body.solids())})")
     sp = spindle_parts(p)
-    v = ivol(sp["tower"], body) + ivol(sp["rotor"], body)
-    ok &= check(v < 1e-3, f"tower sits between its posts and the rotor passes the plate, {v:.3f} mm^3")
-    stand = canon_stand_in(p)
+    v = sum(ivol(part, body) for part in sp.values())
+    ok &= check(v < 1e-3, f"bearings, rotor, washer, pin and hub sit in the plate's tower, {v:.3f} mm^3")
+    stand = canon_on_top(p)
     others = [fp[k] for k in fp] + [body]
     v = sum(ivol(stand["cap"] + stand["canon"], o) for o in others)
     ok &= check(v < 1e-3, f"cap and Canon clear everything on the plate, {v:.3f} mm^3")
@@ -339,7 +329,9 @@ def checks(p: P6Dims, body: Part, fp: dict) -> bool:
     front, rear = wh["FL"].bounding_box(), wh["RL"].bounding_box()
     ok &= check(front.min.X - rear.max.X > 20,
                 f"front and rear wheels {front.min.X - rear.max.X:.1f} mm apart along a side")
-    print(f"  disc Ø{2 * disc_r:g} under the plate, {p.spindle.boss_h - p.car.plate_thickness:g} mm below it")
+    ok &= check(p.car.plate_thickness == p.spindle.flange_t,
+                "the plate is as thick as the tested tower's flange, so the seats are the same")
+    print(f"  disc Ø{2 * disc_r:g} turns {p.spindle.boss_h:g} mm under the plate")
     return ok
 
 
@@ -380,13 +372,13 @@ def render(p: P6Dims, body: Part, the_lids: dict) -> None:
     for name, w in wheels(p).items():
         statics.append((f"wheel{name}", m(w, 0.08), "wheel"))
     sp = spindle_parts(p)
-    statics += [("tower", m(sp["tower"]), "holder"), ("rotor", m(sp["rotor"]), "disc")]
-    disc_bottom = c.plate_thickness - p.spindle.boss_h - p.spindle.disc_t
+    statics += [("rotor", m(sp["rotor"]), "disc"), ("hub", m(sp["hub"]), "pi")]
+    disc_bottom = -p.spindle.boss_h - p.spindle.disc_t
     tips = Pos(0, 0, disc_bottom - 0.8) * (Cylinder(50.5, 0.6, align=ALIGN_BOTTOM)
                                           - Cylinder(49.5, 0.6, align=ALIGN_BOTTOM))
     statics.append(("tips", m(tips), "red"))
-    stand = canon_stand_in(p)
-    statics += [("cap", m(stand["cap"]), "amber"), ("canon", m(stand["canon"]), "motor")]
+    stand = canon_on_top(p)
+    statics += [("cap", m(stand["cap"]), "holder"), ("canon", m(stand["canon"]), "motor")]
 
     def ortho(name, target, direction, width):
         v = np.array(direction, float)
@@ -410,8 +402,26 @@ def render(p: P6Dims, body: Part, the_lids: dict) -> None:
     tw.render_stills("proto06", tw.stage(statics, [], cams), cams, w=1100, labels=labels)
 
 
+def tb_coupon(p: P6Dims) -> Part:
+    """The TB6612's tray on a slab of plate, its letters on the slab."""
+    from spindle_coupons import raised
+    c = p.car
+    tray = header_tray(c, p.tb_board_x, p.tb_board_y, p.tb_tongue_ys,
+                       arm=p.tb_corner_arm, ledge_inset=3.2, ledge_len=1.5)
+    bb = tray.bounding_box()
+    slab = rbox(bb.min.X - 3, bb.max.X + 3, bb.min.Y - 3, bb.max.Y + 12, 0, c.plate_thickness)
+    return slab + tray + raised("TB", 7.0, (bb.min.X + bb.max.X) / 2, bb.max.Y + 6, c.plate_thickness)
+
+
 def main() -> None:
     p = P6Dims()
+    if "tb-coupon" in sys.argv:
+        part = tb_coupon(p)
+        print(f"TB6612 tray coupon: {len(part.solids())} solid, tongues at "
+              f"{p.tb_tongue_ys} along the gripped edge")
+        export_stl(part, HERE / "tb_tray_coupon.stl")
+        print("Exported tb_tray_coupon.stl")
+        return
     body, the_lids, fp = build(p)
     ok = checks(p, body, fp)
     export_stl(body, HERE / "proto06_chassis.stl")
