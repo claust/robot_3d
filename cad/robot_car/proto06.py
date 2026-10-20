@@ -9,7 +9,8 @@ built geometry, the way chassis.py does.
 
 - Four N20s, one per corner, in chassis.py's cradles and slide-on lids at
   X = +-cradle_x, each driving an Ø80 lawn wheel (light_wheel.py). No
-  caster. The rear-right lid is xt60_holder.py's, as on PROTO-05.
+  caster. The rear-right lid carries the XT60 holder turned along it
+  (xt60_turned.py): the male's wires run inboard to the switch.
 - The spindle tower is part of the plate: spindle_coupons.py's tower with
   the plate as its flange, so nothing has to hold it down and it prints
   the way the tested tower did, upright with the lower bearing seat
@@ -219,11 +220,10 @@ def switch_dims(p: P6Dims) -> ChassisDims:
 
 
 def lids(p: P6Dims) -> dict:
-    from xt60_holder import right_lid
+    from xt60_turned import turned_lid
     out = {}
     for name, x, side in corners(p):
-        cd = at_cradle(p, x)
-        out[name] = right_lid(cd) if name == "RR" else ch.motor_lid(cd, side)
+        out[name] = turned_lid(p) if name == "RR" else ch.motor_lid(at_cradle(p, x), side)
     return out
 
 

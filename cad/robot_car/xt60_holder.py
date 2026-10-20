@@ -121,7 +121,7 @@ class HolderDims:
     floor_drop: float = 0.3  # floor ahead of the walls, below the female
     lip_t: float = 1.5  # the top skin: lips and crossbar
     lip_w: float = 1.2  # square-side lip reach over the plug
-    width: float = 23.0  # across the car = the lid's length
+    width: float = 23.0  # across the plug: the lid's length, or its width when turned
     mark_clear: float = 0.15  # the + / - marks to the floor of their grooves
     mark_band: float = 2.4  # groove height, centred on the plug's axis
     # ---- latch arm ---------------------------------------------------------
@@ -137,6 +137,8 @@ class HolderDims:
     ramp_len: float = 2.0
     tab_len: float = 1.5  # arm past the ramp, to lift it by
     tail: float = 1.0  # frame past the arm's tab
+    turned: bool = False  # plug along the lid, mating face at its outer end (xt60_turned.py)
+    post: float = 3.0  # turned: the plinths' posts at the lid's outer end, along the plug
 
     # ---- derived (holder frame) -------------------------------------------
     @property
@@ -237,9 +239,9 @@ def arm_pivot(h: HolderDims) -> tuple[float, float]:
     return h.x_root, h.z_top - h.arm_t / 2
 
 
-def make_frame(h: HolderDims, plinth_xs: tuple) -> Part:
-    """The holder without its arm: walls, lips, crossbar, floor and the two
-    plinths (x ranges) that bond it to the lid."""
+def make_frame(h: HolderDims, plinths: Part) -> Part:
+    """The holder without its arm: walls, lips, crossbar, floor and the
+    plinths that bond it to the lid."""
     yw = h.width / 2
     frame = rbox(h.x_end, h.x_wall_front, -yw, yw, h.gap, h.z_top)
     frame -= yz_prism(cavity_profile(h), h.x_end - 1, h.x_wall_front + 1)
@@ -275,17 +277,29 @@ def make_frame(h: HolderDims, plinth_xs: tuple) -> Part:
         frame += corner
     # floor ahead of the walls, out to the lid's rear edge, a little low so
     # the mated female rides over it
-    frame += rbox(h.x_wall_front - 0.01, 0, -yw, yw, h.gap, h.z_plug - h.floor_drop)
-    for x0, x1 in plinth_xs:
-        frame += rbox(x0, x1, -yw, yw, -0.01, h.gap + 0.01)
-    return frame
+    if not h.turned:
+        frame += rbox(h.x_wall_front - 0.01, 0, -yw, yw, h.gap, h.z_plug - h.floor_drop)
+    return frame + plinths
 
 
-def plinths(h: HolderDims, cd: ChassisDims) -> tuple:
-    """The two plinths in holder x: over the lid's two skirts."""
+def plinths(h: HolderDims, cd: ChassisDims) -> Part:
+    """The two plinths, over the lid's two skirts. Turned, the skirts run
+    along the plug and the plinths are walls reaching past the frame to the
+    lid's outer end, where a post on each stands up to a rail along the
+    holder's top, back to the frame: each side a window the pack's female
+    can be pinched through. In print the rails lie on the bed with the
+    frame's top, and the walls bridge from the frame to the posts."""
     ld = lid_dims(cd)
     span, skirt = 2 * ld.lid_half_w, ld.skirt_t
-    return ((-skirt, 0.0), (-span, -span + skirt))
+    lo, hi = -0.01, h.gap + 0.01
+    if not h.turned:
+        yw = h.width / 2
+        return rbox(-skirt, 0.0, -yw, yw, lo, hi) + rbox(-span, -span + skirt, -yw, yw, lo, hi)
+    half, out = ld.lid_half_w, Part()
+    for y0, y1 in ((half - skirt, half), (-half, -half + skirt)):
+        out += rbox(-ld.lid_len, 0.0, y0, y1, lo, hi) + rbox(-h.post, 0.0, y0, y1, lo, h.z_top)
+        out += rbox(h.x_wall_front - 0.01, 0.0, y0, y1, h.z_top - h.lip_t, h.z_top)
+    return out
 
 
 def holder_origin(cd: ChassisDims) -> tuple[float, float, float]:
@@ -307,11 +321,15 @@ def car_pts(p, cd: ChassisDims) -> np.ndarray:
     return np.asarray(p, float) * [-1, -1, 1] + holder_origin(cd)
 
 
-def to_lid(part: Part, cd: ChassisDims) -> Part:
+def to_lid(part: Part, cd: ChassisDims, turned: bool = False) -> Part:
     """Holder frame -> lid_coupons.py's lid frame (before chassis._to_side
-    turns the lid round for the -Y side, which takes lid +x to car -X)."""
+    turns the lid round for the -Y side, which takes lid +x to car -X and
+    lid +y, toward the wheel, to car -Y). Turned, the holder's origin is the
+    lid's outer end instead of its rear edge, and its x runs along the lid."""
     ld = lid_dims(cd)
     z = ld.T + ld.rail_clearance + ld.ceiling_t
+    if turned:
+        return Pos(0, ld.lid_len, z) * part.rotate(Axis.Z, 90)
     return Pos(ld.lid_half_w, ld.lid_len / 2, z) * part
 
 
@@ -324,7 +342,7 @@ def make_holder_lid(h: HolderDims, cd: ChassisDims, ld: LidDims | None = None) -
     """The right lid with the holder on it, in the lid frame. `ld` swaps in
     another lid (a different pad preload, a label); default the car's."""
     frame, arm = make_holder(h, cd)
-    return make_lid(ld or lid_dims(cd)) + to_lid(frame + arm, cd)
+    return make_lid(ld or lid_dims(cd)) + to_lid(frame + arm, cd, h.turned)
 
 
 def right_lid(cd: ChassisDims) -> Part:
@@ -430,7 +448,7 @@ def checks(h: HolderDims, cd: ChassisDims, car: list | None = None) -> bool:
     if car is not None:
         placed = _to_side(lid, cd, -1)
         plain = _to_side(make_lid(ld), cd, -1)
-        m, s, f = (to_car(p, cd) for p in (male, shrink, female))
+        m, s, f = (_to_side(to_lid(p, cd, h.turned), cd, -1) for p in (male, shrink, female))
         for name, part in car:
             if name in ("motor lid", "XT60 holder lid"):
                 continue

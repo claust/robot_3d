@@ -219,6 +219,7 @@ in [chassis.py](chassis.py) yet.
 | [cap_coupons.py](cap_coupons.py) | fit coupons for mounting the Canon motor (M1) without screws | printed, settled |
 | [canon_mount.py](canon_mount.py) | the cap that holds the Canon on the tower, and the hub that drives the axle through the rotor's filament pin | printed, fits; spins the rotor |
 | [proto06.py](proto06.py) | the four-wheel-drive chassis: plate with the spindle tower built in, four motor cradles, trays, battery and Pi round it, checked part against part | first print |
+| [xt60_turned.py](xt60_turned.py) | the rear-right lid with [xt60_holder.py](xt60_holder.py)'s holder turned along it: the male's wires run inboard to the switch, the pack's female plugs in from the wheel side; the holder stands on its plinth walls clear of the switch as the lid slides on | modelled, sliced |
 
 ## Where the details live
 
