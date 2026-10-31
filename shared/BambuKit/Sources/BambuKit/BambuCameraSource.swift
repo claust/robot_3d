@@ -102,9 +102,10 @@ private final class Stream: @unchecked Sendable {
     /// Ends the RTSP session now. Cancellation unwinds the loop, but the
     /// session is state held on the printer — an unsent TEARDOWN leaves it
     /// streaming to nobody. `Task` here is unstructured, so it is not itself
-    /// cancelled.
+    /// cancelled. It also retires the attempt in flight, so a connection still
+    /// in its handshake cannot register a session afterwards.
     func tearDown() {
-        if let session = live.take() {
+        if let session = live.retire() {
             Task { await session.stop() }
         }
     }
@@ -135,9 +136,10 @@ private final class Stream: @unchecked Sendable {
     /// the session is stopped, the task cancelled and left to unwind, and
     /// the caller redials without waiting for it.
     private func watched(_ progress: ConnectionProgress) async throws {
+        let attempt = live.attempt
         let worker = Task { [self] in
             defer { progress.finish() }
-            try await connectAndStream(progress)
+            try await connectAndStream(progress, attempt: attempt)
         }
         do {
             while !progress.isFinished {
@@ -156,7 +158,9 @@ private final class Stream: @unchecked Sendable {
         try await worker.value
     }
 
-    private func connectAndStream(_ progress: ConnectionProgress) async throws {
+    private func connectAndStream(
+        _ progress: ConnectionProgress, attempt: Int
+    ) async throws {
         let anchors = try await anchorCertificates()
         try Task.checkCancellation()
 
@@ -172,8 +176,9 @@ private final class Stream: @unchecked Sendable {
         )
         // Registered before `start()`: a cancellation or a throw in the
         // handshake would otherwise leave a session nothing could reach, since
-        // a `defer` placed after it is never installed.
-        live.set(session)
+        // a `defer` placed after it is never installed. A retired attempt is
+        // refused here, before it has opened anything.
+        guard live.set(session, attempt: attempt) else { throw CancellationError() }
         // Only this connection's own session: a stalled connection unwinds
         // after the watchdog has moved on, and by then `live` may hold the
         // redialed one.
@@ -184,6 +189,13 @@ private final class Stream: @unchecked Sendable {
         }
         onStatus?("Camera connecting…")
         let description = try await session.start()
+        // A teardown that landed mid-handshake stopped a session with nothing
+        // open yet, and the handshake carried on regardless. Stop it again now
+        // that it has something to close; `stop()` is safe to repeat.
+        guard live.isCurrent(attempt) else {
+            Task { await session.stop() }
+            throw CancellationError()
+        }
 
         let decoder = H264Decoder()
         // Parameter sets normally arrive in the SDP's sprop-parameter-sets; the
@@ -267,28 +279,49 @@ private final class ConnectionProgress: @unchecked Sendable {
 }
 
 /// Holder for the session in flight, so `stop()` on one thread and the
-/// streaming task on another agree on who tears it down. `take()` hands it
+/// streaming task on another agree on who tears it down. The session is handed
 /// over exactly once, which is what keeps a stop and a normal unwind from both
 /// calling `stop()` on the same session.
+///
+/// Each connection attempt is numbered. `retire()` ends the current one, and
+/// a session registered under a retired number is refused, so a worker that
+/// is still in its handshake when the watchdog gives up on it cannot publish a
+/// session the next attempt would then overwrite.
 private final class LiveSession: @unchecked Sendable {
     private let lock = NSLock()
     private var session: RTSPClientSession?
+    private var current = 0
 
-    func set(_ session: RTSPClientSession) {
-        lock.lock()
-        self.session = session
-        lock.unlock()
+    /// The number for a connection attempt starting now.
+    var attempt: Int {
+        lock.lock(); defer { lock.unlock() }
+        return current
     }
 
-    func take() -> RTSPClientSession? {
+    func isCurrent(_ attempt: Int) -> Bool {
+        lock.lock(); defer { lock.unlock() }
+        return attempt == current
+    }
+
+    /// Registers `session` for `attempt`, unless that attempt was retired.
+    func set(_ session: RTSPClientSession, attempt: Int) -> Bool {
+        lock.lock(); defer { lock.unlock() }
+        guard attempt == current else { return false }
+        self.session = session
+        return true
+    }
+
+    /// Ends the current attempt and hands over its session, if it has one.
+    func retire() -> RTSPClientSession? {
         lock.lock()
         defer { lock.unlock() }
+        current += 1
         let session = self.session
         self.session = nil
         return session
     }
 
-    /// Like `take()`, but only if the session in flight is `expected`.
+    /// Hands over the session in flight, but only if it is `expected`.
     func take(ifCurrent expected: RTSPClientSession) -> RTSPClientSession? {
         lock.lock()
         defer { lock.unlock() }
