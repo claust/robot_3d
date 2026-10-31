@@ -13,8 +13,9 @@ it.
 
 The right half of the window is the live chamber camera, decoded in-process
 by `BambuCameraSource` in BambuKit — no ffmpeg, no subprocess, and the same
-code the iOS app runs. The stream reconnects automatically if it drops; the
-LIVE badge is shown only while frames are actually arriving.
+code the iOS app runs. The stream reconnects automatically if it drops or
+goes quiet for 15 s; the LIVE badge is shown only while frames are actually
+arriving.
 
 ## Run
 
