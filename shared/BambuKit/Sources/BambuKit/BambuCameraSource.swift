@@ -71,11 +71,14 @@ private final class Stream: @unchecked Sendable {
     /// used the same 3 s.
     private static let reconnectDelay: Duration = .seconds(3)
 
-    /// How long a connection may go without receiving anything before it is
-    /// torn down and redialed. The clock starts at the dial, so a hung
-    /// handshake counts too. A connection that dies without a FIN or an error
-    /// leaves `frames()` waiting forever, with the last image frozen on
-    /// screen; only a clock notices that.
+    /// How long a connection may go without a video frame before it is torn
+    /// down and redialed. The clock starts at the dial, so a hung handshake
+    /// counts too. A connection that dies without a FIN or an error leaves
+    /// `frames()` waiting forever, with the last image frozen on screen; only
+    /// a clock notices that. Only video resets the clock: the printer serves
+    /// one camera client at a time, and when another viewer takes over it
+    /// stops our video but keeps the connection open and its RTCP sender
+    /// reports flowing, so counting those would hide the stall for good.
     private static let stallTimeout: Duration = .seconds(15)
     private static let watchdogTick: Duration = .seconds(2)
 
@@ -110,13 +113,18 @@ private final class Stream: @unchecked Sendable {
         }
     }
 
+    /// Whether to stop is decided by `Task.isCancelled` alone, never by the
+    /// error's type. The printer serves one camera client at a time, so any
+    /// other viewer (an ffmpeg grab, another app) drops ours. A drop usually
+    /// shows up as video going silent, which the watchdog catches, but the
+    /// worker can also end in a `CancellationError` that IPCamKit or the
+    /// network stack raises while this task is still running. Treating that
+    /// error as "stop" would leave the last frame frozen with no redial.
     func run() async {
         while !Task.isCancelled {
             let progress = ConnectionProgress()
             do {
                 try await watched(progress)
-            } catch is CancellationError {
-                return
             } catch {
                 if Task.isCancelled { return }
                 if !progress.delivered { deviceCA = nil }
@@ -151,6 +159,9 @@ private final class Stream: @unchecked Sendable {
                 }
             }
         } catch is CancellationError {
+            // Only the sleep throws here, and only when our task is cancelled.
+            // The worker's own errors, a dropped stream's `CancellationError`
+            // included, come out of `worker.value` below and are redialed.
             worker.cancel()
             tearDown()
             throw CancellationError()
@@ -207,8 +218,8 @@ private final class Stream: @unchecked Sendable {
 
         for try await item in session.frames() {
             try Task.checkCancellation()
-            progress.touch()
             guard case .video(let frame) = item else { continue }
+            progress.touch()
             decoder.update(sps: frame.sps, pps: frame.pps)
 
             let now = ContinuousClock.now
@@ -230,7 +241,12 @@ private final class Stream: @unchecked Sendable {
         return BambuTrust.rootCertificateDERs + intermediates
     }
 
+    /// A `CancellationError` only gets here when our task is still running,
+    /// so it is the printer dropping the stream, not a stop.
     private static func describe(_ error: Error) -> String {
+        if error is CancellationError {
+            return "Camera stream dropped — reconnecting…"
+        }
         if let stall = error as? StreamStalled {
             return "Camera stalled for \(stall.timeout.components.seconds) s — reconnecting…"
         }
@@ -246,7 +262,7 @@ private struct StreamStalled: Error {
     let timeout: Duration
 }
 
-/// What the watchdog reads off a connection: when it last saw anything,
+/// What the watchdog reads off a connection: when it last saw a video frame,
 /// whether it ever delivered a frame, and whether it has ended.
 private final class ConnectionProgress: @unchecked Sendable {
     private let lock = NSLock()
