@@ -222,6 +222,12 @@ in [chassis.py](chassis.py) yet.
 | [proto06.py](proto06.py) | the four-wheel-drive chassis: plate with the spindle tower and the power block built in, four motor cradles, bucks and drivers in front of the tower, battery and Pi either side, checked part against part; writes proto06.usdz to turn round | second print (the layout board's layout) |
 | [power_block.py](power_block.py) | one printed block for the switch, the male XT60 standing upright (press fit) and the fuse standing on the switch's terminal 1; PROTO-06's plate grows it behind the tower | coupons printed; on the PROTO-06 plate |
 
+On PROTO-06 two lids' paths run close to parts on the plate. Slide the
+**front-left lid on before the DRV8833 goes into its tray**; with the board
+in place the lid's side walls catch the tray at the end of the slide. The
+rear-left lid passes the power block with little to spare but slides on at
+any point.
+
 ## Where the details live
 
 - [chassis.py](chassis.py) docstring: plate layout, design rules, board trays.
