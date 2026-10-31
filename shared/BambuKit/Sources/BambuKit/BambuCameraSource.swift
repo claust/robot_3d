@@ -71,6 +71,14 @@ private final class Stream: @unchecked Sendable {
     /// used the same 3 s.
     private static let reconnectDelay: Duration = .seconds(3)
 
+    /// How long a connection may go without receiving anything before it is
+    /// torn down and redialed. The clock starts at the dial, so a hung
+    /// handshake counts too. A connection that dies without a FIN or an error
+    /// leaves `frames()` waiting forever, with the last image frozen on
+    /// screen; only a clock notices that.
+    private static let stallTimeout: Duration = .seconds(15)
+    private static let watchdogTick: Duration = .seconds(2)
+
     private let config: PrinterConfig
     private let onFrame: ((CGImage) -> Void)?
     private let onStatus: ((String) -> Void)?
@@ -94,23 +102,24 @@ private final class Stream: @unchecked Sendable {
     /// Ends the RTSP session now. Cancellation unwinds the loop, but the
     /// session is state held on the printer — an unsent TEARDOWN leaves it
     /// streaming to nobody. `Task` here is unstructured, so it is not itself
-    /// cancelled.
+    /// cancelled. It also retires the attempt in flight, so a connection still
+    /// in its handshake cannot register a session afterwards.
     func tearDown() {
-        if let session = live.take() {
+        if let session = live.retire() {
             Task { await session.stop() }
         }
     }
 
     func run() async {
         while !Task.isCancelled {
-            var delivered = false
+            let progress = ConnectionProgress()
             do {
-                try await connectAndStream(delivered: &delivered)
+                try await watched(progress)
             } catch is CancellationError {
                 return
             } catch {
                 if Task.isCancelled { return }
-                if !delivered { deviceCA = nil }
+                if !progress.delivered { deviceCA = nil }
                 onStatus?(Self.describe(error))
             }
             if Task.isCancelled { return }
@@ -122,7 +131,36 @@ private final class Stream: @unchecked Sendable {
         }
     }
 
-    private func connectAndStream(delivered: inout Bool) async throws {
+    /// One connection, under a watchdog. The stream runs in its own task so
+    /// a stall can be acted on even when `frames()` ignores cancellation:
+    /// the session is stopped, the task cancelled and left to unwind, and
+    /// the caller redials without waiting for it.
+    private func watched(_ progress: ConnectionProgress) async throws {
+        let attempt = live.attempt
+        let worker = Task { [self] in
+            defer { progress.finish() }
+            try await connectAndStream(progress, attempt: attempt)
+        }
+        do {
+            while !progress.isFinished {
+                try await Task.sleep(for: Self.watchdogTick)
+                if progress.idle > Self.stallTimeout {
+                    worker.cancel()
+                    tearDown()
+                    throw StreamStalled(timeout: Self.stallTimeout)
+                }
+            }
+        } catch is CancellationError {
+            worker.cancel()
+            tearDown()
+            throw CancellationError()
+        }
+        try await worker.value
+    }
+
+    private func connectAndStream(
+        _ progress: ConnectionProgress, attempt: Int
+    ) async throws {
         let anchors = try await anchorCertificates()
         try Task.checkCancellation()
 
@@ -138,15 +176,26 @@ private final class Stream: @unchecked Sendable {
         )
         // Registered before `start()`: a cancellation or a throw in the
         // handshake would otherwise leave a session nothing could reach, since
-        // a `defer` placed after it is never installed.
-        live.set(session)
+        // a `defer` placed after it is never installed. A retired attempt is
+        // refused here, before it has opened anything.
+        guard live.set(session, attempt: attempt) else { throw CancellationError() }
+        // Only this connection's own session: a stalled connection unwinds
+        // after the watchdog has moved on, and by then `live` may hold the
+        // redialed one.
         defer {
-            if let session = live.take() {
+            if let session = live.take(ifCurrent: session) {
                 Task { await session.stop() }
             }
         }
         onStatus?("Camera connecting…")
         let description = try await session.start()
+        // A teardown that landed mid-handshake stopped a session with nothing
+        // open yet, and the handshake carried on regardless. Stop it again now
+        // that it has something to close; `stop()` is safe to repeat.
+        guard live.isCurrent(attempt) else {
+            Task { await session.stop() }
+            throw CancellationError()
+        }
 
         let decoder = H264Decoder()
         // Parameter sets normally arrive in the SDP's sprop-parameter-sets; the
@@ -158,6 +207,7 @@ private final class Stream: @unchecked Sendable {
 
         for try await item in session.frames() {
             try Task.checkCancellation()
+            progress.touch()
             guard case .video(let frame) = item else { continue }
             decoder.update(sps: frame.sps, pps: frame.pps)
 
@@ -165,7 +215,7 @@ private final class Stream: @unchecked Sendable {
             let emit = now - lastEmit >= emitInterval
             guard let image = decoder.decode(frame.nalus, emit: emit) else { continue }
             lastEmit = now
-            delivered = true
+            progress.delivered = true
             onFrame?(image)
         }
     }
@@ -181,6 +231,9 @@ private final class Stream: @unchecked Sendable {
     }
 
     private static func describe(_ error: Error) -> String {
+        if let stall = error as? StreamStalled {
+            return "Camera stalled for \(stall.timeout.components.seconds) s — reconnecting…"
+        }
         if let harvest = error as? BambuDeviceCA.HarvestError {
             return "Camera: \(harvest.description)"
         }
@@ -188,26 +241,93 @@ private final class Stream: @unchecked Sendable {
     }
 }
 
+/// A connection that went quiet for longer than `Stream.stallTimeout`.
+private struct StreamStalled: Error {
+    let timeout: Duration
+}
+
+/// What the watchdog reads off a connection: when it last saw anything,
+/// whether it ever delivered a frame, and whether it has ended.
+private final class ConnectionProgress: @unchecked Sendable {
+    private let lock = NSLock()
+    private var last = ContinuousClock.now
+    private var _delivered = false
+    private var _finished = false
+
+    func touch() {
+        lock.lock(); last = ContinuousClock.now; lock.unlock()
+    }
+
+    var idle: Duration {
+        lock.lock(); defer { lock.unlock() }
+        return ContinuousClock.now - last
+    }
+
+    var delivered: Bool {
+        get { lock.lock(); defer { lock.unlock() }; return _delivered }
+        set { lock.lock(); _delivered = newValue; lock.unlock() }
+    }
+
+    func finish() {
+        lock.lock(); _finished = true; lock.unlock()
+    }
+
+    var isFinished: Bool {
+        lock.lock(); defer { lock.unlock() }
+        return _finished
+    }
+}
+
 /// Holder for the session in flight, so `stop()` on one thread and the
-/// streaming task on another agree on who tears it down. `take()` hands it
+/// streaming task on another agree on who tears it down. The session is handed
 /// over exactly once, which is what keeps a stop and a normal unwind from both
 /// calling `stop()` on the same session.
+///
+/// Each connection attempt is numbered. `retire()` ends the current one, and
+/// a session registered under a retired number is refused, so a worker that
+/// is still in its handshake when the watchdog gives up on it cannot publish a
+/// session the next attempt would then overwrite.
 private final class LiveSession: @unchecked Sendable {
     private let lock = NSLock()
     private var session: RTSPClientSession?
+    private var current = 0
 
-    func set(_ session: RTSPClientSession) {
-        lock.lock()
-        self.session = session
-        lock.unlock()
+    /// The number for a connection attempt starting now.
+    var attempt: Int {
+        lock.lock(); defer { lock.unlock() }
+        return current
     }
 
-    func take() -> RTSPClientSession? {
+    func isCurrent(_ attempt: Int) -> Bool {
+        lock.lock(); defer { lock.unlock() }
+        return attempt == current
+    }
+
+    /// Registers `session` for `attempt`, unless that attempt was retired.
+    func set(_ session: RTSPClientSession, attempt: Int) -> Bool {
+        lock.lock(); defer { lock.unlock() }
+        guard attempt == current else { return false }
+        self.session = session
+        return true
+    }
+
+    /// Ends the current attempt and hands over its session, if it has one.
+    func retire() -> RTSPClientSession? {
         lock.lock()
         defer { lock.unlock() }
+        current += 1
         let session = self.session
         self.session = nil
         return session
+    }
+
+    /// Hands over the session in flight, but only if it is `expected`.
+    func take(ifCurrent expected: RTSPClientSession) -> RTSPClientSession? {
+        lock.lock()
+        defer { lock.unlock() }
+        guard session === expected else { return nil }
+        session = nil
+        return expected
     }
 }
 
