@@ -2,14 +2,14 @@
 
 The layout to discuss before chassis.py takes it over. It builds the plate
 from chassis.py's own parts (motor cradles and lids, the tilt-and-slide
-board trays, the switch well, the XT60 lid) and checks every pair on the
+board trays) and power_block.py's block, and checks every pair on the
 built geometry, the way chassis.py does.
 
 +X is FRONT, +Y LEFT. The plate is centred on the origin, bottom face Z=0.
 
 - Four N20s, one per corner, in chassis.py's cradles and slide-on lids at
   X = +-cradle_x, each driving an Ø80 lawn wheel (light_wheel.py). No
-  caster. The rear-right lid is xt60_holder.py's, as on PROTO-05.
+  caster. All four lids are plain: the XT60 lives in the power block.
 - The spindle tower is part of the plate: spindle_coupons.py's tower with
   the plate as its flange, so nothing has to hold it down and it prints
   the way the tested tower did, upright with the lower bearing seat
@@ -17,24 +17,30 @@ built geometry, the way chassis.py does.
   with the plate's underside, and the rotor goes in from below. Its disc
   turns 6 mm under the plate. The Canon stands on canon_mount.py's cap.
 - Battery on the right of the tower, its lead out at the rear toward the
-  XT60 lid. Its strap never goes under the plate, where it would run
+  power block's XT60. Its strap never goes under the plate, where it would run
   just above the spinning disc: it threads through two printed loops on
   the plate, one each side of the pack, and round the pack.
 - Pi Zero 2 W on the left, long axis along X, connectors facing out.
-- Front of the tower: the two MP1584 bucks. Behind it: the DRV8833, which
-  drives all four motors (the two on a side in parallel on one channel),
-  and the TB6612 for the Canon. The TB6612 carries its pin rows along its
-  21 mm edges, so its tray grips the 18.3 mm edges instead, and a 10 uF
-  capacitor sits right at one of those: the two tongues stand either side
-  of it, so the board only goes in one way round. Power switch at the
-  rear edge, terminals forward.
+- Front of the tower: the two MP1584 bucks, close in, and beyond them, by
+  the front edge, the DRV8833, which drives all four motors (the two on a
+  side in parallel on one channel), and the TB6612 for the Canon. The
+  TB6612 carries its pin rows along its 21 mm edges, so its tray grips the
+  18.3 mm edges instead, and a 10 uF capacitor sits right at one of those:
+  the two tongues stand either side of it, so the board only goes in one
+  way round.
+- Behind the tower, by the rear edge: power_block.py's block, grown from
+  the plate -- the switch's well, the XT60 upright in its channel with the
+  pack's female plugging in from the battery side, and the fuse on the
+  switch's terminal 1. The layout is the one on the layout board artifact
+  (layouts/current).
 
 Run with `tb-coupon` to export the TB6612's tray alone, on a small base,
 as tb_tray_coupon.stl.
 
 Run with:  uv run robot_car/proto06.py [tb-coupon]
-Runs the PASS/FAIL checks, exports proto06_chassis.stl (gitignored) and
-renders proto06.png: from above, and from the front left.
+Runs the PASS/FAIL checks, exports proto06_chassis.stl (gitignored),
+proto06.usdz (the whole car, to turn round in Quick Look) and renders
+proto06.png: from above, and from the front left.
 """
 
 import sys
@@ -69,7 +75,7 @@ class P6Dims:
     wheel_gap: float = 1.0  # wheel's inner face to the plate edge
 
     # battery, right of the tower; strap loops each side
-    battery_y_in: float = 28.2  # pack's inner long side, |Y|
+    battery_y_in: float = 27.4  # pack's inner long side, |Y|
     loop_opening: float = 23.0  # along X, for the 21 mm strap
     loop_gap: float = 4.0  # strap passage height above the plate
     loop_roof: float = 2.0
@@ -78,12 +84,12 @@ class P6Dims:
 
     pi_y: float = 41.5  # board centre; 26.5..56.5
 
-    buck_x: float = 41.0
-    buck_y: float = 11.85
-    drv_x: float = -39.0
-    drv_y: float = 11.65
-    tb_x: float = -39.5
-    tb_y: float = -13.4
+    buck_x: float = 35.5
+    buck_ys: tuple = (11.45, -12.05)  # left (+Y), right
+    drv_x: float = 62.5
+    drv_y: float = 17.95
+    tb_x: float = 62.5
+    tb_y: float = -7.95
     tb_board_x: float = 21.0  # pin rows along these edges (calipered)
     tb_board_y: float = 18.3  # calipered; the tray grips these
     # Tongues either side of the 10 uF tantalum cap at the board's edge
@@ -94,10 +100,14 @@ class P6Dims:
     # Corner walls as long as the bucks', so the ledges 3.2-4.7 mm in from
     # the pin-row edges stand against them, not alone as thin pillars.
     tb_corner_arm: float = 5.0
-    switch_x: float = -66.0
+    # the power block's switch centre (power_block.py's origin)
+    pwr_x: float = -54.5
+    pwr_y: float = 11.0
 
     label_lines: tuple = ("DELECTOSOFT", "© 2026  PROTO-06")
-    label_x: float = -50.0
+    # on the underside, the lines running across the car (79 mm long; along
+    # it they'd run off the rear edge and into the bearing bore)
+    label_x: float = -58.0
 
     @property
     def spindle(self):
@@ -195,8 +205,8 @@ def buck_tray(p: P6Dims, side: int) -> Part:
     c = p.car
     tray = header_tray(c, c.buck_board_y, c.buck_board_x, c.buck_tongue_xs,
                        arm=c.buck_corner_arm, ledge_inset=c.buck_ledge_inset,
-                       ledge_len=c.buck_ledge_len, end_fit=c.buck_end_fit)
-    return place_tray(tray, p.buck_x, side * p.buck_y, side)
+                       ledge_len=c.buck_ledge_len, end_fit=c.buck_end_fit, shelf=False)
+    return place_tray(tray, p.buck_x, p.buck_ys[0 if side > 0 else 1], side)
 
 
 def drv_tray(p: P6Dims) -> Part:
@@ -214,17 +224,27 @@ def tb_tray(p: P6Dims) -> Part:
     return place_tray(tray, p.tb_x, p.tb_y, -1)
 
 
-def switch_dims(p: P6Dims) -> ChassisDims:
-    return replace(p.car, switch_x=p.switch_x, switch_y=0.0)
+def power(p: P6Dims) -> dict:
+    """power_block.py's block and what sits in it, on the car."""
+    import power_block as pb
+    from kcd1_rocker import make_kcd1
+    b = replace(pb.BlockDims(), car=p.car)
+    at = Pos(p.pwr_x, p.pwr_y, 0)
+    pl = pb.plugs(b)
+    return {"block": at * pb.block_body(b),
+            "switch": at * pb.place_switch(b, make_kcd1(b.w.sw, clips=False)),
+            "fuse": at * pb.make_fuse(b),
+            "xt60_male": at * pl["male"], "xt60_female": at * pl["female"]}
 
 
 def lids(p: P6Dims) -> dict:
-    from xt60_holder import right_lid
-    out = {}
-    for name, x, side in corners(p):
-        cd = at_cradle(p, x)
-        out[name] = right_lid(cd) if name == "RR" else ch.motor_lid(cd, side)
-    return out
+    return {name: ch.motor_lid(at_cradle(p, x), side) for name, x, side in corners(p)}
+
+
+def label(p: P6Dims) -> Part:
+    """chassis.py's underside engraving, turned to run across the car."""
+    text = ch.label_engraving(replace(p.car, label_lines=p.label_lines, label_x=0.0, label_y=0.0))
+    return Pos(p.label_x, 0, 0) * text.rotate(Axis.Z, 90)
 
 
 def build(p: P6Dims):
@@ -232,17 +252,17 @@ def build(p: P6Dims):
     cradles = {n: ch.motor_cradle(at_cradle(p, x), s) for n, x, s in corners(p)}
     trays = {"buck_L": buck_tray(p, +1), "buck_R": buck_tray(p, -1),
              "drv8833": drv_tray(p), "tb6612": tb_tray(p)}
-    well = ch.switch_well(switch_dims(p))
+    pw = power(p)
     nubs = battery_nubs(p)
     loops = strap_loops(p)
     tube = tower_tube(p)
 
     body = plate(p)
-    for part in (*cradles.values(), *trays.values(), well, nubs, loops, tube, pi_bosses(p)):
+    for part in (*cradles.values(), *trays.values(), pw["block"], nubs, loops, tube, pi_bosses(p)):
         body += part
     body &= footprint_prism(p)
     body -= tower_bore(p.spindle)
-    body -= ch.label_engraving(replace(c, label_lines=p.label_lines, label_x=p.label_x))
+    body -= label(p)
 
     pack = rbox(-c.battery_len / 2, c.battery_len / 2, p.battery_yc - c.battery_wid / 2,
                 p.battery_yc + c.battery_wid / 2, c.plate_thickness,
@@ -252,8 +272,8 @@ def build(p: P6Dims):
     fp.update({f"motor_{n}": ch.motor_placement(s, at_cradle(p, x)) for n, x, s in corners(p)})
     fp.update({f"lid_{n}": the_lids[n] for n, _, _ in corners(p)})
     fp.update(trays)
-    fp.update({"pi_board": pi_env(p), "switch_well": well,
-               "switch": ch.switch_placement(switch_dims(p)),
+    fp.update({"pi_board": pi_env(p), "power_block": pw["block"], "switch": pw["switch"],
+               "fuse": pw["fuse"], "xt60_male": pw["xt60_male"], "xt60_female": pw["xt60_female"],
                "battery": pack + nubs, "strap_loops": loops, "tower": tube})
     return body, the_lids, fp
 
@@ -293,6 +313,8 @@ def check(ok: bool, text: str) -> bool:
 
 def overlap_check(fp: dict) -> bool:
     expected = {(f"motor_{n}", f"lid_{n}"): (10.0, 60.0) for n in ("FL", "FR", "RL", "RR")}
+    # the XT60 male is a press fit in the power block's channel (power_block.py)
+    expected[("power_block", "xt60_male")] = (1.0, 60.0)
     names, ok = list(fp), True
     bad = []
     for i, a in enumerate(names):
@@ -304,7 +326,8 @@ def overlap_check(fp: dict) -> bool:
                 bad.append(f"{a} vs {b}: {v:.2f} mm^3")
             ok &= good
     n = len(names) * (len(names) - 1) // 2
-    check(ok, f"{n} pairs of parts clear each other; each lid presses its motor 10-60 mm^3"
+    check(ok, f"{n} pairs of parts clear each other; each lid presses its motor 10-60 mm^3, "
+          "the XT60 male presses into the power block"
           + ("" if ok else " -- " + "; ".join(bad)))
     return ok
 
@@ -313,6 +336,12 @@ def checks(p: P6Dims, body: Part, fp: dict) -> bool:
     print("PASS/FAIL checks:")
     ok = overlap_check(fp)
     ok &= check(len(body.solids()) == 1, f"plate is one solid ({len(body.solids())})")
+    lb = label(p).bounding_box()
+    edge = min(p.plate_half_x - abs(lb.min.X), p.plate_half_x - abs(lb.max.X), p.half_y - max(abs(lb.min.Y), abs(lb.max.Y)))
+    bore = min(abs(lb.min.X), abs(lb.max.X)) - p.spindle.flange / 2 if lb.max.X < 0 else 0.0
+    ok &= check(edge >= 3.0 and bore >= 3.0,
+                f"underside text {lb.size.X:.0f} x {lb.size.Y:.0f} mm, {edge:.1f} mm in from the plate edge, "
+                f"{bore:.1f} mm clear of the tower's flange ring")
     sp = spindle_parts(p)
     v = sum(ivol(part, body) for part in sp.values())
     ok &= check(v < 1e-3, f"bearings, rotor, washer, pin and hub sit in the plate's tower, {v:.3f} mm^3")
@@ -346,6 +375,7 @@ def render(p: P6Dims, body: Part, the_lids: dict) -> None:
 
     tw.LOOKS.setdefault("tb", ("#c94f7c", 0.55, 0.0))
     tw.LOOKS.setdefault("disc", ("#2f6fb3", 0.6, 0.0))
+    tw.LOOKS.setdefault("fuse", ("#d9cfa8", 0.5, 0.0))
     c = p.car
     m = tw.mesh_of
     board_z = c.plate_thickness + c.tray_standoff
@@ -354,21 +384,23 @@ def render(p: P6Dims, body: Part, the_lids: dict) -> None:
     lipo = make_lipo(LipoDims()).rotate(Axis.Z, 180)
     lipo = Pos(0, p.battery_yc, c.plate_thickness + LipoDims().height / 2) * lipo
     drv = Pos(p.drv_x, p.drv_y, board_z + 0.8) * make_drv8833(Drv8833Dims())
-    bucks = [Pos(p.buck_x, s * p.buck_y, board_z + 0.8) * make_mp1584(
-        Mp1584Dims(), with_headers=True, with_dupont=True, mounted=True).rotate(Axis.Z, 0 if s > 0 else 180)
-        for s in (+1, -1)]
+    bucks = [Pos(p.buck_x, y, board_z + 0.8) * make_mp1584(
+        Mp1584Dims(), with_headers=True, with_dupont=True, mounted=True).rotate(Axis.Z, 0 if y > 0 else 180)
+        for y in p.buck_ys]
     tb = Pos(p.tb_x, p.tb_y, board_z) * (
         Box(p.tb_board_y, p.tb_board_x, c.tray_board_t, align=ALIGN_BOTTOM)
         + sum((Pos(0, sy * (p.tb_board_x / 2 - 1.27), c.tray_board_t) * Box(
             20.3, 2.5, 8.5, align=ALIGN_BOTTOM) for sy in (-1, 1)), Part()))
 
     statics = [("plate", m(body, 0.05), "plate"), ("pi", m(pi), "pi"), ("lipo", m(lipo), "battery"),
-               ("drv", m(drv), "drv"), ("tb", m(tb), "tb"),
-               ("switch", m(ch.switch_placement(switch_dims(p), clips=True)), "switch")]
+               ("drv", m(drv), "drv"), ("tb", m(tb), "tb")]
+    pw = power(p)
+    statics += [("switch", m(pw["switch"]), "switch"), ("fuse", m(pw["fuse"]), "fuse"),
+                ("xt60m", m(pw["xt60_male"], 0.02), "xt60"), ("xt60f", m(pw["xt60_female"], 0.02), "amber")]
     statics += [(f"buck{i}", m(b), "buck") for i, b in enumerate(bucks)]
     for name, x, side in corners(p):
         statics.append((f"motor{name}", m(ch.motor_placement(side, at_cradle(p, x))), "motor"))
-        statics.append((f"lid{name}", m(the_lids[name]), "lid" if name != "RR" else "holder"))
+        statics.append((f"lid{name}", m(the_lids[name]), "lid"))
     for name, w in wheels(p).items():
         statics.append((f"wheel{name}", m(w, 0.08), "wheel"))
     sp = spindle_parts(p)
@@ -392,13 +424,13 @@ def render(p: P6Dims, body: Part, the_lids: dict) -> None:
     labels = {"top": [
         ("Battery", (0.50, 0.92), [(0, p.battery_yc, 21)]),
         ("Pi Zero 2 W", (0.50, 0.08), [(10, p.pi_y, 10)]),
-        ("Bucks", (0.83, 0.30), [(p.buck_x + 6, p.buck_y, 12)]),
-        ("DRV8833", (0.14, 0.30), [(p.drv_x, p.drv_y + 4, 12)]),
-        ("TB6612", (0.14, 0.70), [(p.tb_x - 4, p.tb_y, 12)]),
-        ("Switch", (0.14, 0.50), [(p.switch_x, 0, 20)]),
-        ("XT60", (0.30, 0.94), [(-p.cradle_x - 8, -p.half_y + 12, 30)]),
+        ("Bucks", (0.62, 0.30), [(p.buck_x, p.buck_ys[0], 12)]),
+        ("DRV8833", (0.86, 0.30), [(p.drv_x, p.drv_y, 12)]),
+        ("TB6612", (0.86, 0.62), [(p.tb_x, p.tb_y, 12)]),
+        ("Power block: switch, fuse, XT60", (0.15, 0.40), [(p.pwr_x, p.pwr_y, 25)]),
         ("Canon on the tower", (0.83, 0.70), [(12, -12, 100)]),
     ]}
+    tw.write_usdz(tw.stage(statics, [], []), HERE / "proto06.usdz")
     tw.render_stills("proto06", tw.stage(statics, [], cams), cams, w=1100, labels=labels)
 
 
