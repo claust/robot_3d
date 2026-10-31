@@ -2,46 +2,58 @@
 the harness's male XT60 and the fuse, so the pack's power goes XT60 ->
 fuse -> switch inside a few centimetres.
 
-THE SWITCH
+ONE BLOCK
 
-switch_well.py's well, unchanged: the KCD1 snaps into its panel from
-above, rolled in, its three terminals bent over and pointing forward (+X)
-just above the plate.
-
-THE FUSE
-
-A low-profile mini blade fuse stands upright in front of the switch,
-blades down, right over terminal 1 -- the terminal the pack's + comes to,
-so everything after it, the switch included, is behind the fuse. Its
-inner blade's tip rests on the terminal's bent-over leg, so a dot of
-solder joins them; the outer blade stands 8 mm further out on a printed
-pedestal of the same height, where the wire from the XT60 is soldered.
-The fuse's wide faces point across the car, so its other blade is nowhere
-near the next terminal. Rails grip its narrow edges, which
-also cover the blades' bare outer edges; both wide faces are open between
-the rails, a window on each side to see the element through.
+In plan the block is one rectangle and its top is one height all round:
+the XT60's channel along the back, the switch's panel in the middle, and
+in front a bay for the fuse, walled at the front and on the -Y side and
+open on top, on the +Y side and across most of its front. The
+height is set by the channel; the switch's panel comes up to meet it, so
+the switch stands floor_gap higher than in the plate's own well, its
+terminals that much further off the plate.
 
 THE XT60
 
-xt60_holder.py's holder -- the channel and its fits, the mark grooves,
-the edge ledges -- stood on its side along the switch well's rear: the
-male stands upright, its V-shaped (+) end down in the matching groove, its
-mating face at the block's -Y end, where the pack's female plugs in from
-the battery side, its wires out the +Y end. The holder's flat latch arm
-would print as a 13 mm overhang standing up, so the latch is a finger
-instead: it rises from the plate outside the channel's open side and its
-barb reaches in through that side's window behind the male's rear face.
-The male slides in from the wire end and its leading edge pushes the barb
-out; once past, the finger springs back and the barb holds the male
-against the push of plugging the pack in. Push the finger's top outward
-to slide the male back out.
+The male stands upright in a closed channel along the back, its V-shaped
+(+) end down in the matching floor, its mating face flush with the
+block's -Y end, where the pack's female plugs in from the battery side.
+The channel is the male's outline grown by xt_fit on every face, with a
+groove in the floor and the roof for the moulded + and - marks. Its roof
+is a 45 deg peak, not flat: a flat roof is a bridge, and on the first
+coupon it drooped onto the plug. The peak meets the male's top corners,
+so it holds the male down.
+
+There is no latch. The male goes in wires first from the mating end, its
+heat-shrunk wires threaded out through a slot in the back wall, until its
+rear face meets that wall. Plugging the pack in pushes the male against
+the wall; pulling the pack's plug out is resisted by the snug fit, so hold
+the block while unplugging.
+
+THE FUSE
+
+A low-profile mini blade fuse stands upright in the front bay, blades
+down, right over terminal 1 -- the terminal the pack's + comes to, so
+everything after it, the switch included, is behind the fuse. Its inner
+blade rests on the terminal's bent-over leg, so a dot of solder joins
+them; the outer blade stands 8 mm further out on a printed pedestal of
+the same height, where the wire from the XT60 is soldered. Rails grip its
+narrow edges and cover the blades' bare outer edges: the outer one is the
+front wall, the inner ones run up into the switch's panel (the leg sweeps
+through where a back would be, as the switch rolls in). The bay is open on
+top and on the +Y side, beside the fuse's face, to solder the inner blade
+to the terminal and to see the element. The front wall is only the fuse's
+rail and a short return at the -Y corner; between them the front is open
+from the plate up, to solder the switch's other two terminals and lead
+their wires out.
 
 Frame: the switch's centre at X = Y = 0, terminals toward +X, Z up from
 the plate's underside (the coupon's slab is the plate).
 
-Run with:  uv run robot_car/power_block.py [--no-render]
+Run with:  uv run robot_car/power_block.py [--no-render | fit-coupon]
+(fit-coupon exports xt60_fit_coupon.stl: four short channel slices.)
 Runs the PASS/FAIL checks, exports power_block.stl (print orientation:
-as is) and renders power_block.png.
+as is), power_block.usdz (to turn round in Quick Look) and renders
+power_block.png.
 """
 
 import sys
@@ -52,21 +64,15 @@ HERE = Path(__file__).resolve().parent
 sys.path.insert(0, str(HERE))
 sys.path.insert(0, str(HERE.parent / "parts"))
 
-from build123d import Axis, Part, Polyline, Pos, export_stl, extrude, make_face  # noqa: E402
+from build123d import Axis, Part, Pos, export_stl  # noqa: E402
+from shapely.geometry import Polygon  # noqa: E402
 
-from chassis import ChassisDims, cantilever, ivol  # noqa: E402
+from chassis import ChassisDims, ivol  # noqa: E402
 from kcd1_rocker import make_kcd1  # noqa: E402
 from switch_well import make_well, neighbour_sections, rbox, roll_in_check  # noqa: E402
-from xt60 import make_shrink  # noqa: E402
-from xt60_holder import (  # noqa: E402
-    XT, HolderDims, barb_lift_needed, female_mated, make_frame, male_seated, shrink_seated,
-    xz_prism,
-)
+from xt60 import Xt60Dims, make_female, make_male, make_shrink, outline, yz_prism  # noqa: E402
 
-
-def yz_prism(pts, x0, x1) -> Part:
-    face = make_face(Polyline(*[(0, y, z) for y, z in pts], close=True))
-    return Pos(x0, 0, 0) * extrude(face, amount=x1 - x0, dir=(1, 0, 0))
+XT = Xt60Dims()
 
 
 @dataclass
@@ -89,29 +95,45 @@ class FuseDims:
 class BlockDims:
     car: ChassisDims = field(default_factory=ChassisDims)
     fuse: FuseDims = field(default_factory=FuseDims)
-    # terminal 1, the pack's side, is the one at car Y = fuse_y: the switch's
-    # outer terminals sit at Y = +-7 (its pitch), the middle one at 0
+    # terminal 1, the pack's side, is the one at Y = fuse_y (the outer
+    # terminals sit at Y = +-7, the switch's pitch)
     fuse_y: float = 7.0
     fuse_x: float = 10.4  # inner blade's centre, on the leg past the panel's edge
     fuse_fit: float = 0.1  # per side, in the rails
-    rail_t: float = 1.2
+    rail_t: float = 1.6
     rail_lip: float = 1.3  # how far each rail's flanges reach over the fuse's face
-    # XT60 on its side
-    holder: HolderDims = field(default_factory=lambda: replace(HolderDims(), gap=0.0, width=19.2))
-    # latch finger, outside the channel's open side
-    finger_gap: float = 0.5
-    finger_t: float = 1.2
-    finger_w: float = 4.5  # along the plug
-    barb_h: float = 3.0  # barb's extent across the plug's width
-    margin: float = 3.0  # coupon slab past the parts
+    # XT60 upright, every face of the male's outline; negative is a press
+    # fit: the fit coupons' H (8.00 x 15.60 for the 8.1 x 15.7 male) holds
+    # it best, everything looser slid freely
+    xt_fit: float = -0.05
+    xt_wall: float = 1.6
+    xt_floor: float = 1.2
+    xt_skin: float = 1.2  # over the roof's peak
+    mark_clear: float = 0.3
+    mark_band: float = 2.4
+    lead_in: float = 0.6
+    sleeve_slot: float = 0.25  # round the heat-shrink, in the back wall
+    wall_t: float = 1.6  # the fuse bay's side and front walls
+    corner: float = 3.0  # the front wall's return at the -Y corner
+    margin: float = 3.0  # coupon slab past the block
 
     @property
     def T(self) -> float:
         return self.car.plate_thickness
 
     @property
+    def chan_in(self) -> float:  # channel's inner width, across the male
+        return XT.height + 2 * self.xt_fit
+
+    @property
+    def H(self) -> float:  # block top above the plate top
+        return self.xt_floor + XT.width + 2 * self.xt_fit + self.chan_in / 2 + self.xt_skin
+
+    @property
     def w(self):
-        return self.car.well
+        """switch_well.py's well with its panel raised to the block's top."""
+        w0 = self.car.well
+        return replace(w0, floor_gap=self.H - w0.sw.lowest)
 
     @property
     def panel_z(self) -> float:
@@ -126,10 +148,64 @@ class BlockDims:
     def fuse_x0(self) -> float:  # fuse's inner edge
         return self.fuse_x - self.fuse.blade_w / 2
 
+    @property
+    def x_front(self) -> float:
+        return self.fuse_x0 + self.fuse.width + self.fuse_fit + self.rail_t
+
+    @property
+    def x_back(self) -> float:
+        return -self.w.half_y - self.chan_in - 2 * self.xt_wall
+
+    @property
+    def half_len(self) -> float:  # along Y
+        return self.w.wall_in + self.w.wall_t
+
+    @property
+    def xt_x(self) -> float:  # channel's centre line
+        return -self.w.half_y - self.xt_wall - self.chan_in / 2
+
+    @property
+    def xt_z(self) -> float:  # the male's width centre
+        return self.T + self.xt_floor + self.xt_fit + XT.width / 2
+
 
 def place_switch(b: BlockDims, part: Part) -> Part:
     """switch_well.py's frame -> the block's (chassis._switch_to_car at 0, 0)."""
     return Pos(0, 0, b.panel_z) * part.rotate(Axis.Z, -90)
+
+
+def place_xt(b: BlockDims, part: Part) -> Part:
+    """xt60.py's frame (rim at x = 0, male toward -X, width along Y with the
+    chamfered end at -Y, height along Z) -> the block: upright, chamfered
+    end down, mating face at the block's -Y end, male toward +Y."""
+    up = part.rotate(Axis.X, 90).rotate(Axis.Z, -90)
+    return Pos(b.xt_x + XT.height / 2, -b.half_len, b.xt_z) * up
+
+
+def channel_cut(b: BlockDims) -> Part:
+    """In xt60.py's frame: the male's outline grown by xt_fit, the roof
+    peak over its square end, the mark grooves, the lead-in at the mouth
+    and the back wall's slot for the heat-shrink."""
+    f = b.xt_fit
+    w, h = XT.width / 2, XT.height
+    grown = outline(XT).buffer(f, join_style="mitre")
+    peak = Polygon([(w + f, -f), (w + f + h / 2 + f, h / 2), (w + f, h + f)])
+    sect = grown.union(peak)
+    zc = XT.axis_z
+    for s in (-1, 1):  # the + and - marks on both short ends
+        y0 = s * (w + f)
+        sect = sect.union(Polygon([(y0, zc - b.mark_band / 2), (y0 + s * (XT.mark_h + b.mark_clear), zc - b.mark_band / 2),
+                                   (y0 + s * (XT.mark_h + b.mark_clear), zc + b.mark_band / 2), (y0, zc + b.mark_band / 2)]))
+    rear = -XT.male_len
+    cut = yz_prism(sect, rear, 1.0)
+    for i in range(6):  # 45 deg lead-in at the mouth
+        g = b.lead_in * (1 - i / 6)
+        cut += yz_prism(sect.buffer(g, join_style="mitre"), -b.lead_in * (i + 1) / 6, 1.0)
+    pitch, r = XT.pitch / 2, XT.shrink_d / 2 + b.sleeve_slot
+    top = pitch + r  # the slot's top (upright), peaked like the roof
+    slot = Polygon([(-top, zc - r), (top, zc - r), (top + r, zc), (top, zc + r), (-top, zc + r)])
+    cut += yz_prism(slot, rear - 40, rear + 0.01)
+    return cut
 
 
 def make_fuse(b: BlockDims) -> Part:
@@ -145,89 +221,59 @@ def make_fuse(b: BlockDims) -> Part:
     return fuse
 
 
-def fuse_holder(b: BlockDims) -> Part:
-    """Rails round the fuse's narrow edges and a pedestal under the outer
-    blade. The outer rail is a C, its back the fuse's stop; the inner one is
-    only the two flanges, because terminal 1 sweeps through its back's
-    place as the switch rolls in; they reach up into the well's panel."""
+def fuse_bay(b: BlockDims) -> Part:
+    """The bay's side and front walls, the rails and the outer blade's
+    pedestal."""
     f, c, t, y = b.fuse, b.fuse_fit, b.rail_t, b.fuse_y
     x0, x1 = b.fuse_x0, b.fuse_x0 + f.width
-    top = b.leg_top + f.length
+    top, L = b.T + b.H, b.half_len
     half = f.thick / 2 + c
-    out = rbox(x1 + c, x1 + c + t, y - half - t, y + half + t, b.T - 0.01, top)
+    xs = b.w.half_y - 0.01
+    bay = rbox(x1 + c, b.x_front, -L, L, b.T - 0.01, top)  # front wall = outer rail's back
+    # one side wall, on the -Y side: with the front wall it makes a corner,
+    # and the +Y side, beside the fuse's face, stays open to solder through
+    bay += rbox(xs, b.x_front, -L, -L + b.wall_t, b.T - 0.01, top)
     panel_bottom = b.panel_z - b.w.panel_t
     for s, xe in ((-1, x0), (1, x1)):
-        # the inner flanges run on up into the switch well's panel, so
-        # they don't stand alone
         z1 = top if s > 0 else panel_bottom + 0.01
         for sy in (-1, 1):
-            out += rbox(*sorted((xe + s * (c + t), xe - s * b.rail_lip)),
+            bay += rbox(*sorted((xe + s * (c + t), xe - s * b.rail_lip)),
                         *sorted((y + sy * half, y + sy * (half + t))), b.T - 0.01, z1)
-    xc = x0 + f.width / 2
-    bx = xc + f.pitch / 2
-    out += rbox(bx - f.blade_w / 2 - 0.2, x1 + c + 0.01, y - half, y + half, b.T - 0.01, b.leg_top)
-    return out
+    bx = x0 + f.width / 2 + f.pitch / 2
+    bay += rbox(bx - f.blade_w / 2 - 0.2, x1 + c + 0.01, y - half, y + half, b.T - 0.01, b.leg_top)
+    # the front wall stays only as the fuse's rail and a short return at the
+    # -Y corner: between them it's open from the plate up, to reach the
+    # switch's other two terminals with an iron and to lead their wires out
+    bay -= rbox(x1, b.x_front + 1, -L + b.wall_t + b.corner, y - half - t, b.T, top + 1)
+    return bay
 
 
-# ---- the XT60, upright -------------------------------------------------------
+def block_body(b: BlockDims) -> Part:
+    """The block on the plate's top face, without a plate: what the car's
+    plate grows."""
+    L, top = b.half_len, b.T + b.H
+    chan = rbox(b.x_back, -b.w.half_y + 0.01, -L, L, b.T - 0.01, top)
+    chan -= place_xt(b, channel_cut(b))
+    return chan + place_switch(b, make_well(b.w)) + fuse_bay(b)
 
 
-def to_block(b: BlockDims, part: Part) -> Part:
-    """Holder frame (xt60_holder.py, gap 0) -> the block: the plug's width
-    stood upright with its V end down, its mating end toward -Y at the
-    well's -Y end, the channel's floor against the well's rear (-X) face."""
-    h, w = b.holder, b.w
-    up = part.rotate(Axis.X, 90).rotate(Axis.Z, -90)  # holder x -> -Y, y -> Z, z -> -X
-    return Pos(-w.half_y, -w.half_x, b.T + h.width / 2) * up
-
-
-def finger(b: BlockDims) -> Part:
-    """The latch finger in the holder frame: a plate outside the channel's
-    open side (holder +z), rooted at the plate, and its barb through the
-    window behind the male's rear face, with a 45 deg underside."""
-    h = b.holder
-    zf = h.z_top + b.finger_gap
-    yb1 = XT.width / 2 + h.side_fit - h.lip_w - 0.5  # under the square side's lip
-    yb0 = yb1 - b.barb_h
-    xc = h.x_barb - h.barb_len / 2
-    plate = rbox(xc - b.finger_w / 2, xc + b.finger_w / 2, -h.width / 2 - 0.01, yb1 + 0.5, zf, zf + b.finger_t)
-    z_tip = h.z_plug_top - h.barb_depth
-    x0 = h.x_barb
-    pts = [(x0, zf + 0.01), (x0, z_tip), (x0 - h.barb_len, z_tip),
-           (x0 - h.barb_len - h.ramp_len, h.z_plug_top), (x0 - h.barb_len - h.ramp_len, zf + 0.01)]
-    barb = xz_prism(pts, yb0 - (zf - z_tip) - 1, yb1)
-    under = [(yb1, z_tip - 0.01), (yb0, z_tip - 0.01), (yb0 - (zf - z_tip) - 0.02, zf + 0.02), (yb1, zf + 0.02)]
-    barb &= yz_prism(under, x0 - h.barb_len - h.ramp_len - 1, x0 + 1)
-    return plate + barb, (zf, yb0, yb1)
-
-
-def finger_len(b: BlockDims) -> float:
-    """Root (plate) to the barb's middle, along the finger."""
-    zf, yb0, yb1 = finger(b)[1]
-    return (yb0 + yb1) / 2 + b.holder.width / 2
-
-
-# ---- the block -----------------------------------------------------------------
-
-
-def make_block(b: BlockDims):
-    """(block, finger) in the block frame; the block includes the slab."""
-    well = place_switch(b, make_well(b.w))
-    chan = to_block(b, make_frame(b.holder, Part()))
-    fing = to_block(b, finger(b)[0])
-    parts = well + chan + fuse_holder(b) + fing
-    bb = parts.bounding_box()
+def make_block(b: BlockDims) -> Part:
+    """The coupon: the block on a slab of plate."""
+    L = b.half_len
+    block = block_body(b)
     m = b.margin
-    slab = rbox(bb.min.X - m, bb.max.X + m, bb.min.Y - m, bb.max.Y + m, 0, b.T)
-    return slab + parts, fing
+    slab = rbox(b.x_back - m, b.x_front + m, -L - m, L + m, 0, b.T)
+    return slab + block
 
 
 def plugs(b: BlockDims) -> dict:
-    h = b.holder
-    return {"male": to_block(b, male_seated(h) + shrink_seated(h)), "female": to_block(b, female_mated(h))}
+    sm = make_shrink(XT, -XT.male_len, -1)
+    sf = make_shrink(XT, XT.female_body_len, +1)
+    return {"male": place_xt(b, make_male(XT) + sm[0] + sm[1]),
+            "female": place_xt(b, make_female(XT) + sf[0] + sf[1])}
 
 
-def checks(b: BlockDims, block: Part, fing: Part) -> bool:
+def checks(b: BlockDims, block: Part) -> bool:
     ok = True
 
     def report(name, passed, detail=""):
@@ -238,46 +284,39 @@ def checks(b: BlockDims, block: Part, fing: Part) -> bool:
     sw = place_switch(b, make_kcd1(b.w.sw, clips=False))
     fuse = make_fuse(b)
     pl = plugs(b)
-    h = b.holder
+    bb = block.bounding_box()
     report("one solid", len(block.solids()) == 1, f"{len(block.solids())}")
+    report("one height all round", abs(bb.max.Z - (b.T + b.H)) < 0.02,
+           f"top {bb.max.Z - b.T:.2f} above the plate (switch panel {b.w.height:.2f})")
     v = ivol(block, sw)
     report("switch seats in its well", v < 0.5, f"{v:.3f} mm^3 (clips flex)")
-    obstacles = neighbour_sections(b.w, (0.0, 0.0, b.panel_z), [block])
-    rolled, path = roll_in_check(b.w, obstacles)
-    report("switch rolls in past the fuse rails and the XT60 channel", rolled,
-           f"{len(path)} poses" if rolled else "no collision-free path")
+    rolled, path = roll_in_check(b.w, neighbour_sections(b.w, (0.0, 0.0, b.panel_z), [block]))
+    report("switch rolls in past the fuse rails", rolled, f"{len(path)} poses" if rolled else "no path")
     v = ivol(block, fuse)
     report("fuse stands in its rails", v < 1e-6, f"{v:.3f} mm^3")
-    d1 = fuse.distance_to(sw)
-    report("fuse's inner blade rests on terminal 1", d1 < 0.05, f"{d1:.2f} mm")
+    report("fuse's inner blade rests on terminal 1", fuse.distance_to(sw) < 0.05, f"{fuse.distance_to(sw):.2f} mm")
     mid = sw & rbox(0, 20, -1, 1, b.T, b.panel_z)
-    d2 = fuse.distance_to(mid)
-    report("fuse clears the middle terminal by >= 2.5 mm", d2 >= 2.5, f"{d2:.2f} mm")
+    report("fuse clears the middle terminal by >= 2.5 mm", fuse.distance_to(mid) >= 2.5,
+           f"{fuse.distance_to(mid):.2f} mm")
+    # a press fit overlaps the male by design: the male's checks run against
+    # the channel at zero clearance, so all they see is the press
+    b0 = replace(b, xt_fit=max(b.xt_fit, 0.0))
+    nominal, male0 = make_block(b0), plugs(b0)["male"]
+    if b.xt_fit < 0:
+        print(f"         male pressed in {-b.xt_fit:g} mm per side")
     for name, part in pl.items():
-        v = ivol(part, block)
+        v = ivol(male0, nominal) if name == "male" else ivol(part, block)
         report(f"XT60 {name} clear of the block", v < 1e-6, f"{v:.3f} mm^3")
-        v = ivol(part, sw + fuse)
-        report(f"XT60 {name} clear of the switch and fuse", v < 1e-6, f"{v:.3f} mm^3")
-    male = male_seated(h) + shrink_seated(h)
-    frame = make_frame(h, Part())
-    fh = finger(b)[0]
-    worst, need = 0.0, 0.0
-    for dx in [-30 + i for i in range(31)]:
-        worst = max(worst, ivol(Pos(dx, 0, 0) * male, frame))
-        need = max(need, barb_lift_needed(h, dx))
-    report("male slides in from the wire end clear of the channel", worst < 1e-6, f"{worst:.3f} mm^3")
-    held = ivol(Pos(-0.5, 0, 0) * male_seated(h), fh)
-    report("barb stands behind the seated male", held > 0.5 and ivol(male, fh) < 1e-6,
-           f"{held:.2f} mm^3 in the way 0.5 mm back")
-    s = make_shrink(XT, -XT.male_len, -1)
-    gap = fh.distance_to(s[0] + s[1])
-    report("barb clears the male's heat-shrink by >= 0.5 mm", gap >= 0.5, f"{gap:.2f} mm")
-    L = finger_len(b)
-    bend = cantilever(L, b.finger_t, b.finger_w, need)
-    report("finger strain on the way in <= 1 %", bend["strain"] <= 0.01,
-           f"lift {need:.2f} mm over {L:.1f} mm: {100 * bend['strain']:.2f} %, {bend['force']:.1f} N")
-    v = ivol(fh, frame)
-    report("finger free of the channel", v < 1e-6, f"{v:.3f} mm^3")
+    # the male goes in wires first from the mating end
+    worst = max(ivol(Pos(0, -dy, 0) * male0, nominal) for dy in range(0, 31))
+    report("male slides in from the mating end", worst < 1e-6, f"{worst:.3f} mm^3 at worst over 30 mm")
+    stop = ivol(Pos(0, 0.5, 0) * pl["male"], block)
+    report("back wall stops the male 0 mm past seated", stop > 1.0, f"{stop:.1f} mm^3 in the way 0.5 mm further in")
+    lift = 2 * max(b.xt_fit, 0.0) + 0.3  # past the play of the fit, top and bottom
+    up = ivol(Pos(0, 0, lift) * place_xt(b, make_male(XT)), block)
+    report("roof holds the male down", up > 0.5, f"{up:.1f} mm^3 in the way {lift:g} mm up")
+    rim_y = place_xt(b, rbox(-0.01, 0.01, -1, 1, 1, 2)).bounding_box().center().Y
+    report("male's rim flush with the block's end", abs(rim_y + b.half_len) < 0.02, f"{rim_y + b.half_len:+.2f} mm")
     return ok
 
 
@@ -285,49 +324,89 @@ def render(b: BlockDims, block: Part) -> None:
     import numpy as np
 
     import xt60_twin as tw
-    from xt60 import make_female, make_male
     tw.LOOKS.setdefault("fuse", ("#d9cfa8", 0.5, 0.0))
-    h = b.holder
-    seat = Pos(h.x_rim, 0, h.z_plug)
-    sm, sf = make_shrink(XT, -XT.male_len, -1), make_shrink(XT, XT.female_body_len, +1)
+    tw.LOOKS["holder"] = ("#3fae4c", 0.6, 0.0)  # green PLA
     m = tw.mesh_of
+    sm, sf = make_shrink(XT, -XT.male_len, -1), make_shrink(XT, XT.female_body_len, +1)
     statics = [("block", m(block, 0.02), "holder"),
                ("switch", m(place_switch(b, make_kcd1(b.w.sw, clips=True)), 0.02), "switch"),
                ("fuse", m(make_fuse(b), 0.02), "fuse"),
-               ("male", m(to_block(b, seat * make_male(XT)), 0.02), "xt60"),
-               ("female", m(to_block(b, seat * make_female(XT)), 0.02), "amber"),
-               ("shrink", m(to_block(b, seat * (sm[0] + sm[1] + sf[0] + sf[1])), 0.02), "shrink")]
+               ("male", m(place_xt(b, make_male(XT)), 0.02), "xt60"),
+               ("female", m(place_xt(b, make_female(XT)), 0.02), "amber"),
+               ("shrink", m(place_xt(b, sm[0] + sm[1] + sf[0] + sf[1]), 0.02), "shrink")]
+    tw.write_usdz(tw.stage(statics, [], []), HERE / "power_block.usdz")
     bb = block.bounding_box()
-    t = np.array([(bb.min.X + bb.max.X) / 2, (bb.min.Y + bb.max.Y) / 2 - 4, 10.0])
+    t = np.array([(bb.min.X + bb.max.X) / 2, (bb.min.Y + bb.max.Y) / 2 - 4, 12.0])
 
     def ortho(name, direction, width):
         v = np.array(direction, float)
         v /= np.linalg.norm(v)
         return (name, t + 600 * v, t, 50.0, width)
 
-    cams = [ortho("front", (1.0, -0.8, 0.8), 70.0), ortho("rear", (-1.0, -0.6, 0.7), 70.0),
-            ortho("top", (0.0, -0.001, 1.0), 85.0)]
+    cams = [ortho("front", (1.0, -0.3, 0.6), 72.0), ortho("rear", (-1.0, -0.7, 0.75), 72.0),
+            ortho("open_side", (0.7, 1.0, 0.75), 72.0), ortho("top", (0.0, -0.001, 1.0), 80.0)]
     fz = b.leg_top + b.fuse.length
-    labels = {"front": [("Fuse on terminal 1", (0.80, 0.10), [(b.fuse_x0 + 5.5, b.fuse_y, fz)]),
-                        ("Switch", (0.45, 0.07), [(0, 0, b.panel_z + 4)]),
-                        ("Pack's female", (0.15, 0.85), [(-8.5 - h.z_top / 2, -b.w.half_x - 4, b.T + 18)])],
-              "rear": [("Latch finger", (0.25, 0.12), [(-b.w.half_y - h.z_top - 1.1, -b.w.half_x + 20, b.T + 14)]),
-                       ("Male, upright, V end down", (0.70, 0.08), [(-8.5 - h.z_top, -b.w.half_x + 9, b.T + 11)])],
-              "top": [("Fuse", (0.85, 0.20), [(b.fuse_x0 + 5.5, b.fuse_y, fz)]),
-                      ("XT60 channel", (0.12, 0.30), [(-8.5 - h.z_top / 2, 0, b.T + 19)])]}
+    labels = {"front": [("Fuse on terminal 1", (0.82, 0.10), [(b.fuse_x0 + 5.5, b.fuse_y, fz)]),
+                        ("Open front: terminals 2 and 3", (0.30, 0.92), [(b.fuse_x0 + 2, -4.0, b.leg_top)]),
+                        ("Switch", (0.45, 0.06), [(0, 0, b.panel_z + 4)]),
+                        ("Pack's female", (0.12, 0.85), [(b.xt_x, -b.half_len - 4, b.xt_z)])],
+              "rear": [("Male, upright, V end down", (0.70, 0.08), [(b.xt_x, -b.half_len, b.xt_z + 6)]),
+                       ("Wires out the back", (0.25, 0.10), [(b.xt_x, b.half_len + 2, b.xt_z)])],
+              "open_side": [("Open side: solder the blade to terminal 1", (0.45, 0.07),
+                             [(b.fuse_x, b.fuse_y + b.fuse.thick / 2, b.leg_top + 1)]),
+                            ("Corner wall", (0.85, 0.85), [(b.x_front, -b.half_len + 4, b.T + b.H - 4)])],
+              "top": [("Fuse bay", (0.85, 0.2), [(b.fuse_x0 + 5.5, b.fuse_y, fz)]),
+                      ("XT60 channel", (0.12, 0.3), [(b.xt_x, 0, b.T + b.H)])]}
     tw.render_stills("power_block", tw.stage(statics, [], cams), cams, w=1000, labels=labels)
 
 
+# ---- XT60 fit coupon --------------------------------------------------------
+# Upright, 0.15 per side (8.40 across the male, coupon 1, flat roof) was too
+# tight, 0.25 (8.60) slid freely and 0.20 (8.50) is still loose. Four short
+# slices of the channel, mouth and all, open at both ends, lettered. Round 1
+# (green, 2026-10-31) at 0.10-0.175 (A-D): all slide freely, A the
+# tightest; the male calipered at 15.7 x 8.1 again. Round 2 (green,
+# 2026-10-31), zero clearance and a press fit: H (-0.05) feels best, and
+# it is BlockDims.xt_fit.
+FIT_COUPON = (("E", 0.05), ("F", 0.025), ("G", 0.0), ("H", -0.05))
+SLICE = 6.0  # along the male
+
+
+def fit_coupon() -> Part:
+    from spindle_coupons import raised
+    plate, pitch = Part(), 20.0
+    for i, (letter, fit) in enumerate(FIT_COUPON):
+        b = replace(BlockDims(), xt_fit=fit)
+        L = b.half_len
+        piece = rbox(b.x_back, -b.w.half_y, -L, -L + SLICE, b.T - 0.01, b.T + b.H)
+        piece -= place_xt(b, channel_cut(b))
+        x0 = (b.x_back - b.w.half_y) / 2
+        piece = Pos(i * pitch - x0, L, 0) * piece
+        plate += piece + raised(letter, 6.0, i * pitch, SLICE + 5.0, b.T)
+    bb = plate.bounding_box()
+    slab = rbox(bb.min.X - 3, bb.max.X + 3, -3, bb.max.Y + 3, 0, BlockDims().T)
+    return slab + plate
+
+
 def main() -> None:
+    if "fit-coupon" in sys.argv:
+        part = fit_coupon()
+        bb = part.bounding_box()
+        print("XT60 fit coupon: " + ", ".join(
+            f"{k} {XT.height + 2 * f:.2f} x {XT.width + 2 * f:.2f}" for k, f in FIT_COUPON)
+            + f" mm; {bb.size.X:.0f} x {bb.size.Y:.0f} mm, {len(part.solids())} solid")
+        export_stl(part, HERE / "xt60_fit_coupon.stl")
+        print("Exported xt60_fit_coupon.stl")
+        return
     b = BlockDims()
-    block, fing = make_block(b)
+    block = make_block(b)
     bb = block.bounding_box()
-    print(f"power block: {bb.size.X:.1f} x {bb.size.Y:.1f} mm on the slab, {bb.max.Z - b.T:.1f} mm "
-          f"tall above the plate; fuse over terminal 1 at Y {b.fuse_y:+g}")
+    print(f"power block: {b.x_front - b.x_back:.1f} x {2 * b.half_len:.1f} x {b.H:.1f} mm above the plate; "
+          f"XT60 fit {b.xt_fit:g} per side; switch panel {b.w.height:.1f} up (floor gap {b.w.floor_gap:.1f})")
     print("PASS/FAIL checks:")
-    ok = checks(b, block, fing)
+    ok = checks(b, block)
     export_stl(block, HERE / "power_block.stl")
-    print(f"power_block.stl: {block.volume / 1000:.2f} cm^3")
+    print(f"power_block.stl: {block.volume / 1000:.2f} cm^3, slab {bb.size.X:.1f} x {bb.size.Y:.1f}")
     if "--no-render" not in sys.argv:
         render(b, block)
     print("ALL PASS" if ok else "SOME CHECKS FAILED")

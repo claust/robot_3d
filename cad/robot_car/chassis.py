@@ -132,9 +132,10 @@ the latch, each on a long edge.
   corners, clear of the header solder pads.
 - The MP1584s ride components DOWN (p1_mp1584.py, mounted), so their top
   is bare but for the corner headers, and what the tray must miss is under
-  the board. The tongue columns stand on the diode's edge in the one
-  stretch with nothing near it, between the end of the SS34 and the OUT
-  pads (buck_tongue_xs), and the ledges sit 3.2 mm in from the short ends,
+  the board. One tongue stands at each end of the diode's edge, grown from
+  the corner walls just inboard of the corner headers (buck_tongue_xs); its
+  column stays beside the board, so nothing reaches under it but the
+  ledges, which sit 3.2 mm in from the short ends,
   past the pads' solder joints and clear of the passives, on longer corner
   walls (buck_corner_arm, buck_ledge_inset).
 - The latch arm is 0.8 x 7 mm with a 1 mm radius on both sides of its
@@ -290,10 +291,11 @@ class ChassisDims:
     buck_board_y: float = 17.0  # calipered
     buck_end_fit: float = 0.15  # per end, 22.5 mm axis: buck_coupons.py N
     # Tongue centres along the board's 22.5 mm axis, in p1_mp1584.py's
-    # mounted frame (components down, IN end -X, SS34 diode edge -Y): under
-    # the diode's edge from the end of the diode (+0.44) to the OUT pads'
-    # solder (+8.45), the one stretch with nothing near the edge.
-    buck_tongue_xs: tuple = (2.6, 6.0)
+    # mounted frame (components down, IN end -X, SS34 diode edge -Y): one
+    # at each end, grown from the corner walls, just inboard of the corner
+    # headers on top. Their columns stand beside the board, not under it
+    # (header_tray shelf=False): the corner ledges carry the board.
+    buck_tongue_xs: tuple = (-6.6, 6.6)
     # Ledges 3.2 mm in from each short end, 1.5 long: past the corner pads'
     # solder (2.8 in) and clear of the passives along the edges; the corner
     # walls run 5 mm along the long edges to carry them.
@@ -571,7 +573,7 @@ def tray_latch_geometry(d: ChassisDims) -> dict:
 
 
 def header_tray(d: ChassisDims, bx: float, by: float, tongue_ys, arm=None,
-                ledge_inset=0.0, ledge_len=None, end_fit=None) -> Part:
+                ledge_inset=0.0, ledge_len=None, end_fit=None, shelf=True) -> Part:
     """The tray (module docstring, PCB TRAYS) for a board bx across its
     capture axis and by along it, in its canonical frame: board centred on
     the origin, capture axis X with the tongues at +X and the latch at -X,
@@ -581,7 +583,8 @@ def header_tray(d: ChassisDims, bx: float, by: float, tongue_ys, arm=None,
     long along both edges, with a drv_corner_ledge deep ledge under each
     long edge, `ledge_inset` in from the short end and `ledge_len` long (a
     square right in the corner by default). `end_fit` defaults to
-    drv_end_fit."""
+    drv_end_fit. shelf=False keeps the tongues' columns out from under the
+    board, beside its edge, for a board whose underside is crowded there."""
     plate_top = d.plate_thickness
     board_bot = plate_top + d.tray_standoff
     board_top = board_bot + d.tray_board_t
@@ -626,7 +629,7 @@ def header_tray(d: ChassisDims, bx: float, by: float, tongue_ys, arm=None,
         column = Pos(lead_face, ty, plate_top) * Box(
             w, w, z0 + cap + 0.8 - plate_top, align=ALIGN_BOTTOM
         )
-        tray += column - Pos(0, 0, board_bot - plate_top) * pocket
+        tray += column - (Pos(0, 0, board_bot - plate_top) * pocket if shelf else pocket)
         tongue = rbox(lead_face - cap, lead_face + w / 2,
                       ty - w / 2, ty + w / 2, z0, z0 + cap + 0.8)
         bottom = tongue.edges().group_by(Axis.Z)[0]
@@ -669,7 +672,7 @@ def buck_tray(d: ChassisDims, side: int, placed=True) -> Part:
     its X runs along +Y there."""
     tray = header_tray(d, d.buck_board_y, d.buck_board_x, d.buck_tongue_xs,
                        arm=d.buck_corner_arm, ledge_inset=d.buck_ledge_inset,
-                       ledge_len=d.buck_ledge_len, end_fit=d.buck_end_fit)
+                       ledge_len=d.buck_ledge_len, end_fit=d.buck_end_fit, shelf=False)
     if not placed:
         return tray
     y = d.motor_buck_y if side > 0 else d.buck_y
