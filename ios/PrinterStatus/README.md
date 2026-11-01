@@ -86,20 +86,22 @@ xcrun simctl launch booted dk.delectosoft.printerstatus
 Same shape as the MeTube repo's pipeline: a manual GitHub workflow
 (`.github/workflows/testflight-ios.yml`) or a local script.
 
+From `ios/`, which holds the script for both iOS apps:
+
 ```sh
-Scripts/testflight.sh              # archive → export → validate → upload
-Scripts/testflight.sh --validate   # same, minus the upload
-Scripts/testflight.sh --archive    # just produce build-archive/PrinterStatus.ipa
+Scripts/testflight.sh PrinterStatus              # archive → export → validate → upload
+Scripts/testflight.sh PrinterStatus --validate   # same, minus the upload
+Scripts/testflight.sh PrinterStatus --archive    # just produce PrinterStatus/build-archive/PrinterStatus.ipa
 ```
 
 The build number is the git commit count; `MARKETING_VERSION` in
 `project.yml` stays hand-owned. Credentials resolve from the environment,
-then `.testflight.env` (copy `.testflight.env.example`); the
+then `ios/.testflight.env` (copy `ios/.testflight.env.example`); the
 `AuthKey_<KEYID>.p8` lives in `~/.private_keys/`.
 
 The GitHub workflow needs four repo secrets — `ASC_KEY_ID`, `ASC_ISSUER_ID`,
 `ASC_KEY_P8` (the .p8, base64-encoded), `DEVELOPMENT_TEAM` — and is started
-from the Actions tab or `gh workflow run testflight-ios.yml --ref master`.
+from the Actions tab or `gh workflow run testflight-ios.yml --ref master -f app=PrinterStatus`.
 
 One-time setup (all already done for the MeTube app, so mostly reusable):
 

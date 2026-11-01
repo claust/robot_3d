@@ -85,6 +85,17 @@ xcrun devicectl device process launch --device "$PHONE" dk.delectosoft.robotremo
 
 The first launch asks for Bluetooth permission.
 
+## TestFlight
+
+Released like Printer Status, with the same script, workflow and API key
+(see [its README](../PrinterStatus/README.md#testflight)):
+
+```sh
+gh workflow run testflight-ios.yml --ref master -f app=RobotRemote
+```
+
+The app record in App Store Connect has bundle ID `dk.delectosoft.robotremote`.
+
 ## Simulator
 
 In the Simulator the app drives a simulated car, which connects after a
