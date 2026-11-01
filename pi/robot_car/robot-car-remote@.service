@@ -28,7 +28,9 @@ WorkingDirectory=/home/%i/robot_car
 ExecStartPre=+/usr/sbin/rfkill unblock bluetooth
 ExecStart=/home/%i/robot_car/.venv/bin/python remote.py
 # After any exit, clean or not: claim the motor and cutter pins low and let go.
-ExecStopPost=/home/%i/robot_car/.venv/bin/python motor_test.py --check
+# systemd skips the rest of the list once a command fails, so the "-" lets a
+# failed wheel check still reach the cutter's.
+ExecStopPost=-/home/%i/robot_car/.venv/bin/python motor_test.py --check
 ExecStopPost=/home/%i/robot_car/.venv/bin/python cutter_test.py --check
 # remote.py stops the motors on SIGTERM before it exits.
 KillSignal=SIGTERM

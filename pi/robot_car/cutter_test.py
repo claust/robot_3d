@@ -67,6 +67,7 @@ def main():
             ramp(pwm, 100, 5, args.seconds)
         else:
             ramp(pwm, args.speed, 10, args.seconds)
+            pwm.value = args.speed / 100
             print(f"cutter {args.speed:3d} % for {args.hold:g} s", flush=True)
             time.sleep(args.hold)
     finally:
