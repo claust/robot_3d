@@ -296,12 +296,14 @@ def canon_on_top(p: P6Dims) -> dict:
 
 def wheels(p: P6Dims) -> dict:
     from light_wheel import VARIANTS, make_light_wheel
-    w = make_light_wheel(VARIANTS["B"])
+    # chevron B on the left, its mirror on the right: every V points
+    # forward at the top of its wheel
+    w = {+1: make_light_wheel(VARIANTS["B"]), -1: make_light_wheel(VARIANTS["B-mirror"])}
     axis_z = p.car.plate_thickness + ch.N20.gearbox_height / 2
     y0 = p.half_y + p.wheel_gap
     out = {}
     for name, x, side in corners(p):
-        part = w.rotate(Axis.X, -90 if side > 0 else 90)
+        part = w[side].rotate(Axis.X, -90 if side > 0 else 90)
         out[name] = Pos(x, side * y0, axis_z) * part
     return out
 

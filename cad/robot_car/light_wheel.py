@@ -35,11 +35,12 @@ most `bar_lean_deg` and spike flanks slope at 45 degrees or steeper.
 
 Run with:  uv run robot_car/light_wheel.py [variant ...] [--plate]
 Writes light_wheel_<variant>.stl (gitignored) and prints mass per variant;
---plate also lays the chosen variants out 2 x 2 in light_wheel_plate.stl.
+--plate also lays them out 2 x 2 in light_wheel_plate.stl (a name given
+twice lays out two copies).
 """
 
 import sys
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from math import cos, degrees, pi, radians, sin, tan
 
 from build123d import (
@@ -83,7 +84,7 @@ class LightWheelDims:
     bar_style: str = "straight"  # straight | chevron | helix | spikes
     bar_count: int = 24
     bar_t: float = 1.0  # across the bar, in the horizontal print slice
-    bar_lean_deg: float = 30.0  # chevron, helix: bar angle from the axis
+    bar_lean_deg: float = 30.0  # chevron, helix: bar angle from the axis; < 0 mirrors
     max_bridge: float = 9.0  # longest span the outer rim may bridge between bar ends
     # spikes: pyramids on flush bars, rows staggered bar to bar
     spike_base_w: float = 2.6  # round the wheel
@@ -94,7 +95,7 @@ class LightWheelDims:
     spoke_count: int = 6
     spoke_width: float = 2.4
     spoke_height: float = 4.0
-    spoke_sweep_deg: float = 50.0  # curved: lean hub-to-rim
+    spoke_sweep_deg: float = 50.0  # curved: lean hub-to-rim; < 0 mirrors
     spoke_root_radius: float = 1.5
 
     hub_diameter: float = 10.0
@@ -212,7 +213,9 @@ def bars(d: LightWheelDims) -> Part:
 
     - straight: paddles along the axis -- the most bite either way, but
       on a hard floor the wheel rolls from bar to bar.
-    - chevron: a V across the tread, tractor-tyre style.
+    - chevron: a V across the tread, tractor-tyre style. The wheels on
+      the car's two sides face opposite ways, so each side needs the
+      other's mirror image for the Vs to point the same way (`mirrored`).
     - helix: every bar slanted the same way; the slant also braces the
       outer rim against twisting relative to the inner one.
     - spikes: straight bars flush with the rims, each carrying pyramid
@@ -296,6 +299,12 @@ def make_light_wheel(d: LightWheelDims | None = None) -> Part:
     return chamfer(bore_entry, d.bore_chamfer)
 
 
+def mirrored(d: LightWheelDims) -> LightWheelDims:
+    """The mirror image of `d`: bars and spokes lean the other way. The
+    D-bore is symmetric about its flat, so it fits the same shaft."""
+    return replace(d, bar_lean_deg=-d.bar_lean_deg, spoke_sweep_deg=-d.spoke_sweep_deg)
+
+
 VARIANTS: dict[str, LightWheelDims] = {
     "A": LightWheelDims(bar_style="straight", spoke_style="straight"),
     "B": LightWheelDims(bar_style="chevron", spoke_style="curved", spoke_count=5),
@@ -303,6 +312,7 @@ VARIANTS: dict[str, LightWheelDims] = {
     "D": LightWheelDims(bar_style="spikes", rim_diameter=74.0,
                         spoke_style="curved", spoke_count=5),
 }
+VARIANTS["B-mirror"] = mirrored(VARIANTS["B"])  # B for the car's right side
 
 
 def mass_g(part: Part) -> float:
@@ -313,10 +323,13 @@ if __name__ == "__main__":
     plate = "--plate" in sys.argv
     names = [a for a in sys.argv[1:] if not a.startswith("--")] or list(VARIANTS)
     pitch = max(VARIANTS[n].outer_diameter for n in names) + 6.0
-    plate_part = Part()
-    for i, name in enumerate(names):
+    plate_part, built = Part(), {}
+    for i, name in enumerate(names):  # a name given twice lays out two copies
         d = VARIANTS[name]
-        wheel = make_light_wheel(d)
+        if name in built:
+            plate_part += Pos((i % 2 - 0.5) * pitch, (0.5 - i // 2) * pitch, 0) * built[name]
+            continue
+        wheel = built[name] = make_light_wheel(d)
         export_stl(wheel, f"light_wheel_{name}.stl")
         plate_part += Pos((i % 2 - 0.5) * pitch, (0.5 - i // 2) * pitch, 0) * wheel
         print(f"{name}: {d.bar_count} {d.bar_style} bars, {d.spoke_count} "
