@@ -83,10 +83,13 @@ if [ -n "${ASC_KEY_ID:-}" ]; then
 		fi
 	done
 	if [ -z "$KEY_PATH" ] && [ "$MODE" != archive ]; then
-		echo "Could not find AuthKey_$ASC_KEY_ID.p8 in ~/.private_keys (or ./private_keys)." >&2
+		echo "Could not find AuthKey_$ASC_KEY_ID.p8 in ~/.private_keys (or ios/private_keys)." >&2
 		echo "Download it from App Store Connect → Users and Access → Integrations." >&2
 		exit 1
 	fi
+	# altool searches its own list of directories, relative ones from the
+	# app's folder, so it would miss ios/private_keys; name the one found.
+	[ -n "$KEY_PATH" ] && export API_PRIVATE_KEYS_DIR="$(dirname "$KEY_PATH")"
 fi
 
 # --- build -------------------------------------------------------------------
