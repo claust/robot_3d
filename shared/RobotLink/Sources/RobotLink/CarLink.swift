@@ -2,7 +2,8 @@ import Foundation
 import Observation
 
 /// The phone's end of the drive link, for the UI: finds the car, stays
-/// connected, and streams `wheels` to it `DriveProtocol.rate` times a second.
+/// connected, and streams `wheels` and `cutter` to it `DriveProtocol.rate`
+/// times a second.
 ///
 /// Set `wheels` whenever the thumb moves; the next tick sends the latest
 /// value. Or hand it a `DrivePattern` to drive, which sets `wheels` move by
@@ -47,6 +48,17 @@ public final class CarLink {
         }
     }
 
+    /// How fast the cutter turns, 0...1, where 0 is off. Like `wheels`, it
+    /// only counts while connected and goes back to off whenever the link
+    /// isn't. Patterns leave it alone.
+    public var cutter: Double {
+        get { cutterSpeed }
+        set {
+            cutterSpeed = newValue.isFinite ? newValue.clamped(to: 0...1) : 0
+            radio?.setCutter(cutterSpeed)
+        }
+    }
+
     /// A pattern being driven, and when it started and will end.
     public struct PatternRun: Equatable, Sendable {
         public let pattern: DrivePattern
@@ -63,6 +75,7 @@ public final class CarLink {
     @ObservationIgnored private var simulation: Task<Void, Never>?
     @ObservationIgnored private var player: Task<Void, Never>?
     private var commanded = WheelSpeeds.stop
+    private var cutterSpeed = 0.0
 
     public init(simulated: Bool = false) {
         self.simulated = simulated
@@ -108,6 +121,7 @@ public final class CarLink {
         guard running else { return }
         running = false
         wheels = .stop
+        cutter = 0
         if simulated {
             simulation?.cancel()
             return update(.idle)
@@ -168,6 +182,7 @@ public final class CarLink {
         if !isConnected {
             rssi = nil
             wheels = .stop
+            cutter = 0
         }
     }
 

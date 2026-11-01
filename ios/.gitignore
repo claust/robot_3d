@@ -1,0 +1,3 @@
+# TestFlight credentials, see Scripts/testflight.sh
+.testflight.env
+private_keys/

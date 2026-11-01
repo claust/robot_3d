@@ -2,8 +2,8 @@ import RobotLink
 import SwiftUI
 
 /// The one screen: link status at the top, what each wheel is being told in
-/// the middle, the top-speed cap, the preset patterns, and the thumbstick
-/// filling the bottom half where a thumb reaches it.
+/// the middle, the top-speed cap, the cutter, the preset patterns, and the
+/// thumbstick filling the bottom half where a thumb reaches it.
 struct DriveView: View {
     @Bindable var link: CarLink
     @AppStorage("topSpeed") private var topSpeed = 0.6
@@ -22,7 +22,7 @@ struct DriveView: View {
                 WheelBar(label: "L", speed: link.wheels.left)
                 WheelBar(label: "R", speed: link.wheels.right)
             }
-            .frame(height: 170)
+            .frame(height: 140)
             VStack(spacing: 4) {
                 HStack {
                     Text("Top speed")
@@ -34,6 +34,7 @@ struct DriveView: View {
                 Slider(value: $topSpeed, in: 0.3...1, step: 0.05)
                     .accessibilityLabel("Top speed")
             }
+            CutterControl(link: link)
             PatternBar(link: link)
             // A running pattern resets the stick's held command, but a drag
             // still takes over.
@@ -149,5 +150,41 @@ private struct WheelBar: View {
                 .font(.caption.monospacedDigit())
                 .foregroundStyle(.secondary)
         }
+    }
+}
+
+/// The cutter's switch and speed. The switch goes off by itself whenever the
+/// link drops, so the cutter never restarts on a reconnect; the speed is
+/// remembered and applies at once, also while it runs.
+private struct CutterControl: View {
+    let link: CarLink
+    @AppStorage("cutterSpeed") private var speed = 0.6
+    @State private var on = false
+
+    var body: some View {
+        VStack(spacing: 4) {
+            Toggle(isOn: $on) {
+                HStack {
+                    Label("Cutter", systemImage: "fanblades.fill")
+                    Spacer()
+                    Text(speed, format: .percent.precision(.fractionLength(0)))
+                        .monospacedDigit()
+                        .foregroundStyle(.secondary)
+                }
+            }
+            .tint(.red)
+            Slider(value: $speed, in: 0.2...1, step: 0.05)
+                .accessibilityLabel("Cutter speed")
+        }
+        .disabled(!link.isConnected)
+        .onChange(of: on) { apply() }
+        .onChange(of: speed) { apply() }
+        .onChange(of: link.isConnected) { on = false }
+        .sensoryFeedback(.impact, trigger: on)
+    }
+
+    private func apply() {
+        guard link.isConnected else { return }
+        link.cutter = on ? speed : 0
     }
 }

@@ -41,7 +41,7 @@ import Testing
         #expect(WheelSpeeds(left: 0.5, right: .infinity) == .stop)
         #expect(WheelSpeeds(left: 1, right: 1).scaled(by: .nan) == .stop)
         // And it encodes without trapping.
-        #expect(Array(DriveProtocol.encode(WheelSpeeds(left: .nan, right: .nan), seq: 1)) == [1, 0, 0])
+        #expect(Array(DriveProtocol.encode(WheelSpeeds(left: .nan, right: .nan), seq: 1)) == [1, 0, 0, 0])
     }
 
     @Test func pastTheRimIsFullThrow() {
@@ -50,9 +50,15 @@ import Testing
 }
 
 @Suite struct DriveProtocolTests {
-    @Test func encodesSequenceThenSignedSpeeds() {
-        let data = DriveProtocol.encode(WheelSpeeds(left: 1, right: -0.5), seq: 7)
-        #expect(Array(data) == [7, 100, UInt8(bitPattern: -50)])
+    @Test func encodesSequenceThenSignedSpeedsThenCutter() {
+        let data = DriveProtocol.encode(WheelSpeeds(left: 1, right: -0.5), cutter: 0.6, seq: 7)
+        #expect(Array(data) == [7, 100, UInt8(bitPattern: -50), 60])
+    }
+
+    @Test func cutterIsClampedAndFailsClosed() {
+        #expect(DriveProtocol.encode(.stop, cutter: 3, seq: 0).last == 100)
+        #expect(DriveProtocol.encode(.stop, cutter: -1, seq: 0).last == 0)
+        #expect(DriveProtocol.encode(.stop, cutter: .nan, seq: 0).last == 0)
     }
 
     @Test func verifyWriteRunsStraightIntoTheStream() {
@@ -62,6 +68,6 @@ import Testing
 
     @Test func clampsToTheByteRange() {
         let data = DriveProtocol.encode(WheelSpeeds(left: 4, right: -4).scaled(by: 2), seq: 255)
-        #expect(Array(data) == [255, 100, UInt8(bitPattern: -100)])
+        #expect(Array(data) == [255, 100, UInt8(bitPattern: -100), 0])
     }
 }

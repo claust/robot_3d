@@ -7,13 +7,20 @@ name: TestFlight release (iOS)
 # after 90 days whether or not anyone installed them.
 #
 # Trigger from the Actions tab, or:
-#   gh workflow run testflight-ios.yml --ref master
+#   gh workflow run testflight-ios.yml --ref master -f app=RobotRemote
 permissions:
   contents: read
 
 on:
   workflow_dispatch:
     inputs:
+      app:
+        description: The app to release, a folder in ios/
+        type: choice
+        options:
+          - PrinterStatus
+          - RobotRemote
+        default: PrinterStatus
       ref:
         description: Branch or tag to release from
         required: false
@@ -24,19 +31,19 @@ on:
           is what you want unless a previous upload already claimed that number.
         required: false
 
-# One release at a time. Two concurrent uploads would race for the same commit
-# count and the loser would be rejected as a duplicate build number.
+# One release per app at a time. Two concurrent uploads would race for the
+# same commit count and the loser would be rejected as a duplicate build number.
 concurrency:
-  group: testflight-ios
+  group: testflight-ios-${{ inputs.app }}
   cancel-in-progress: false
 
 jobs:
   release:
-    name: Archive & upload
+    name: Archive & upload ${{ inputs.app }}
     runs-on: macos-15
     defaults:
       run:
-        working-directory: ios/PrinterStatus
+        working-directory: ios
 
     steps:
       - uses: actions/checkout@v7
@@ -92,7 +99,8 @@ jobs:
           ASC_ISSUER_ID: ${{ secrets.ASC_ISSUER_ID }}
           DEVELOPMENT_TEAM: ${{ secrets.DEVELOPMENT_TEAM }}
           BUILD_NUMBER: ${{ inputs.build_number }}
-        run: ./Scripts/testflight.sh
+          APP: ${{ inputs.app }}
+        run: ./Scripts/testflight.sh "$APP"
 
       - name: Remove credentials
         if: ${{ always() }}
@@ -104,9 +112,9 @@ jobs:
         uses: actions/upload-artifact@v7
         if: ${{ always() }}
         with:
-          name: testflight-archive-ios
+          name: testflight-archive-${{ inputs.app }}
           path: |
-            ios/PrinterStatus/build-archive/*.ipa
-            ios/PrinterStatus/build-archive/**/*.dSYM
+            ios/${{ inputs.app }}/build-archive/*.ipa
+            ios/${{ inputs.app }}/build-archive/**/*.dSYM
           retention-days: 14
           if-no-files-found: warn

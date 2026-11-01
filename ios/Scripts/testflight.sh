@@ -1,39 +1,45 @@
 #!/usr/bin/env bash
 #
-# Archive Printer Status for the App Store and upload it to TestFlight.
-# Adapted from the MeTube repo's Scripts/testflight.sh (tvOS → iOS).
+# Archive one of the iOS apps in ios/ for the App Store and upload it to
+# TestFlight. Adapted from the MeTube repo's Scripts/testflight.sh (tvOS → iOS).
 #
 # A TestFlight build is signed for distribution, installs through the
 # TestFlight app on the phone, lasts 90 days, and is replaced by simply
 # uploading again — no cable, no expiring development profile.
 #
 # Configuration is read from the environment, falling back to .testflight.env
-# in this directory (gitignored — it names your API key, which is a credential).
+# in ios/ (gitignored — it names your API key, which is a credential).
 #
-# Usage — run from ios/PrinterStatus/:
-#   Scripts/testflight.sh              # archive, export, validate, upload
-#   Scripts/testflight.sh --validate   # everything except the upload
-#   Scripts/testflight.sh --archive    # stop after producing the .ipa
+# Usage — the app is a folder in ios/, whose name is also its scheme:
+#   Scripts/testflight.sh RobotRemote              # archive, export, validate, upload
+#   Scripts/testflight.sh RobotRemote --validate   # everything except the upload
+#   Scripts/testflight.sh RobotRemote --archive    # stop after producing the .ipa
 
 set -euo pipefail
 
-cd "$(dirname "$0")/.."
+IOS="$(cd "$(dirname "$0")/.." && pwd)"
+SCHEME="${1:-}"
+if [ -z "$SCHEME" ] || [ ! -f "$IOS/$SCHEME/project.yml" ]; then
+	echo "Usage: $0 <app folder in ios/> [--validate|--archive]" >&2
+	exit 2
+fi
+shift
+cd "$IOS/$SCHEME"
 ROOT="$PWD"
 
 # Fill in only what the environment has not already set, so CI — where the
 # values arrive as secrets — wins over a stale local file. Indirect
 # expansion (${!key-}) instead of eval, and only well-formed identifiers,
 # so a malformed env file cannot inject commands.
-if [ -f "$ROOT/.testflight.env" ]; then
+if [ -f "$IOS/.testflight.env" ]; then
 	while IFS='=' read -r key value; do
 		case "$key" in ''|\#*) continue ;; esac
 		[[ "$key" =~ ^[A-Za-z_][A-Za-z0-9_]*$ ]] || continue
 		[ -z "${!key-}" ] && export "$key=$value"
-	done < "$ROOT/.testflight.env"
+	done < "$IOS/.testflight.env"
 fi
 
-SCHEME=PrinterStatus
-PROJECT=PrinterStatus.xcodeproj
+PROJECT="$SCHEME.xcodeproj"
 ARCHIVE_DIR=build-archive
 
 # CFBundleVersion has to increase with every upload or App Store Connect
@@ -69,7 +75,7 @@ fi
 
 KEY_PATH=""
 if [ -n "${ASC_KEY_ID:-}" ]; then
-	for dir in "$ROOT/private_keys" "$HOME/private_keys" "$HOME/.private_keys" \
+	for dir in "$IOS/private_keys" "$HOME/private_keys" "$HOME/.private_keys" \
 		"$HOME/.appstoreconnect/private_keys"; do
 		if [ -f "$dir/AuthKey_$ASC_KEY_ID.p8" ]; then
 			KEY_PATH="$dir/AuthKey_$ASC_KEY_ID.p8"
@@ -77,10 +83,13 @@ if [ -n "${ASC_KEY_ID:-}" ]; then
 		fi
 	done
 	if [ -z "$KEY_PATH" ] && [ "$MODE" != archive ]; then
-		echo "Could not find AuthKey_$ASC_KEY_ID.p8 in ~/.private_keys (or ./private_keys)." >&2
+		echo "Could not find AuthKey_$ASC_KEY_ID.p8 in ~/.private_keys (or ios/private_keys)." >&2
 		echo "Download it from App Store Connect → Users and Access → Integrations." >&2
 		exit 1
 	fi
+	# altool searches its own list of directories, relative ones from the
+	# app's folder, so it would miss ios/private_keys; name the one found.
+	[ -n "$KEY_PATH" ] && export API_PRIVATE_KEYS_DIR="$(dirname "$KEY_PATH")"
 fi
 
 # --- build -------------------------------------------------------------------

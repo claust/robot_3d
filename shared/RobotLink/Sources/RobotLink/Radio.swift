@@ -13,16 +13,17 @@ import os
 /// late instead of old ones in a burst. The sequence number still advances
 /// on a skipped tick, which lets the Pi's log count them.
 ///
-/// Wheel commands count only while the stream is live. Each stream starts
-/// from stop, and a value set while the link was down or searching is
-/// dropped, so a reconnect never resumes motion from a command meant for
-/// the old link: the car waits for fresh input.
+/// Wheel and cutter commands count only while the stream is live. Each
+/// stream starts from stop, and a value set while the link was down or
+/// searching is dropped, so a reconnect never resumes motion from a command
+/// meant for the old link: the car waits for fresh input.
 ///
-/// Everything here runs on `queue`, except `setWheels`, which goes through
-/// a lock, and the two report closures, which the owner hops back from.
+/// Everything here runs on `queue`, except `setWheels` and `setCutter`,
+/// which go through a lock, and the two report closures, which the owner hops back from.
 final class Radio: NSObject, @unchecked Sendable {
     private struct Command {
         var wheels = WheelSpeeds.stop
+        var cutter = 0.0
         var live = false
     }
 
@@ -54,6 +55,10 @@ final class Radio: NSObject, @unchecked Sendable {
 
     func setWheels(_ value: WheelSpeeds) {
         command.withLock { if $0.live { $0.wheels = value } }
+    }
+
+    func setCutter(_ value: Double) {
+        command.withLock { if $0.live { $0.cutter = value } }
     }
 
     func start() {
@@ -149,7 +154,8 @@ final class Radio: NSObject, @unchecked Sendable {
         guard let id = machine.car, let car = peripherals[id], let drive else { return }
         if seq % UInt8(DriveProtocol.rate) == 0 { car.readRSSI() }
         guard car.canSendWriteWithoutResponse else { return }
-        let bytes = DriveProtocol.encode(command.withLock { $0.wheels }, seq: seq)
+        let now = command.withLock { $0 }
+        let bytes = DriveProtocol.encode(now.wheels, cutter: now.cutter, seq: seq)
         car.writeValue(bytes, for: drive, type: .withoutResponse)
     }
 }

@@ -1,4 +1,4 @@
-"""Tests for the car's command handling, watchdog and drivetrain, on mock pins.
+"""Tests for the car's command handling, watchdog, drivetrain and cutter, on mock pins.
 
     uv run --no-project --with gpiozero --with bluez-peripheral python -m unittest -v test_remote
 
@@ -18,7 +18,9 @@ from dbus_next.errors import DBusError
 from gpiozero import Device
 from gpiozero.pins.mock import MockFactory, MockPWMPin
 
+import cutter
 import drivetrain
+from cutter import Cutter
 from drivetrain import Drivetrain, duty
 from remote import (HANDOVER_S, PAIRING_WINDOW_S, WATCHDOG_S, Car, DriveService, PairingAgent,
                     Systemd, wait_for_adapter)
@@ -28,19 +30,22 @@ OTHER = "/org/bluez/hci0/dev_BB"
 TICK = 0.02
 
 
-def cmd(seq, left, right):
-    return bytes([seq, left & 0xFF, right & 0xFF])
+def cmd(seq, left, right, cut=None):
+    data = [seq, left & 0xFF, right & 0xFF]
+    return bytes(data if cut is None else data + [cut])
 
 
 class MockPins(unittest.TestCase):
     def setUp(self):
         Device.pin_factory = MockFactory(pin_class=MockPWMPin)
         self.drivetrain = Drivetrain()
-        self.car = Car(self.drivetrain)
+        self.cutter = Cutter()
+        self.car = Car(self.drivetrain, self.cutter)
         logging.disable(logging.CRITICAL)
 
     def tearDown(self):
         self.drivetrain.close()
+        self.cutter.close()
         Device.pin_factory.reset()
         logging.disable(logging.NOTSET)
 
@@ -101,13 +106,66 @@ class DrivetrainTests(MockPins):
         self.assertEqual([self.pin(n) for n in (12, 13, 16, 19)], [0, 0, 0, 0])
 
 
+class CutterTests(MockPins):
+    def test_spins_up_over_a_second(self):
+        self.cutter.step(1.0, TICK)
+        self.assertAlmostEqual(self.cutter.speed, cutter.SLEW_PER_S * TICK)
+        for _ in range(round(1 / cutter.SLEW_PER_S / TICK)):
+            self.cutter.step(1.0, TICK)
+        self.assertEqual(self.cutter.speed, 1.0)
+        self.assertEqual([self.pin(n) for n in (cutter.STBY, cutter.AIN1, cutter.PWMA)], [1, 1, 1.0])
+
+    def test_ramping_down_to_zero_switches_the_driver_off(self):
+        for _ in range(10):
+            self.cutter.step(0.1, TICK)
+        for _ in range(10):
+            self.cutter.step(0.0, TICK)
+        self.assertEqual(self.cutter.speed, 0.0)
+        self.assertEqual([self.pin(n) for n in (cutter.STBY, cutter.AIN1, cutter.PWMA)], [0, 0, 0])
+
+    def test_stop_is_immediate(self):
+        for _ in range(20):
+            self.cutter.step(1.0, TICK)
+        self.cutter.stop()
+        self.assertEqual(self.cutter.speed, 0.0)
+        self.assertEqual([self.pin(n) for n in (cutter.STBY, cutter.AIN1, cutter.PWMA)], [0, 0, 0])
+
+
 class CarTests(MockPins):
     def test_command_sets_target_and_clamps(self):
         self.car.command(cmd(0, 50, -128), PHONE, 0.0)
         self.assertEqual(self.car.target, {"left": 0.5, "right": -1.0})
 
+    def test_fourth_byte_sets_the_cutter_and_clamps(self):
+        self.car.command(cmd(0, 0, 0, 60), PHONE, 0.0)
+        self.assertEqual(self.car.cutter_target, 0.6)
+        self.car.command(cmd(1, 0, 0, 255), PHONE, 0.05)
+        self.assertEqual(self.car.cutter_target, 1.0)
+
+    def test_three_byte_command_leaves_the_cutter_off(self):
+        self.car.command(cmd(0, 0, 0, 80), PHONE, 0.0)
+        self.car.command(cmd(1, 50, 50), PHONE, 0.05)
+        self.assertEqual(self.car.cutter_target, 0.0)
+
+    def test_watchdog_stops_the_cutter(self):
+        now = 0.0
+        for seq in range(10):
+            self.car.command(cmd(seq, 0, 0, 100), PHONE, now)
+            now = self.run_ticks(now, 0.05)
+        self.assertGreater(self.cutter.speed, 0)
+        self.run_ticks(now, WATCHDOG_S + 0.05)
+        self.assertEqual(self.cutter.speed, 0.0)
+        self.assertEqual(self.car.cutter_target, 0.0)
+
+    def test_driver_leaving_stops_the_cutter(self):
+        self.car.command(cmd(0, 0, 0, 100), PHONE, 0.0)
+        self.run_ticks(0.0, 0.1)
+        self.car.disconnected(PHONE)
+        self.assertEqual(self.cutter.speed, 0.0)
+
     def test_wrong_length_is_ignored_and_claims_nothing(self):
         self.car.command(b"\x00\x10", OTHER, 0.0)
+        self.car.command(b"\x00\x10\x10\x10\x10", OTHER, 0.0)
         self.assertIsNone(self.car.driver)
         self.car.command(cmd(0, 10, 10), PHONE, 0.0)
         self.assertEqual(self.car.driver, PHONE)
