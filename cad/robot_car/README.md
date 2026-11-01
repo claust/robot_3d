@@ -215,7 +215,7 @@ in [chassis.py](chassis.py) yet.
 
 | Script | What it is | State |
 |--------|------------|-------|
-| [light_wheel.py](light_wheel.py) | Ø80 x 30 mm lawn wheels, four tread variants | chevron (B) chosen; four printed |
+| [light_wheel.py](light_wheel.py) | Ø80 x 30 mm lawn wheels, four tread variants; B-mirror is chevron B's mirror image, so the right side's Vs point the same way as the left's | chevron chosen: B on the left, B-mirror on the right; four variants printed |
 | [spindle_coupons.py](spindle_coupons.py) | the spindle: a tower holding two 6000 bearings ([bearing_6000.py](../parts/bearing_6000.py)), a printed rotor with an Ø80 disc, and the fit coupons that settled them | printed; on PROTO-06 the tower is part of the plate |
 | [cap_coupons.py](cap_coupons.py) | fit coupons for mounting the Canon motor (M1) without screws | printed, settled |
 | [canon_mount.py](canon_mount.py) | the cap that holds the Canon on the tower, and the hub that drives the axle through the rotor's filament pin | printed, fits; spins the rotor |
