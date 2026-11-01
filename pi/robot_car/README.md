@@ -1,8 +1,8 @@
 # robot_car — Pi drive code
 
-Python for the car's Pi Zero 2 W: the two drive motors, and the Bluetooth LE
-server the iPhone app ([ios/RobotRemote](../../ios/RobotRemote)) drives them
-through. Wiring, pins and the DRV8833's control logic are in
+Python for the car's Pi Zero 2 W: the drive motors, the cutter, and the
+Bluetooth LE server the iPhone app ([ios/RobotRemote](../../ios/RobotRemote))
+drives them through. Wiring, pins and the DRV8833's control logic are in
 [cad/robot_car/WIRING.md](../../cad/robot_car/WIRING.md).
 
 | File | What it does |
@@ -11,14 +11,18 @@ through. Wiring, pins and the DRV8833's control logic are in
 | `remote.py` | BLE GATT server: advertises as `RobotCar`, turns the phone's drive commands into wheel speeds, stops the car when they stop |
 | `motor_test.py` | Bring-up script: each motor in turn, creep ramp, stall hold |
 | `robot-car-remote@.service` | systemd unit that runs `remote.py` at boot |
-| `test_remote.py` | Tests for the watchdog, the driver hand-over, the ramp and the duty mapping, on mock pins |
+| `cutter.py` | Pins, 2 kHz PWM, and the `Cutter` class: the cutter speed in [0, 1], with a one-second spin-up |
+| `cutter_test.py` | Bring-up script for the cutter: ramp to a speed, creep ramp, pin check |
+| `test_remote.py` | Tests for the watchdog, the driver hand-over, the ramps and the duty mapping, on mock pins |
 
 ## The link
 
-The phone writes a 3-byte command to the drive characteristic 20 times a
-second, without response: a sequence number, then the left and right wheel
-speeds as signed bytes, -100…100. It keeps sending zeros while the thumb is
-off the stick, so the stream is also the heartbeat. The UUIDs live in
+The phone writes a 4-byte command to the drive characteristic 20 times a
+second, without response: a sequence number, the left and right wheel
+speeds as signed bytes, -100…100, and the cutter's speed, 0…100. It keeps
+sending zeros while the thumb is off the stick, so the stream is also the
+heartbeat, and the watchdog that stops the wheels stops the cutter too. A
+3-byte command, from an app that predates the cutter, leaves the cutter off. The UUIDs live in
 `remote.py` and in `DriveProtocol.swift` in
 [shared/RobotLink](../../shared/RobotLink); change both together.
 
@@ -69,7 +73,7 @@ the adapter to power up, and `Restart=always` never gives up.
 `remote.py` pings systemd's watchdog from the same 50 Hz tick that runs the
 motor watchdog. If that loop stalls for a second, systemd kills the process,
 and after any exit, clean or not, `ExecStopPost` runs `motor_test.py --check`
-to claim the four motor pins low. If BlueZ drops the advert or the adapter
+and `cutter_test.py --check` to claim the motor and cutter pins low. If BlueZ drops the advert or the adapter
 goes away, `remote.py` exits with status 1 so systemd restarts it and it
 registers again.
 
@@ -91,9 +95,9 @@ also prints a line a second: the rate, the longest gap between commands, how
 many ticks the phone skipped, and the target and actual wheel speeds. On the
 bench, 20 commands a second arrive with gaps of 60–120 ms.
 
-The service holds the motor pins, so stop it (`sudo systemctl stop
-robot-car-remote@$USER`) before running `motor_test.py` or `remote.py` by
-hand, and start it again afterwards.
+The service holds the motor and cutter pins, so stop it (`sudo systemctl
+stop robot-car-remote@$USER`) before running `motor_test.py`,
+`cutter_test.py` or `remote.py` by hand, and start it again afterwards.
 
 ## Deploy
 
@@ -102,7 +106,7 @@ remote paths relative to the Pi's home; a bare `~` is expanded by the Mac's
 shell first. The running service keeps the old code until it restarts.
 
 ```bash
-tar cf - -C pi/robot_car drivetrain.py remote.py motor_test.py test_remote.py robot-car-remote@.service | ssh robot-pi 'mkdir -p robot_car && tar xf - -C robot_car'
+tar cf - -C pi/robot_car drivetrain.py cutter.py remote.py motor_test.py cutter_test.py test_remote.py robot-car-remote@.service | ssh robot-pi 'mkdir -p robot_car && tar xf - -C robot_car'
 ```
 
 `remote.py --dry-run` serves the same link with the motor pins mocked, for

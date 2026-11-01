@@ -1,11 +1,14 @@
 #!/usr/bin/env python3
-"""Bluetooth LE remote control for robot_car: the iPhone app drives the wheels.
+"""Bluetooth LE remote control for robot_car: the iPhone app drives the wheels
+and runs the cutter.
 
 The Pi advertises as "RobotCar" with one GATT service, SERVICE_UUID. The
-phone app (ios/RobotRemote) writes 3 bytes to the drive characteristic
-about 20 times a second, without response: a sequence number, then the left
-and right wheel speeds as signed bytes, -100..100. It keeps sending while
-connected, zeros included, so the stream doubles as a heartbeat.
+phone app (ios/RobotRemote) writes 4 bytes to the drive characteristic
+about 20 times a second, without response: a sequence number, the left
+and right wheel speeds as signed bytes, -100..100, and the cutter's speed,
+0..100. It keeps sending while connected, zeros included, so the stream
+doubles as a heartbeat. A 3-byte command, from an app that predates the
+cutter, leaves the cutter off.
 
 Only a bonded phone can drive. The drive characteristic needs an
 encrypted link, so BlueZ rejects writes from anything that hasn't bonded.
@@ -25,7 +28,7 @@ One phone drives at a time. The first bonded device to write a command
 becomes the driver, and commands from any other device are ignored until
 the driver disconnects or has been silent for HANDOVER_S.
 
-The car stops by itself:
+The car, cutter included, stops by itself:
 
 - when no command has arrived from the driver for WATCHDOG_S. BLE
   retransmits until a packet gets through, so a fading link shows up as
@@ -88,15 +91,18 @@ def device_name(path):
 
 
 class Car:
-    """The phone's commands applied to the drivetrain, and the watchdog.
+    """The phone's commands applied to the drivetrain and the cutter, and the
+    watchdog.
 
     Everything takes `now` from the caller, so the logic runs in tests
     without a clock or a Bluetooth stack.
     """
 
-    def __init__(self, drivetrain):
+    def __init__(self, drivetrain, cutter):
         self.drivetrain = drivetrain
+        self.cutter = cutter
         self.target = dict(STOP)
+        self.cutter_target = 0.0
         self.driver = None
         self.last_rx = None
         self.seq = None
@@ -106,7 +112,7 @@ class Car:
 
     def command(self, data, device, now):
         """One drive write from `device`."""
-        if len(data) != 3:
+        if len(data) not in (3, 4):
             log.warning("ignored a %d-byte drive write from %s", len(data), device_name(device))
             return
         if self.driver is None:
@@ -118,7 +124,8 @@ class Car:
                 self.ignored.add(device)
                 log.info("ignoring %s: %s is driving", device_name(device), device_name(self.driver))
             return
-        seq, left, right = struct.unpack("Bbb", bytes(data))
+        seq, left, right = struct.unpack("Bbb", bytes(data[:3]))
+        cutter = data[3] if len(data) == 4 else 0
         if not self.quiet:
             self.max_gap = max(self.max_gap, now - self.last_rx)
             self.skipped += (seq - self.seq - 1) % 256
@@ -130,6 +137,7 @@ class Car:
             "left": max(-100, min(100, left)) / 100,
             "right": max(-100, min(100, right)) / 100,
         }
+        self.cutter_target = min(100, cutter) / 100
 
     def disconnected(self, device):
         if device != self.driver:
@@ -139,10 +147,12 @@ class Car:
         self.driver = None
 
     def tick(self, now, dt):
-        """Run the drivetrain toward the target, or stop it if the driver went quiet."""
+        """Run the drivetrain and the cutter toward their targets, or stop
+        them if the driver went quiet."""
         silent = self.last_rx is None or now - self.last_rx > WATCHDOG_S
         if not silent:
             self.drivetrain.step(self.target, dt)
+            self.cutter.step(self.cutter_target, dt)
             return
         if not self.quiet:
             self._stop(f"no command for {WATCHDOG_S * 1000:.0f} ms")
@@ -151,21 +161,26 @@ class Car:
             self.driver = None
 
     def report(self):
-        """A once-a-second line on the link and the wheels, or None when idle and healthy."""
-        moving = any(self.target.values()) or any(self.drivetrain.speed.values())
+        """A once-a-second line on the link, the wheels and the cutter, or None
+        when idle and healthy."""
+        moving = (any(self.target.values()) or any(self.drivetrain.speed.values())
+                  or self.cutter_target or self.cutter.speed)
         line = None
         if self.count and (moving or self.max_gap > SLOW_GAP_S or self.skipped):
             line = (
                 f"{self.count:2d} cmd/s, max gap {self.max_gap * 1000:3.0f} ms, "
                 f"{self.skipped} skipped | target L {self.target['left']:+.2f} "
-                f"R {self.target['right']:+.2f} | speed {speeds(self.drivetrain)}")
+                f"R {self.target['right']:+.2f} | speed {speeds(self.drivetrain)} | "
+                f"cutter {self.cutter_target:.2f} at {self.cutter.speed:.2f}")
         self._reset_stats()
         return line
 
     def _stop(self, why):
-        was = speeds(self.drivetrain)
+        was = f"{speeds(self.drivetrain)}, cutter {self.cutter.speed:.2f}"
         self.drivetrain.stop()
+        self.cutter.stop()
         self.target = dict(STOP)
+        self.cutter_target = 0.0
         self.quiet = True
         self.seq = None
         log.info("%s, stopped from %s", why, was)
@@ -455,21 +470,24 @@ def main():
         from gpiozero import Device
         from gpiozero.pins.mock import MockFactory, MockPWMPin
         Device.pin_factory = MockFactory(pin_class=MockPWMPin)
+    from cutter import Cutter
     from drivetrain import Drivetrain
     drivetrain = Drivetrain()
+    cutter = Cutter()
 
     async def run():
         stopping = asyncio.Event()
         loop = asyncio.get_running_loop()
         for signum in (signal.SIGTERM, signal.SIGHUP, signal.SIGINT):
             loop.add_signal_handler(signum, stopping.set)
-        return await serve(Car(drivetrain), stopping)
+        return await serve(Car(drivetrain, cutter), stopping)
 
     lost = None
     try:
         lost = asyncio.run(run())
     finally:
         drivetrain.close()
+        cutter.close()
         log.info("stopped")
     if lost:
         log.error("%s, exiting for a restart", lost)

@@ -8,6 +8,13 @@ and so does losing the link: after a reconnect the car waits for the thumb to
 move again rather than resuming the old command.
 The two bars show what each wheel is being told, and "Top speed" caps both.
 
+## Cutter
+
+The **Cutter** switch runs the cutter disc, and the slider under it sets
+its speed, also while it runs. The Pi spins the disc up over a second rather
+than all at once. Losing the link stops the cutter and turns the switch off,
+so it never restarts by itself after a reconnect. The speed is remembered.
+
 ## Patterns
 
 Above the stick, three buttons drive a preset route on their own: **Square**
