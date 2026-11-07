@@ -352,7 +352,7 @@ def checks(p: P6Dims, body: Part, fp: dict) -> bool:
     v = sum(ivol(stand["cap"] + stand["canon"], o) for o in others)
     ok &= check(v < 1e-3, f"cap and Canon clear everything on the plate, {v:.3f} mm^3")
     disc_r = p.spindle.disc_d / 2
-    tip_r = 50.5  # blade tips, blade_disc.py
+    tip_r = 58.5  # blade tips, blade_disc.py
     ok &= check(tip_r < p.half_y - 2, f"blade tips (r {tip_r}) stay under the plate (half width {p.half_y:g})")
     wh = wheels(p)
     gaps = [wh[n].distance_to(body) for n in wh]
@@ -408,8 +408,8 @@ def render(p: P6Dims, body: Part, the_lids: dict) -> None:
     sp = spindle_parts(p)
     statics += [("rotor", m(sp["rotor"]), "disc"), ("hub", m(sp["hub"]), "pi")]
     disc_bottom = -p.spindle.boss_h - p.spindle.disc_t
-    tips = Pos(0, 0, disc_bottom - 0.8) * (Cylinder(50.5, 0.6, align=ALIGN_BOTTOM)
-                                          - Cylinder(49.5, 0.6, align=ALIGN_BOTTOM))
+    tips = Pos(0, 0, disc_bottom - 0.8) * (Cylinder(58.5, 0.6, align=ALIGN_BOTTOM)
+                                          - Cylinder(57.5, 0.6, align=ALIGN_BOTTOM))
     statics.append(("tips", m(tips), "red"))
     stand = canon_on_top(p)
     statics += [("cap", m(stand["cap"]), "holder"), ("canon", m(stand["canon"]), "motor")]
