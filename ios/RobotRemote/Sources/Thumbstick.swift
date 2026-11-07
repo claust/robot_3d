@@ -37,7 +37,49 @@ struct Thumbstick: View {
     private static let speedStep = 0.25
     private static let turn = 0.5
 
+    // Three pieces rather than one chain: as a single expression, this is too
+    // much for the type-checker in some Xcode versions.
     var body: some View {
+        touchable
+            .accessibilityElement()
+            .accessibilityLabel("Drive")
+            .accessibilityValue(heldDescription)
+            .accessibilityHint("Swipe up or down to change speed. Actions turn or stop the car.")
+            .accessibilityAdjustableAction { direction in
+                switch direction {
+                case .increment: hold(speed: held.speed + Self.speedStep)
+                case .decrement: hold(speed: held.speed - Self.speedStep)
+                @unknown default: break
+                }
+            }
+            .accessibilityAction(named: "Stop") { stopHeld() }
+            .accessibilityAction(named: "Turn left") { hold(turn: -Self.turn) }
+            .accessibilityAction(named: "Turn right") { hold(turn: Self.turn) }
+            .accessibilityAction(named: "Straight") { hold(turn: 0) }
+            .accessibilityAction(.escape) { stopHeld() }
+            .accessibilityAction(.magicTap) { stopHeld() }
+            .onChange(of: scenePhase) { _, phase in
+                if phase != .active { stopHeld() }
+            }
+            .onChange(of: active) { _, active in
+                if !active { stopHeld() }
+            }
+    }
+
+    private var touchable: some View {
+        surface
+            .contentShape(Rectangle())
+            .gesture(
+                DragGesture(minimumDistance: 0)
+                    .updating($touch) { value, state, _ in
+                        state = Touch(start: value.startLocation, location: value.location)
+                    }
+            )
+            .onChange(of: touch) { _, touch in report(touch) }
+            .sensoryFeedback(.impact(weight: .light), trigger: touch == nil)
+    }
+
+    private var surface: some View {
         GeometryReader { geo in
             ZStack {
                 RoundedRectangle(cornerRadius: 28, style: .continuous)
@@ -46,7 +88,7 @@ struct Thumbstick: View {
                     stick(centre: touch.start, knob: clampedOffset(touch))
                 } else if held != Held() {
                     let centre = CGPoint(x: geo.size.width / 2, y: geo.size.height / 2)
-                    stick(centre: centre, knob: CGSize(width: held.turn * radius, height: -held.speed * radius))
+                    stick(centre: centre, knob: heldKnob)
                 } else {
                     VStack(spacing: 8) {
                         Image(systemName: "hand.point.up.left")
@@ -60,43 +102,17 @@ struct Thumbstick: View {
                 }
             }
         }
-        .contentShape(Rectangle())
-        .gesture(
-            DragGesture(minimumDistance: 0)
-                .updating($touch) { value, state, _ in
-                    state = Touch(start: value.startLocation, location: value.location)
-                }
-        )
-        .onChange(of: touch) { _, touch in
-            held = Held()
-            guard let touch else { return onChange(0, 0) }
-            let knob = clampedOffset(touch)
-            onChange(knob.width / radius, -knob.height / radius)
-        }
-        .sensoryFeedback(.impact(weight: .light), trigger: touch == nil)
-        .accessibilityElement()
-        .accessibilityLabel("Drive")
-        .accessibilityValue(heldDescription)
-        .accessibilityHint("Swipe up or down to change speed. Actions turn or stop the car.")
-        .accessibilityAdjustableAction { direction in
-            switch direction {
-            case .increment: hold(speed: held.speed + Self.speedStep)
-            case .decrement: hold(speed: held.speed - Self.speedStep)
-            @unknown default: break
-            }
-        }
-        .accessibilityAction(named: "Stop") { stopHeld() }
-        .accessibilityAction(named: "Turn left") { hold(turn: -Self.turn) }
-        .accessibilityAction(named: "Turn right") { hold(turn: Self.turn) }
-        .accessibilityAction(named: "Straight") { hold(turn: 0) }
-        .accessibilityAction(.escape) { stopHeld() }
-        .accessibilityAction(.magicTap) { stopHeld() }
-        .onChange(of: scenePhase) { _, phase in
-            if phase != .active { stopHeld() }
-        }
-        .onChange(of: active) { _, active in
-            if !active { stopHeld() }
-        }
+    }
+
+    private var heldKnob: CGSize {
+        CGSize(width: CGFloat(held.turn) * radius, height: CGFloat(-held.speed) * radius)
+    }
+
+    private func report(_ touch: Touch?) {
+        held = Held()
+        guard let touch else { return onChange(0, 0) }
+        let knob = clampedOffset(touch)
+        onChange(Double(knob.width / radius), Double(-knob.height / radius))
     }
 
     private func stick(centre: CGPoint, knob: CGSize) -> some View {
