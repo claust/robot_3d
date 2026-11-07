@@ -113,6 +113,7 @@ changes.
 | Hub on the Canon's Ø2 shaft | 0.15 mm radial (Ø2.30 drawn) | `MountDims.shaft_fit` | [cap_coupons.py](cap_coupons.py), hub L | a bit tight; 0.00 to 0.10 would not go on |
 | TB6612 in its tray (PROTO-06) | grips the 18.3 mm edges, tongues either side of the capacitor; fits and latch as the DRV8833's | `P6Dims.tb_tongue_ys`, `tb_corner_arm` | `proto06.py tb-coupon` | tongues miss the capacitor, sits flat, latch lets it out; ledges moved onto 5 mm corner walls after they printed as thin pillars |
 | XT60 upright in the power block | -0.05 mm per side: a press fit | `BlockDims.xt_fit` | `power_block.py fit-coupon`, slice H | holds; everything from 0.20 down to 0.00 slid freely, 0.15 on the first block felt tight only from its drooped flat roof |
+| Razor blade on its pegs | lips 0.20 mm past the hole's edge, across the blade | `blade_disc.LIP_OVERLAP` | printed clip coupons at 0.10, 0.20 and 0.30 | fits very nicely, secure; 0.30 too tight, the blade doesn't lie flat |
 | Running fit, general | 0.2 mm radial | project-wide | `demo_04` fit test | moves freely; use for anything that turns |
 
 ## Checks to run before printing
@@ -219,6 +220,7 @@ in [chassis.py](chassis.py) yet.
 | [spindle_coupons.py](spindle_coupons.py) | the spindle: a tower holding two 6000 bearings ([bearing_6000.py](../parts/bearing_6000.py)), a printed rotor with an Ø80 disc, and the fit coupons that settled them | printed; on PROTO-06 the tower is part of the plate |
 | [cap_coupons.py](cap_coupons.py) | fit coupons for mounting the Canon motor (M1) without screws | printed, settled |
 | [canon_mount.py](canon_mount.py) | the cap that holds the Canon on the tower, and the hub that drives the axle through the rotor's filament pin | printed, fits; spins the rotor |
+| [blade_disc.py](blade_disc.py) | the cutter's rotor: Ø80 x 3 disc with pegs for two double-edge razor blades ([de_blade.py](../parts/de_blade.py)), and three pin holes that lower the disc by 0, 6 or 12 mm | printed; spins under power on the Canon, which is too weak to cut grass properly |
 | [proto06.py](proto06.py) | the four-wheel-drive chassis: plate with the spindle tower and the power block built in, four motor cradles, bucks and drivers in front of the tower, battery and Pi either side, checked part against part; writes proto06.usdz to turn round | second print (the layout board's layout) |
 | [power_block.py](power_block.py) | one printed block for the switch, the male XT60 standing upright (press fit) and the fuse standing on the switch's terminal 1; PROTO-06's plate grows it behind the tower | coupons printed; on the PROTO-06 plate |
 
@@ -256,3 +258,6 @@ any point.
   its swivel) and 6 deg in reverse. Wheels of about Ø80 would level the
   car (assembly.py, check 1). Bigger wheels need new tyres: the O-rings fit only the Ø59
   groove.
+- Power on grass (PROTO-06): the Canon spins the blade disc but lacks the
+  power to cut properly, and the drive motors are weak enough that the car
+  struggles to turn.
